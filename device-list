@@ -1,0 +1,12 @@
+kvm_virtio-scsi
+kvm_ehci
+kvm_virtio-gpu
+kvm_nvme
+kvm_sdhci
+kvm_xhci
+kvm_e1000e
+kvm_igb
+kvm_vmxnet
+kvm_cirrus
+kvm_qxl
+kvm_ahci
