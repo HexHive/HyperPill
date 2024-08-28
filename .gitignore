@@ -13,7 +13,7 @@ bochs-msvc-src.zip
 
 tags
 TAGS
-./fuzz
+fuzz
 
 # /bochs/
 /bochs/Makefile
