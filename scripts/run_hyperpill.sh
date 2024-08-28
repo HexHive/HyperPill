@@ -12,7 +12,10 @@ LIBFUZZER_FLAGS="-max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profi
     -dict=$PROJECT_ROOT/data/dict \
     $LIBFUZZER_ARGS $CORPUS_DIR
     "
-export KVM=1
+if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
+    echo "None of the environment variables KVM, HYPERV, or MACOS are set. Exiting."
+    exit 1
+fi
 export NOCOV=1
 
 export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
