@@ -19,6 +19,9 @@ following files:
 
 where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
 
+P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
+make your life easy.
+
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.
 
@@ -66,3 +69,5 @@ To use these symbols, we need to infer the symbol map. To do this:
 ```
 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
+
+For any bus errors, unlink the shm in /dev/shm or expand the memory.
