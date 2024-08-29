@@ -17,7 +17,7 @@ following files:
 * `dir/regs`
 * `dir/vmcs`
 
-where dir can be `kvm`, `hyperv`, or `macos`.
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
 
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.

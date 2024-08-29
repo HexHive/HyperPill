@@ -50,13 +50,14 @@ and on L0, get the VMCS address by running "sudo dmesg".
 ## Setup L0 KVM
 
 First, fetch a recent version of the Linux Kernel (we tested 6.0 on debian) and
-apply our KVM-patch, or compile the Linux kernel from source.
+apply our KVM-patch, or compile the Linux kernel from source (we tested 6.0 on
+ubuntu).
 
 ```bash
 # Fetch a recent version of the Linux kernel and apply our KVM-patch
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar -xvf linux-6.0.tar.gz
-[L0] $ cd  kernel/
+[L0] $ cd linux-6.0
 [L0] $ patch -p1 < /path/to/hyperpill-snap/hp-snap-kvm.patch
 [L0] $ make defconfig
 [L0] $ grep .config CONFIG_KVM
@@ -69,36 +70,27 @@ apply our KVM-patch, or compile the Linux kernel from source.
 
 ``` bash
 # Compile the Linux Kernel from source
-[L0] $ wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.15.0-117.127/linux_5.15.0.orig.tar.gz
-[L0] $ wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.15.0-117.127/linux_5.15.0-117.127.diff.gz
-[L0] $ tar xf linux_5.15.0.orig.tar.gz # get linux-5.15
-[L0] $ gzip -d linux_5.15.0-117.127.diff.gz # get linux_5.15.0-117.127.diff
-
-[L0] $ cd linux-5.15
-[L0] $ patch -p 1 < ../linux_5.15.0-117.127.diff
+[L0] $ sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev fakeroot
+[L0] $ sudo apt install -y dwarves
+[L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
+[L0] $ tar xf linux-6.0.tar.gz
+[L0] $ cd linux-6.0
 [L0] $ patch -p 1 < /path/to/hyperpill-snap/hp-snap-kvm.patch
-[L0] $ chmod +x ./scripts/pahole-version.sh
-[L0] $ chmod +x ./scripts/pahole-flags.sh
-
-[L0] $ make oldconfig # using defaults found in /boot/config-5.15.0-117-generic
+[L0] $ make localmodconfig # just hit enter each time without typing an answer
 [L0] $ scripts/config --disable SYSTEM_TRUSTED_KEYS
 [L0] $ scripts/config --disable SYSTEM_REVOCATION_KEYS
 [L0] $ scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
 [L0] $ scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
-
-[L0] $ sudo apt-get install dwarves -y
-[L0] $ make # it takes time
+[L0] $ fakeroot make # it takes time
 [L0] $ sudo make modules_install
 [L0] $ sudo make install
 [L0] $ sudo update-grub
-[L0] $ cd ..
 
-[L0] $ sudo reboot # choose linux-5.15-158 when booting
+[L0] $ sudo reboot # choose linux-6.0 when booting
 
-[L0] $ cd linux-5.15
+[L0] $ cd linux-6.0
 [L0] $ sudo rmmod kvm_intel
 [L0] $ sudo insmod arch/x86/kvm/kvm-intel.ko dump_invalid_vmcs=1 nested=1
-[L0] $ cd ..
 ```
 
 ## Run L1 and L2 VMs
@@ -292,7 +284,7 @@ EOF
 [L2] $ ./snap
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
-# where dir can be kvm, hyperv, or macos
+# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
 # Attach to qemu monitor:
 [L0] $ telnet localhost 55556
 [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem

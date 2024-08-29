@@ -22,13 +22,14 @@ index d93c715cda6a..eccada986985 100644
  
  		return;
  	}
-@@ -4889,6 +4895,10 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
+@@ -4889,6 +4895,11 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
  	nested_vmx_restore_host_state(vcpu);
  
  	vmx->fail = 0;
 +	if (vmcs12->vm_exit_reason == EXIT_REASON_VMCALL  && l2rax == 0xdeadbeef) {
 +		printk(".inception hypercall detected\n");
 +		vcpu->run->exit_reason = KVM_EXIT_HLT;
++		dump_vmcs(vcpu);
 +	}
  }
  
