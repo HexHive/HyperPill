@@ -14,7 +14,7 @@ To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/)
 After collecting the snapshot, the snapshot directory should contain the
 following files:
 * `dir/mem`
-* `dir/layout`
+* `dir/regs`
 * `dir/vmcs`
 
 where dir can be `kvm`, `hyperv`, or `macos`.
