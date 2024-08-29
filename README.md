@@ -48,6 +48,12 @@ mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
+We can reproduce a crash:
+
+```
+KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f751efbb5ba22b4440ea44f5452b1d7ba558
+```
+
 Additionally, for elf-based hypervisors, it will be convenient to store copies
 of the binaries that we expect to be fuzzing for symbolization and breakpointing
 purposes. These can be copied from the hypervisor VM:

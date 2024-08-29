@@ -1,17 +1,24 @@
 #!/bin/bash
 set -e
 
+crash=$1
+
 if [ -z "$NSLOTS" ]; then
     export LIBFUZZER_ARGS="$LIBFUZZER_ARGS"
 else
-export LIBFUZZER_ARGS="-jobs=$NSLOTS -workers=$NSLOTS $LIBFUZZER_ARGS"
+    export LIBFUZZER_ARGS="-jobs=$NSLOTS -workers=$NSLOTS $LIBFUZZER_ARGS"
 fi
 
 export ASAN_OPTIONS=use_sigaltstack=false
+if [ -z $crash ]; then
 LIBFUZZER_FLAGS="-max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 -reload=60 \
     -dict=$PROJECT_ROOT/data/dict \
     $LIBFUZZER_ARGS $CORPUS_DIR
     "
+else
+LIBFUZZER_FLAGS="$crash"
+fi
+
 if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
     echo "None of the environment variables KVM, HYPERV, or MACOS are set. Exiting."
     exit 1
