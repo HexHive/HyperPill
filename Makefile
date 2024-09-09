@@ -76,7 +76,7 @@ rebuild_bochs:
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
 
 clean:
-	rm -rf vendor/bochs-build
+	rm -rf vendor/bochs-build vendor/lib vendor/include
 	rm -rf bochsapi/*.o
 	rm -rf ./*.o
 

@@ -15,6 +15,11 @@ tags
 TAGS
 fuzz
 
+scripts/__pycache__/
+vendor/bochs-build/
+vendor/lib
+vendor/include
+
 # /bochs/
 /bochs/Makefile
 /bochs/bochs
