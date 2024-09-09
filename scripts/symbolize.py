@@ -99,14 +99,12 @@ for r in pathrange:
         intemp.write("0x{:x}\n".format(addr-r[2]).encode("utf-8"))
     intemp.seek(0)
     #print(intemp.read().decode("utf-8"))
-    # print(r)
+    print(r)
     if ".ko" in r[0]:
         # print('eu-addr2line --demangle -af -e {} --section={} '.format(r[0],r[1]))
         p = subprocess.Popen('eu-addr2line --demangle -af -e {} --section={} '.format(r[0],r[1]), shell=True, stdin=intemp, stdout=outtemp)
     else :
-        elfpath="/home/bkov/Downloads/elfutils/"
-        a2lpath=elfpath+"./src/addr2line"
-        a2lpath="/home/linuxbrew/.linuxbrew/Cellar/binutils/2.42/bin/addr2line"
+        a2lpath="addr2line"
         binpath="debuginfod-find"
         #binpath=elfpath+"./debuginfod/debuginfod-find"
         # sopath = ":".join([elfpath+i for i in ["debuginfod/libdebuginfod.so.1", "/libdw/libdw.so.1"]])

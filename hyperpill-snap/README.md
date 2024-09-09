@@ -28,11 +28,6 @@ special hypercall (0xdeadbeef) and pauses L1 for us to make the snapshot.
 possible. To do this, we mmap and fill as much memory as possible on L2 until
 the kernel kills our process for oom reasons. Only then we call our hypercall.
 
-- We want to make sure as much of the hypervisor's code in L1's physical memory
-is in the resident set as possible. To do this we attach to the L1 (target)
-hypervisor using a debugger and use mlock(2) to force the binary's executable
-pages into the resident set.
-
 - By default, qemu doesn't dump all the registers we need, so we need to apply
 qemu.patch to get the rest.
 
@@ -51,14 +46,14 @@ and on L0, get the VMCS address by running "sudo dmesg".
 
 First, fetch a recent version of the Linux Kernel (we tested 6.0 on debian) and
 apply our KVM-patch, or compile the Linux kernel from source (we tested 6.0 on
-ubuntu).
+ubuntu 22.04).
 
 ```bash
 # Fetch a recent version of the Linux kernel and apply our KVM-patch
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar -xvf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p1 < /path/to/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
 [L0] $ make defconfig
 [L0] $ grep .config CONFIG_KVM
 # Verify that CONFIG_KVM_INTEL is set to =m
@@ -75,7 +70,7 @@ ubuntu).
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar xf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p 1 < /path/to/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
 [L0] $ make localmodconfig # just hit enter each time without typing an answer
 [L0] $ scripts/config --disable SYSTEM_TRUSTED_KEYS
 [L0] $ scripts/config --disable SYSTEM_REVOCATION_KEYS
@@ -234,6 +229,45 @@ for Running GUI Linux in a virtual machine on a Mac
 
 [L1] load the project with xcode, run the project, choose the ubuntu desktop ISO
 image, install ubuntu, and restart the ubuntu
+```
+
+### [Optional] Obtain Symbols for Debugging
+
+``` bash
+# install the debugging symbols for the Linux kernel
+[L1] uname -r # 6.1.0-23-amd64
+[L1] sudo apt-get install -y linux-image-$(uname -r)-dbg
+[L1] cd qemu-8.0.0/build && ldd qemu-system-x86_64
+# linux-vdso.so.1 (0x00007ffea85f8000)
+# libasan.so.8 => /lib/x86_64-linux-gnu/libasan.so.8 (0x00007f3250800000)
+# libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007f3253b7c000)
+# libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f3253b5d000)
+# libfdt.so.1 => /lib/x86_64-linux-gnu/libfdt.so.1 (0x00007f3253b52000)
+# libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007f3250620000)
+# libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007f3253af1000)
+# libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007f3250ec8000)
+# libslirp.so.0 => /lib/x86_64-linux-gnu/libslirp.so.0 (0x00007f3253acd000)
+# libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007f3253ac7000)
+# libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f3250541000)
+# libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f3250ea8000)
+# libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3250360000)
+# /lib64/ld-linux-x86-64.so.2 (0x00007f3253c31000)
+# libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007f32502fd000)
+# libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007f32502cf000)
+# libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f3253ab9000)
+# libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f3250235000)
+# libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007f32501de000)
+
+# copy the debugging symbols for the Linux kernel and kvm
+[L0] cd /path/to/snapshots/dir/symbols
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/boot/vmlinux-6.1.0-23-amd64 vmlinux
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm-intel.ko .
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm.ko .
+# copy the debugging symbols for the QEMU
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libc.so.6 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libglib-2.0.so.0 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libslirp.so.0 .
+[L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
 ```
 
 ## Take the snapshot
