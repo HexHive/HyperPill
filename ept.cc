@@ -128,6 +128,7 @@ int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address
 }
 
 // Translate GVA -> GPA -> HPA
+__attribute__((optnone))
 bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
 {
   bx_phy_address paddress;
