@@ -10,7 +10,7 @@ VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a ve
 VENDOR_OBJS =
 
 
-LDFLAGS     = -fPIE -lrt -ldl -lpthread -lsqlite3 -lstdc++fs #-fsanitize=address
+LDFLAGS     = -fPIE -lrt -ldl -lpthread -lsqlite3 -lstdc++fs -lcrypto #-fsanitize=address
 INCLUDES    = -I vendor/bochs \
 			  -I vendor/bochs/gui \
 			  -I vendor/include \
@@ -76,7 +76,7 @@ rebuild_bochs:
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
 
 clean:
-	rm -rf vendor/bochs-build
+	rm -rf vendor/bochs-build vendor/lib vendor/include
 	rm -rf bochsapi/*.o
 	rm -rf ./*.o
 

@@ -13,7 +13,12 @@ bochs-msvc-src.zip
 
 tags
 TAGS
-./fuzz
+fuzz
+
+scripts/__pycache__/
+vendor/bochs-build/
+vendor/lib
+vendor/include
 
 # /bochs/
 /bochs/Makefile

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #define VMCALL_ID 0xdeadbeef
 int main() {
-    size_t size = 0x100000; // 4G
+    size_t size = 0x100000; // 1 MB
     int fd = open("/dev/random", O_RDONLY);
     sleep(10);
     int i =0;

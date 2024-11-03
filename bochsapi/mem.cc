@@ -17,6 +17,7 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 #include "../fuzz.h"
+#include <openssl/md5.h>
 
 BX_MEM_C::BX_MEM_C() {}
 BX_MEM_C::~BX_MEM_C() {}
@@ -29,6 +30,8 @@ uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
 size_t guest_mem_size;
 
+int shfd; // for overlay[0]
+char md5sum_chr[33]; // for overlay[0]
 int shm_open(const char *name, int oflag, mode_t mode);
 
 
@@ -263,12 +266,22 @@ bool BX_MEM_C::dbg_set_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit
 #define ElfW(type) Elf32_ ## type
 #endif
 
+void _shm_unlink(void) {
+    if (shm_unlink(md5sum_chr) == -1) {
+        perror("shm_unlink");
+    } else {
+        printf("shm '%s' has been unlinked.\n", md5sum_chr);
+    }
+    close(shfd);
+}
+
 void icp_init_mem(const char *filename) {
   // Either Elf64_Ehdr or Elf32_Ehdr depending on architecture.
   struct stat statbuf;
   ElfW(Ehdr) * ehdr;
   ElfW(Phdr) *phdr = 0;
   ElfW(Nhdr) *nhdr = 0;
+  unsigned char md5sum_hex[MD5_DIGEST_LENGTH];
 
   FILE *file = fopen(filename, "rb");
   if (file) {
@@ -296,7 +309,18 @@ void icp_init_mem(const char *filename) {
                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     overlays[1]= (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    int shfd = shm_open(basename(filename), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+
+    char *saved_md5sum_chr = getenv("ICP_MEM_MD5SUM");
+    if (saved_md5sum_chr) {
+        memcpy(md5sum_chr, saved_md5sum_chr, 32);
+    } else {
+        MD5((unsigned char*)ehdr, statbuf.st_size, md5sum_hex);
+        for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+            sprintf(md5sum_chr + (i * 2), "%02x", md5sum_hex[i]);
+        }
+    }
+    md5sum_chr[32] = '\0';
+    shfd = shm_open((const char*)md5sum_chr, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
     
     if(lseek(shfd, 0L, SEEK_END) == 0){
         lseek(shfd, 0L, SEEK_SET);

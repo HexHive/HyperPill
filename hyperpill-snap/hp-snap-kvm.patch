@@ -1,0 +1,96 @@
+diff --git a/arch/x86/kvm/vmx/nested.c b/arch/x86/kvm/vmx/nested.c
+index d93c715cda6a..eccada986985 100644
+--- a/arch/x86/kvm/vmx/nested.c
++++ b/arch/x86/kvm/vmx/nested.c
+@@ -4712,6 +4712,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
+ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
+ 		       u32 exit_intr_info, unsigned long exit_qualification)
+ {
++	uint64_t l2rax =  kvm_rax_read(vcpu);
+ 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+ 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+ 
+@@ -4867,6 +4868,11 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
+ 						       KVM_ISA_VMX);
+ 
+ 		load_vmcs12_host_state(vcpu, vmcs12);
++		if (vmcs12->vm_exit_reason == EXIT_REASON_VMCALL  && l2rax == 0xdeadbeef) {
++			printk(".inception hypercall detected\n");
++			vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
++			dump_vmcs(vcpu);
++		}
+ 
+ 		return;
+ 	}
+@@ -4889,6 +4895,11 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
+ 	nested_vmx_restore_host_state(vcpu);
+ 
+ 	vmx->fail = 0;
++	if (vmcs12->vm_exit_reason == EXIT_REASON_VMCALL  && l2rax == 0xdeadbeef) {
++		printk(".inception hypercall detected\n");
++		vcpu->run->exit_reason = KVM_EXIT_HLT;
++		dump_vmcs(vcpu);
++	}
+ }
+ 
+ static void nested_vmx_triple_fault(struct kvm_vcpu *vcpu)
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index 7eec0226d56a..a0aabab12c5a 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -6147,6 +6147,11 @@ void dump_vmcs(struct kvm_vcpu *vcpu)
+ 		return;
+ 	}
+ 
++	//nested_sync_vmcs12_to_shadow(vcpu);
++	kvm_vcpu_write_guest_page(vcpu,
++              vmx->nested.current_vmptr >> PAGE_SHIFT,
++              vmx->nested.cached_vmcs12, 0, VMCS12_SIZE);
++
+ 	vmentry_ctl = vmcs_read32(VM_ENTRY_CONTROLS);
+ 	vmexit_ctl = vmcs_read32(VM_EXIT_CONTROLS);
+ 	cpu_based_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+@@ -6163,8 +6168,8 @@ void dump_vmcs(struct kvm_vcpu *vcpu)
+ 	else
+ 		tertiary_exec_control = 0;
+ 
+-	pr_err("VMCS %p, last attempted VM-entry on CPU %d\n",
+-	       vmx->loaded_vmcs->vmcs, vcpu->arch.last_vmentry_cpu);
++	pr_err("VMCS %p (%llx), last attempted VM-entry on CPU %d\n", 
++	       vmx->loaded_vmcs->vmcs, vmx->nested.current_vmptr, vcpu->arch.last_vmentry_cpu);
+ 	pr_err("*** Guest State ***\n");
+ 	pr_err("CR0: actual=0x%016lx, shadow=0x%016lx, gh_mask=%016lx\n",
+ 	       vmcs_readl(GUEST_CR0), vmcs_readl(CR0_READ_SHADOW),
+@@ -6338,8 +6343,17 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
+ 	 */
+ 	if (KVM_BUG_ON(vmx->nested.nested_run_pending, vcpu->kvm))
+ 		return -EIO;
+-
++	/*
++	if (exit_reason.basic == EXIT_REASON_VMCALL  && kvm_rax_read(vcpu) == 0xdeadbeef) {
++		printk(".inception hypercall detected\n");
++		vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
++		dump_vmcs(vcpu);
++		return 0;
++	} 
++	else if (is_guest_mode(vcpu)) {
++		*/
+ 	if (is_guest_mode(vcpu)) {
++		uint64_t l2rax =  kvm_rax_read(vcpu);
+ 		/*
+ 		 * PML is never enabled when running L2, bail immediately if a
+ 		 * PML full exit occurs as something is horribly wrong.
+@@ -6376,8 +6390,11 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
+ 			return 1;
+ 		}
+ 
+-		if (nested_vmx_reflect_vmexit(vcpu))
++		if (nested_vmx_reflect_vmexit(vcpu)){
++			if(exit_reason.basic == EXIT_REASON_VMCALL  && l2rax == 0xdeadbeef)
++				return 0;
+ 			return 1;
++		}
+ 	}
+ 
+ 	/* If guest state is invalid, start emulating.  L2 is handled above. */
+
