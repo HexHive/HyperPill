@@ -1,6 +1,4 @@
 #include "fuzz.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
 #include <sstream>
 #include <fstream>
 #include <iostream>
@@ -17,7 +15,7 @@ static std::map<std::pair<std::string, std::string>, uint64_t> sym2addr;
 
 // todo: dynamic libc symbols for stuff like exit etc
 // Strategy: Run objdump on the binary. Load the
-bx_address sym_to_addr(std::string bin, std::string name) {
+hp_address sym_to_addr(std::string bin, std::string name) {
     for(auto it: bins) {
         if(it.find(bin) != std::string::npos){
             return sym2addr[std::make_pair(std::string(it), name)];

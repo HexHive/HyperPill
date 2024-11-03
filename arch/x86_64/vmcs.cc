@@ -1,13 +1,10 @@
-#include "bochs.h"
-#include "cpu/cpu.h"
-#include "cpu/vmx.h"
 #include "fuzz.h"
+#include "cpu/vmx.h"
 #include <sstream>
 #include <fstream>
 #include <regex>
 #include <vector>
 #include <unordered_map>
-#include "conveyor.h"
 
 std::unordered_map<uint64_t, uint64_t> shadow_vmcs_layout;
 

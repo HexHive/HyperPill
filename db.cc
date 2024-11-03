@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <map>
 #include "fuzz.h"
+#include <regex>
+#include <fstream>
 
 
 sqlite3 *db;
@@ -43,7 +45,7 @@ void insert_pio(uint16_t addr, uint16_t len){
     sqlite3_finalize(res);
 }
 
-void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions) {
+void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions) {
     sqlite3_stmt *res;
     const char *sql = "SELECT Address, Length from PIO";
     int rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
@@ -64,6 +66,41 @@ void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address
                     sqlite3_column_int64(res, 0),
                     sqlite3_column_int64(res, 1));
             mmio_regions[sqlite3_column_int64(res, 0)] = sqlite3_column_int64(res, 1);
+        }
+    }
+}
+
+void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions,
+                        std::map<hp_address, uint32_t> &mmio_regions) {
+    assert(range_file);
+    assert(range_regex);
+        
+    std::regex rx(range_regex);
+
+    std::ifstream infile(range_file);
+    std::string line;
+    while (std::getline(infile, line))
+    {
+        std::smatch match;
+        /* printf("Checking: %s\n", line.c_str()); */
+        if(std::regex_search(line, match, rx)){
+            if (line.find("ram)") != std::string::npos) {
+                continue;
+            }
+            if (line.find("rom)") != std::string::npos) {
+                continue;
+            }
+            printf("MATCH: %s\n", line.c_str());
+            std::istringstream iss(line);
+            uint64_t start, end;
+            char c;
+            if (!(iss >> std::hex  >> start >> c >>  std::hex >> end)) { continue; } 
+            assert(c=='-');
+            if(start < 0x10000)
+                pio_regions[start] = end-start;
+            else
+                add_mmio_region(start, end-start);
+            printf("Will fuzz: %s\n", line.c_str());
         }
     }
 }

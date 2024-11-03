@@ -1,6 +1,4 @@
 #include "fuzz.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
 #include <stdlib.h>
 #include <string>
 #include <fstream>
@@ -83,7 +81,6 @@ static size_t offset_to_address(const char* path, Elf64_Off offset, size_t *voff
 void symbolize(size_t pc) {
     if(!enabled)
         return;
-    bx_phy_address phy_addr;
     uint8_t  instr_buf[4096];
 
     for (auto &range: ranges) {                                                               
@@ -91,12 +88,8 @@ void symbolize(size_t pc) {
             return ;
     }                                                                                         
     printf("Trying to read from %lx\n", pc&(~0xFFFLL));
-    /* BX_CPU(0)->access_read_linear(pc&(~0xFFFLL), 0x1000, 0, BX_READ, 0x0, instr_buf); */
-
-    bool valid = BX_CPU(0)->dbg_xlate_linear2phy(pc&(~0xFFFLL), &phy_addr);
-    if (valid)
-        BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, 4096, instr_buf);
-    else
+    bool valid = cpu0_read_instr_buf(pc, instr_buf);
+    if (!valid)
         abort();
 
     std::string match;
@@ -148,8 +141,8 @@ void symbolize(size_t pc) {
     printf("Symbolization Range: %lx - %lx size: %lx file: %s section: %s sh_addr: %lx \n", vstart, vstart+size, size, match.c_str(), name, shaddr);
     if(size < 0x500) {
         uint8_t* malc = (uint8_t*)malloc(size);
-        BX_CPU(0)->access_read_linear(vstart, size, 0, BX_READ, 0x0, malc);
-        BX_CPU(0)->access_read_linear(match_addr, size, 0, BX_READ, 0x0, malc);
+        cpu0_read_virtual(vstart, size, malc);
+        cpu0_read_virtual(match_addr, size, malc);
         for(int i=0; i<size; i++){
             printf("%02x ", malc[i]);
             if(i%0x10==0xf)

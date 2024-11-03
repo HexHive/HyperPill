@@ -1,8 +1,5 @@
-#include "bochs.h"
-#include "cpu/cpu.h"
 #include "fuzz.h"
 #include <cstdint>
-#include "conveyor.h"
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -13,10 +10,17 @@ bool fuzz_do_not_continue = false; /* Don't inject new instructions. */
 bool fuzzing;
 static bool executing_input;
 
+#if defined(HP_X86_64)
 BOCHSAPI BX_CPU_C bx_cpu = BX_CPU_C(0);
 BOCHSAPI BX_CPU_C shadow_bx_cpu;
 
 uint64_t vmcs_addr;
+#elif defined(HP_AARCH64)
+// TODO
+#else
+#error
+#endif
+
 uint64_t guest_rip; /* Entrypoint. Reset after each op */
 
 static void *log_writes;
@@ -33,24 +37,18 @@ static void dump_hex(const uint8_t *data, size_t len) {
 	printf("\n");
 }
 
-void dump_regs() {
-	static const char *general_64bit_regname[17] = {
-		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
-		"r9",  "r10", "r11", "r12", "r13", "r14", "r15", "rip"
-	};
-	for (int i = 0; i <= BX_GENERAL_REGISTERS; i++) {
-		printf("REG%d (%s) = %016lx\n", i, general_64bit_regname[i],
-		       BX_CPU(id)->gen_reg[i].rrx);
-	}
-	printf("FLAGS: %x\n", BX_CPU(id)->eflags);
-	fflush(stdout);
-	fflush(stderr);
-}
+extern void dump_regs();
 
 static void init_cpu(void) {
+#if defined(HP_X86_64)
 	BX_CPU(id)->initialize();
 	BX_CPU(id)->reset(BX_RESET_HARDWARE);
 	BX_CPU(id)->sanity_checks();
+#elif defined(HP_AARCH64)
+// TODO
+#else
+#error
+#endif
 }
 
 void start_cpu() {
@@ -58,27 +56,35 @@ void start_cpu() {
 		return;
 
 	srand(1); /* rdrand */
-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip;
+	cpu0_set_pc(guest_rip);
 	icount = 0;
 	pio_icount = 0;
 	clear_seen_dma();
-	if (BX_CPU(id)->fuzztrace) {
+	if (cpu0_get_fuzztrace()) {
 		dump_regs();
 	}
 	reset_op_cov();
-	BX_CPU(id)->fuzz_executing_input = true;
-	while (BX_CPU(id)->fuzz_executing_input) {
-		BX_CPU(id)->cpu_loop();
+	cpu0_set_fuzz_executing_input(true);
+	while (cpu0_get_fuzz_executing_input()) {
+#if defined(HP_X86_64)
+	BX_CPU(id)->cpu_loop();
+#elif defined(HP_AARCH64)
+// TODO
+#else
+#error
+#endif
 	}
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip; // reset $RIP
+	cpu0_set_pc(guest_rip); // reset $RIP
 
+#if defined(HP_X86_64)
 	bx_address phy;
 	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;
 	}
+#endif
 }
 
 /*
@@ -94,7 +100,7 @@ void start_cpu() {
  */
 
 static void fuzz_emu_stop() {
-	BX_CPU(id)->fuzz_executing_input = false;
+	cpu0_set_fuzz_executing_input(false);
 }
 
 void fuzz_emu_stop_normal(){
@@ -138,11 +144,17 @@ unsigned long int get_pio_icount() {
 	return pio_icount;
 }
 
-void reset_bx_vm() {
+void reset_vm() {
+#if defined(HP_X86_64)
 	bx_cpu = shadow_bx_cpu;
 	if (BX_CPU(id)->vmcs_map)
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 	fuzz_reset_memory();
+#elif defined(HP_AARCH64)
+// TODO
+#else
+#error
+#endif
 }
 
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
@@ -151,10 +163,10 @@ void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
 	}
 }
 
-void fuzz_instr_after_execution(bxInstruction_c *i) {
+void fuzz_instr_after_execution(hp_instruction *i) {
 }
 
-void fuzz_instr_before_execution(bxInstruction_c *i) {
+void fuzz_instr_before_execution(hp_instruction *i) {
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);
 	if (!fuzzing && !fuzzenum)
@@ -181,7 +193,7 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-	if (BX_CPU(id)->fuzztrace)
+	if (cpu0_get_fuzztrace())
 		printf("NEW INPUT\n");
 	if (!done) {
 		if (!log_writes)
@@ -209,19 +221,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	if (len == 0 || fuzz_unhealthy_input || !done) {
 		uint8_t *dummy = (uint8_t *)"AAA";
 		__fuzzer_set_output(dummy, 1);
-		reset_bx_vm();
+		reset_vm();
 		done = 1;
 		return 0;
 	}
 	done = 1;
 
-	reset_bx_vm();
+	reset_vm();
 
 	/*
 	 * The IC_TEST mode
 	 */
 	if (ic_test && !fuzz_unhealthy_input) {
-		tsl::robin_set<bx_address> original_coverage = cur_input;
+		tsl::robin_set<hp_address> original_coverage = cur_input;
 		size_t len, len2;
 		uint8_t *output = ic_get_output(&len);
 		uint8_t *newdata = (uint8_t *)malloc(len);
@@ -258,7 +270,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 			exit(1);
 		}
 		free(newdata);
-		reset_bx_vm();
+		reset_vm();
 	}
 	return fuzz_unhealthy_input != 0;
 }
@@ -270,6 +282,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	char *icp_db_path = getenv("ICP_DB_PATH");
 	verbose = getenv("VERBOSE");
 
+#if defined(HP_X86_64)
 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
 	 * collected, so we also need to load a mapping of VMCS encodings to
 	 * offsets
@@ -399,7 +412,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
-	reset_bx_vm();
+	reset_vm();
+#endif
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
 	fuzzenum = true;
