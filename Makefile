@@ -111,7 +111,13 @@ ifeq ($(ARCH), x86_64)
 	cd vendor/bochs-build; make -j bx_debug/libdebug.a
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
 else ifeq ($(ARCH), aarch64)
-# TODO
+	if [ ! -d "vendor/qemu" ]; then \
+		git clone https://github.com/qemu/qemu.git --branch v8.2.7 --depth=1; \
+	fi
+	mkdir -p vendor/qemu-build
+	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
+		--enable-debug --target-list=aarch64-softmmu
+	cd vendor/qemu-build; ninja -j $(NPROCS)
 else
     $(error Unsupported architecture: $(ARCH))
 endif

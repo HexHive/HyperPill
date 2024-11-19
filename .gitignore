@@ -19,6 +19,8 @@ scripts/__pycache__/
 vendor/bochs-build/
 vendor/lib
 vendor/include
+vendor/qemu
+vendor/qemu-build
 
 # /bochs/
 /bochs/Makefile
