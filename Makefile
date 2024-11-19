@@ -27,9 +27,6 @@ endif
 CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
-LIBFUZZER_FLAGS \
-            = -max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 ${LIBFUZZER_ARGS}
-
 OBJS_GENERIC= \
 			  fuzz.o \
 			  cov.o \
@@ -43,11 +40,10 @@ OBJS_GENERIC= \
 			  symbolize.o \
 			  main.o
 
-
 ifeq ($(ARCH), x86_64)
 VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \
 			  vendor/lib/libavx.a vendor/lib/libfpu.a \
-			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o 
+			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o
 VENDOR_OBJS =
 OBJS        = $(OBJS_GENERIC) \
 			  arch/x86_64/breakpoints.o \
@@ -68,8 +64,12 @@ OBJS        = $(OBJS_GENERIC) \
 			  arch/x86_64/bochsapi/apic.o \
               arch/x86_64/bochsapi/dbg.o
 else ifeq ($(ARCH), aarch64)
-VENDOR_LIBS = vendor/libfuzzer-ng/libFuzzer.a # TODO
+include Makefile.qemu
+VENDOR_LIBS:= vendor/lib/qemu_system_aarch64.a vendor/libfuzzer-ng/libFuzzer.a \
+			  vendor/lib/libgdb_system.a vendor/lib/libqmp.a vendor/lib/libblockdev.a
+
 VENDOR_OBJS =
+LDFLAGS    := $(LDFLAGS) $(QEMU_LDFLAGS)
 OBJS        = $(OBJS_GENERIC) \
 			  arch/aarch64/breakpoints.o \
 			  arch/aarch64/control.o \
@@ -85,13 +85,14 @@ all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
 	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o fuzz
 
 %.o: %.cc $(DEPS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $< 
+	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $<
 
 vendor/libfuzzer-ng/libFuzzer.a:
 	cd vendor/libfuzzer-ng/; ./build.sh
 
 rebuild_emulator:
 ifeq ($(ARCH), x86_64)
+	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/bochs-build vendor/lib vendor/include
 	cd vendor/bochs-build; test -f config.h || ../bochs/configure \
 		--enable-vmx=2 --with-vncsrv --enable-x86-64 --enable-e1000 \
@@ -112,12 +113,30 @@ ifeq ($(ARCH), x86_64)
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
 else ifeq ($(ARCH), aarch64)
 	if [ ! -d "vendor/qemu" ]; then \
-		git clone https://github.com/qemu/qemu.git --branch v8.2.7 --depth=1; \
+		git clone https://github.com/qemu/qemu.git vendor/qemu \
+			--branch v8.2.7 --depth=1; \
 	fi
+	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
 		--enable-debug --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
+	mkdir -p vendor/lib/qemu-system-aarch64.p
+	cp ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
+		vendor/lib/qemu-system-aarch64.p
+	cp -r ./vendor/qemu-build/libqemu-aarch64-softmmu.fa.p vendor/lib/
+	cp -r ./vendor/qemu-build/libcommon.fa.p vendor/lib/
+	cp -r ./vendor/qemu-build/subprojects/ vendor/lib/
+	cp -r ./vendor/qemu-build/gdbstub/libgdb_system.fa.p vendor/lib/
+	cp ./vendor/qemu-build/gdbstub/libgdb_system.fa vendor/lib/
+	cp -r ./vendor/qemu-build/*.fa.p vendor/lib/
+	cp ./vendor/qemu-build/*.fa vendor/lib/
+	cp -r ./vendor/qemu-build/tcg/libtcg_system.fa.p ./vendor/lib/
+	cp ./vendor/qemu-build/tcg/libtcg_system.fa ./vendor/lib/
+	cp -r ./vendor/qemu-build/libqemuutil.a.p ./vendor/lib/libqemuutil.fa.p
+	cp ./vendor/qemu-build/libqemuutil.a ./vendor/lib/libqemuutil.fa
+	make $(OTHERS)
+	ar cr vendor/lib/qemu_system_aarch64.a $(LIBCOMMON) $(LIBQEMU_AARCH64_SOFTMMU)
 else
     $(error Unsupported architecture: $(ARCH))
 endif
@@ -126,7 +145,7 @@ clean:
 ifeq ($(ARCH), x86_64)
 	rm -rf vendor/bochs-build arch/x86_64/bochsapi/*.o
 else ifeq ($(ARCH), aarch64)
-# TODO
+	rm -rf vendor/qemu-build #TODO
 else
     $(error Unsupported architecture: $(ARCH))
 endif
