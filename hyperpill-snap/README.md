@@ -1,6 +1,8 @@
 # HP-Snap Instructions
 
-Here we describe how to collect a snapshot of a hypervisor.
+Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
+
+## x86-64
 
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.
@@ -42,7 +44,7 @@ be frozen. In the qemu monitor on L0, run info registers and save the output to
 a file (L1 Registers), run dump-guest-memory /path/to/memory-dump (L1 Memory),
 and on L0, get the VMCS address by running "sudo dmesg".
 
-## Setup L0 KVM
+### Setup L0 KVM
 
 First, fetch a recent version of the Linux Kernel (we tested 6.0 on debian) and
 apply our KVM-patch, or compile the Linux kernel from source (we tested 6.0 on
@@ -88,7 +90,7 @@ ubuntu 22.04).
 [L0] $ sudo insmod arch/x86/kvm/kvm-intel.ko dump_invalid_vmcs=1 nested=1
 ```
 
-## Run L1 and L2 VMs
+### Run L1 and L2 VMs
 
 ``` bash
 # Install QEMU Dependencies: https://wiki.qemu.org/Hosts/Linux
@@ -108,7 +110,7 @@ ubuntu 22.04).
 # 8GB mem is recommended, so that L1 VM can have a full 4GB mem.
 ```
 
-### Run L1 and L2 VMs for QEMU/KVM
+#### Run L1 and L2 VMs for QEMU/KVM
 
 ``` bash
 [L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20240827-1852/debian-12-nocloud-amd64-daily-20240827-1852.qcow2 --no-check-certificate
@@ -201,7 +203,7 @@ qemu-8.0.0/build/qemu-system-x86_64 -machine q35 -accel kvm -m 4G \
     # -device qxl-vga \
 ```
 
-### Run L1 and L2 VMs for macOS Virtualization Framework
+#### Run L1 and L2 VMs for macOS Virtualization Framework
 
 ``` bash
 [L0] $ git clone https://github.com/kholia/OSX-KVM.git
@@ -231,7 +233,7 @@ for Running GUI Linux in a virtual machine on a Mac
 image, install ubuntu, and restart the ubuntu
 ```
 
-### [Optional] Obtain Symbols for Debugging
+#### [Optional] Obtain Symbols for Debugging
 
 ``` bash
 # install the debugging symbols for the Linux kernel
@@ -270,7 +272,7 @@ image, install ubuntu, and restart the ubuntu
 [L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
 ```
 
-## Take the snapshot
+### Take the snapshot
 
 ``` bash
 # In L2, we use the following tool to trigger a snapshot.
@@ -333,3 +335,31 @@ EOF
 ```
 
 The snapshot should now be ready for input-space-emulation and fuzzing.
+
+## aarch64
+
+TODO
+
+Our snapshots consist of 2 components:
+
+* L1 Memory
+* L1 Registers
+
+We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting acceleration from L0's KVM module (if available). Once L1 is set up, we will run a minimal L2 (also an aarch64 guest machine), but this time it uses the hypervisor capabilities running in L1. We illustrate how to do that with QEMU/KVM.
+
+### Prepare L0's QEMU
+
+### Run L1 and L2 VMs for QEMU/KVM
+
+```bash
+# TODO
+```
+
+### Take the snapshot
+
+TODO
+
+To trigger an EL1 -> EL2 transition, we make use of a simple Linux device driver in L2. It sets up a magic value `0xdeadbeef` in register `x0` and then executes the aarch64 `hvc` instruction to trigger a synchronous exception from EL1 to EL2. Note that it is impossible to do this from EL0 (or userspace) as the aarch64 specification makes an `hvc` instruction executed at EL0 an undefined behaviour.
+
+Once the exception is triggered, L0's QEMU catches it and stops the VM. From that point we are able to dump the guest's memory (L1 + L2) and its registers.
+
