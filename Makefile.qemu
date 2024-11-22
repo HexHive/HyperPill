@@ -24,12 +24,13 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/ui_ui-hmp-cmds.c.o \
 	vendor/lib/libcommon.fa.p/ui_ui-qmp-cmds.c.o \
 	vendor/lib/libcommon.fa.p/ui_util.c.o \
-	vendor/lib/libcommon.fa.p/ui_console-vc-stubs.c.o \
+	vendor/lib/libcommon.fa.p/ui_console-vc.c.o \
+	vendor/lib/libcommon.fa.p/ui_vnc-stubs.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-module.c.o \
+	vendor/lib/libcommon.fa.p/meson-generated_.._ui_dbus-display1.c.o \
 	vendor/lib/libcommon.fa.p/ui_spice-module.c.o \
 	vendor/lib/libcommon.fa.p/ui_input-linux.c.o \
 	vendor/lib/libcommon.fa.p/ui_udmabuf.c.o \
-	vendor/lib/libcommon.fa.p/ui_vnc-stubs.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-local.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-posix-acl.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-proxy.c.o \
@@ -709,6 +710,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/net_can_can_core.c.o \
 	vendor/lib/libcommon.fa.p/net_can_can_host.c.o \
 	vendor/lib/libcommon.fa.p/net_can_can_socketcan.c.o \
+	vendor/lib/libcommon.fa.p/net_slirp.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay-internal.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay-events.c.o \
@@ -987,7 +989,6 @@ LIBQEMU_AARCH64_SOFTMMU = \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/meson-generated_.._qapi_qapi-emit-events.c.o
 
 # QEMU_SYSTEM_AARCH64 = \
-	vendor/lib/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
 
 OTHERS = \
 	vendor/lib/libgdb_system.a vendor/lib/libauthz.a \
@@ -1006,19 +1007,27 @@ OTHERS = \
 
 QEMU_LDFLAGS := \
 	-Wl,--as-needed -Wl,--no-undefined -Wl,--whole-archive \
-	vendor/lib/libhwcore.a vendor/lib/libqom.a vendor/lib/libevent-loop-base.a \
-	vendor/lib/libio.a vendor/lib/libcrypto.a \
-	vendor/lib/libauthz.a vendor/lib/libblock.a \
-	vendor/lib/libchardev.a -Wl,--no-whole-archive \
-	-Wl,--start-group vendor/lib/subprojects/dtc/libfdt/libfdt.a \
+	vendor/lib/qemu_system_aarch64.a \
+	vendor/lib/libhwcore.a \
+	vendor/lib/libgdb_system.a \
+	vendor/lib/libqom.a \
+	vendor/lib/libqmp.a \
+	vendor/lib/libevent-loop-base.a \
+	vendor/lib/libio.a \
+	vendor/lib/libcrypto.a \
+	vendor/lib/libauthz.a \
+	vendor/lib/libblock.a \
+	vendor/lib/libblockdev.a \
+	vendor/lib/libtcg_system.a \
+	vendor/lib/libmigration.a \
+	vendor/lib/libchardev.a \
+	-Wl,--no-whole-archive \
+	-Wl,--start-group \
 	vendor/lib/libqemuutil.a \
+	vendor/lib/subprojects/dtc/libfdt/libfdt.a \
 	vendor/lib/subprojects/libvhost-user/libvhost-user-glib.a \
 	vendor/lib/subprojects/libvhost-user/libvhost-user.a \
-	vendor/lib/libtcg_system.a vendor/lib/libmigration.a vendor/lib/libhwcore.a \
-	vendor/lib/libqom.a vendor/lib/libevent-loop-base.a \
-	vendor/lib/libio.a vendor/lib/libcrypto.a \
-	vendor/lib/libauthz.a \
-	vendor/lib/subprojects/libvduse/libvduse.a vendor/lib/libblock.a \
-	vendor/lib/libchardev.a -lm -lpam -lutil -pthread -lz \
+	vendor/lib/subprojects/libvduse/libvduse.a \
+	-lm -lpam -lutil -pthread -lz -lzstd -lpixman-1 -lslirp \
 	-lpng16 -ludev -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lncursesw -ltinfo \
 	-lgmodule-2.0 -Wl,--end-group

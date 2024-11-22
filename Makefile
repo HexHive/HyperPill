@@ -19,7 +19,11 @@ INCLUDES    = -I. \
 ARCH_FLAGS  = -DHP_X86_64
 else ifeq ($(ARCH), aarch64)
 INCLUDES    = -I. \
-			  -I vendor/robin-map/include # TODO
+			  -I vendor/robin-map/include \
+			  -I arch/aarch64/qemuapi # TODO ?
+			  #-I vendor/qemu/include \
+			  #-I /usr/include/glib-2.0 \
+			  #-I /usr/lib/x86_64-linux-gnu/glib-2.0/include \
 ARCH_FLAGS  = -DHP_AARCH64
 else
     $(error Unsupported architecture: $(ARCH))
@@ -65,8 +69,7 @@ OBJS        = $(OBJS_GENERIC) \
               arch/x86_64/bochsapi/dbg.o
 else ifeq ($(ARCH), aarch64)
 include Makefile.qemu
-VENDOR_LIBS:= vendor/lib/qemu_system_aarch64.a vendor/libfuzzer-ng/libFuzzer.a \
-			  vendor/lib/libgdb_system.a vendor/lib/libqmp.a vendor/lib/libblockdev.a
+VENDOR_LIBS:=  vendor/libfuzzer-ng/libFuzzer.a
 
 VENDOR_OBJS =
 LDFLAGS    := $(LDFLAGS) $(QEMU_LDFLAGS)
@@ -82,7 +85,7 @@ else
 endif
 
 all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
-	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o fuzz
+	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(LDFLAGS) $(VENDOR_LIBS) -o fuzz
 
 %.o: %.cc $(DEPS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $<
@@ -119,14 +122,17 @@ else ifeq ($(ARCH), aarch64)
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
-		--enable-debug --target-list=aarch64-softmmu
+		--enable-debug --disable-vnc --disable-sdl --disable-bpf --enable-slirp --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
+	cd vendor/qemu; meson subprojects download dtc
+	cd vendor/qemu/subprojects/dtc/; make
 	mkdir -p vendor/lib/qemu-system-aarch64.p
-	cp ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
-		vendor/lib/qemu-system-aarch64.p
 	cp -r ./vendor/qemu-build/libqemu-aarch64-softmmu.fa.p vendor/lib/
 	cp -r ./vendor/qemu-build/libcommon.fa.p vendor/lib/
+	cp ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
+		vendor/lib/libcommon.fa.p/
 	cp -r ./vendor/qemu-build/subprojects/ vendor/lib/
+	cp -r ./vendor/qemu/subprojects/dtc vendor/lib/subprojects
 	cp -r ./vendor/qemu-build/gdbstub/libgdb_system.fa.p vendor/lib/
 	cp ./vendor/qemu-build/gdbstub/libgdb_system.fa vendor/lib/
 	cp -r ./vendor/qemu-build/*.fa.p vendor/lib/
