@@ -1,4 +1,5 @@
 #include "fuzz.h"
+#include "qemu.h"
 #include <cstdint>
 
 bool master_fuzzer;
@@ -413,6 +414,10 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
 	reset_vm();
+#elif defined(HP_AARCH64)
+	qemu_init(*argc, *argv);
+	qemu_main_loop();
+	qemu_cleanup(0);
 #endif
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
