@@ -1,5 +1,5 @@
 #include "fuzz.h"
-#include "qemu.h"
+#include "qemuapi.h"
 #include <cstdint>
 
 bool master_fuzzer;
@@ -276,6 +276,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	return fuzz_unhealthy_input != 0;
 }
 
+/*void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
+	// TODO
+	CPUARMState *env = &cpu->env;
+
+	unsigned int new_el = env->exception.target_el;
+	unsigned int cur_el = arm_current_el(env);
+}*/
+
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Path to VM Snapshot */
 	char *mem_path = getenv("ICP_MEM_PATH");
@@ -415,9 +423,14 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	fuzz_watch_memory_inc();
 	reset_vm();
 #elif defined(HP_AARCH64)
-	qemu_init(*argc, *argv);
-	qemu_main_loop();
-	qemu_cleanup(0);
+
+	//arm_register_el_change_hook(NULL, NULL, NULL);
+
+	//cpu_physical_memory_rw(0, NULL, 0, true);
+
+	init_qemu(*argc, *argv);
+	//qemu_main_loop();
+	//qemu_cleanup(0);
 #endif
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
