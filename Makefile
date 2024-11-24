@@ -20,15 +20,17 @@ ARCH_FLAGS  = -DHP_X86_64
 else ifeq ($(ARCH), aarch64)
 INCLUDES    = -I. \
 			  -I vendor/robin-map/include \
-			  -I arch/aarch64/qemuapi # TODO ?
-			  #-I vendor/qemu/include \
-			  #-I /usr/include/glib-2.0 \
-			  #-I /usr/lib/x86_64-linux-gnu/glib-2.0/include \
+			  -I arch/aarch64/qemuapi \
+			  -I /usr/include/glib-2.0 \
+			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include \
+			  -I vendor/qemu/include \
+			  -I vendor/qemu/target/arm \
+			  -I vendor/qemu-build
 ARCH_FLAGS  = -DHP_AARCH64
 else
     $(error Unsupported architecture: $(ARCH))
 endif
-CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -DNEED_CPU_H -DCONFIG_TARGET='"aarch64-softmmu-config-target.h"' -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \
@@ -73,13 +75,14 @@ VENDOR_LIBS:=  vendor/libfuzzer-ng/libFuzzer.a
 
 VENDOR_OBJS =
 LDFLAGS    := $(LDFLAGS) $(QEMU_LDFLAGS)
-OBJS        = $(OBJS_GENERIC) \
+OBJS        = arch/aarch64/qemuapi/qemu.o \
 			  arch/aarch64/breakpoints.o \
 			  arch/aarch64/control.o \
 			  arch/aarch64/mem.o \
 			  arch/aarch64/feedback.o \
 			  arch/aarch64/instrument.o \
-			  arch/aarch64/regs.o # TODO
+			  arch/aarch64/regs.o \
+			  $(OBJS_GENERIC)
 else
     $(error Unsupported architecture: $(ARCH))
 endif
@@ -89,6 +92,9 @@ all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
 
 %.o: %.cc $(DEPS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $<
+
+%.o: %.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 vendor/libfuzzer-ng/libFuzzer.a:
 	cd vendor/libfuzzer-ng/; ./build.sh
