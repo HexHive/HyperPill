@@ -276,14 +276,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	return fuzz_unhealthy_input != 0;
 }
 
-/*void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
-	// TODO
-	CPUARMState *env = &cpu->env;
-
-	unsigned int new_el = env->exception.target_el;
-	unsigned int cur_el = arm_current_el(env);
-}*/
-
+#if defined(HP_X86_64)
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Path to VM Snapshot */
 	char *mem_path = getenv("ICP_MEM_PATH");
@@ -291,7 +284,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	char *icp_db_path = getenv("ICP_DB_PATH");
 	verbose = getenv("VERBOSE");
 
-#if defined(HP_X86_64)
 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
 	 * collected, so we also need to load a mapping of VMCS encodings to
 	 * offsets
@@ -422,16 +414,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
 	reset_vm();
-#elif defined(HP_AARCH64)
-
-	//arm_register_el_change_hook(NULL, NULL, NULL);
-
-	//cpu_physical_memory_rw(0, NULL, 0, true);
-
-	init_qemu(*argc, *argv);
-	//qemu_main_loop();
-	//qemu_cleanup(0);
-#endif
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
 	fuzzenum = true;
@@ -440,3 +422,25 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	return 0;
 }
+
+#elif defined(HP_AARCH64)
+
+int test_one_input_fn(const uint8_t *Data, size_t Size) {
+	// TODO
+
+	return 0;
+}
+
+extern "C" int LLVMFuzzerRunDriver(int *argc, char ***argv,
+                  int (*UserCb)(const uint8_t *Data, size_t Size));
+
+int main(int argc, char **argv) {
+	init_qemu(argc, argv);
+
+
+	argc = 1;
+	int status = LLVMFuzzerRunDriver(&argc, &argv, test_one_input_fn);
+
+	return status;
+}
+#endif
