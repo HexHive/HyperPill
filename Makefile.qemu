@@ -1029,5 +1029,5 @@ QEMU_LDFLAGS := \
 	vendor/lib/subprojects/libvhost-user/libvhost-user.a \
 	vendor/lib/subprojects/libvduse/libvduse.a \
 	-lm -lpam -lutil -pthread -lz -lzstd -lpixman-1 -lslirp \
-	-lpng16 -ludev -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lncursesw -ltinfo \
+	-lpng16 -ludev -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lncursesw -ltinfo -lcapstone \
 	-lgmodule-2.0 -Wl,--end-group

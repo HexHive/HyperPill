@@ -128,7 +128,7 @@ else ifeq ($(ARCH), aarch64)
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
-		--disable-vnc --disable-sdl --disable-bpf --enable-slirp --target-list=aarch64-softmmu
+		--disable-vnc --disable-sdl --disable-bpf --enable-slirp --enable-capstone --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
 	cd vendor/qemu; meson subprojects download dtc
 	cd vendor/qemu/subprojects/dtc/; make
