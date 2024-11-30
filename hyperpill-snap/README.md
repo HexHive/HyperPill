@@ -349,7 +349,14 @@ We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting acc
 
 ### Prepare L0's QEMU
 
+TODO :
+1) explain that we use the same QEMU/fuzzer binary to take a snapshot as a first step and then in a second step the snapshot is replayed by the fuzzer part.
+2) 
+
 ### Run L1 and L2 VMs for QEMU/KVM
+
+TODO : 
+explain how to prepare L1 (here we use debian), copy the rootfs to be launched in L1 etc
 
 ```bash
 # TODO
