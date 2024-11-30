@@ -357,9 +357,12 @@ We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting acc
 
 ### Take the snapshot
 
-TODO
-
 To trigger an EL1 -> EL2 transition, we make use of a simple Linux device driver in L2. It sets up a magic value `0xdeadbeef` in register `x0` and then executes the aarch64 `hvc` instruction to trigger a synchronous exception from EL1 to EL2. Note that it is impossible to do this from EL0 (or userspace) as the aarch64 specification makes an `hvc` instruction executed at EL0 an undefined behaviour.
 
-Once the exception is triggered, L0's QEMU catches it and stops the VM. From that point we are able to dump the guest's memory (L1 + L2) and its registers.
+Once the exception is triggered, L0's QEMU catches it and stops the VM. From that point we are able to perform a snapshot. To do so, type in the QEMU monitor :
 
+```bash
+[L0 qemu-monitor] savevm <tag-name>
+```
+
+This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is important and will be used to reload the snapshot by Hyperpill's fuzzer.
