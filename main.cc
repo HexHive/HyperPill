@@ -70,6 +70,9 @@ void start_cpu() {
 #if defined(HP_X86_64)
 	BX_CPU(id)->cpu_loop();
 #elif defined(HP_AARCH64)
+	// FIXME : BX_CPU(id)->cpu_loop() is probably blocking, which is not the case
+	// for us with qemu_start_vm();
+	qemu_start_vm();
 // TODO
 #else
 #error
@@ -152,7 +155,7 @@ void reset_vm() {
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 	fuzz_reset_memory();
 #elif defined(HP_AARCH64)
-// TODO
+	qemu_reload_vm(getenv("SNAPSHOT_TAG"));
 #else
 #error
 #endif
@@ -184,10 +187,16 @@ void fuzz_instr_before_execution(hp_instruction *i) {
 
 static void usage() {
 	printf("The following environment variables must be set:\n");
+#if defined(HP_X86_64)
 	printf("ICP_MEM_PATH\n");
 	printf("ICP_REGS_PATH\n");
 	printf("ICP_VMCS_LAYOUT_PATH\n");
 	printf("ICP_VMCS_ADDR\n");
+#elif defined(HP_AARCH64)
+	printf("SNAPSHOT_TAG\n");
+#else
+#error
+#endif
 	exit(-1);
 }
 

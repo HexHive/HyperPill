@@ -91,18 +91,40 @@ static void el_change_fn(ARMCPU *cpu, void *opaque) {
     }
 }
 
-void init_qemu(int argc, char **argv) {
-    qemu_init(argc, argv);
-    
-    /*CPUState *cpu;
+void aarch64_set_xregs(uint64_t xregs[32]) {
+    CPUState *cpu;
     CPU_FOREACH(cpu) {
-        arm_register_el_change_hook(ARM_CPU(cpu), el_change_fn, NULL);
-    }*/
+        CPUARMState *env = &(ARM_CPU(cpu))->env;
+        if (env->xregs[0] == 0xdeadbeef) { // FIXME : here we are assuming the CPU is stopped right after a VM_EXIT. CHANGE THAT !
+            memcpy(env->xregs, xregs, sizeof(xregs[32]));
+            break;
+        }
+    }
+}
+
+void aarch64_set_esr_el2(aa64_syndrom syndrom) {
+    // TODO
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        CPUARMState *env = &(ARM_CPU(cpu))->env;
+        if (env->xregs[0] == 0xdeadbeef) { // FIXME : here we are assuming the CPU is stopped right after a VM_EXIT. CHANGE THAT !
+            uint8_t excp_code = excp_codes[syndrom];
+            env->cp15.esr_el[2] |= (uint64_t)excp_code << 26; // TODO : add IL and ISS fields
+            break;
+        }
+    }
+}
+
+void qemu_start_vm() {
+    vm_start();
+}
+
+bool qemu_reload_vm(char *tag) {
+    Error *err;
 
     vm_stop(RUN_STATE_RESTORE_VM);
 
-    Error *err;
-    bool success = load_snapshot("hyperpill", NULL, false, NULL, &err);
+    bool success = load_snapshot(tag, NULL, false, NULL, &err);
     if(!success) {
         printf("Error loading snapshot\n");
         error_report_err(err);
@@ -110,17 +132,27 @@ void init_qemu(int argc, char **argv) {
         printf("Successful snapshot load\n");
     }
 
-    vm_start();
+    return success;
+}
+
+
+
+void init_qemu(int argc, char **argv) {
+    qemu_init(argc, argv);
+    
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        arm_register_el_change_hook(ARM_CPU(cpu), el_change_fn, NULL);
+    }
+
+    char *snapshot_tag = getenv("SNAPSHOT_TAG");
+
+    qemu_reload_vm(snapshot_tag);
+    //vm_start();
 
     qemu_main_loop();
     qemu_cleanup(0);
 }
 
-//void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook, void
-//        *opaque);
-
 //void cpu_physical_memory_rw(hwaddr addr, void *buf,
 //                            hwaddr len, bool is_write); 
-//void qemu_init(int argc, char **argv);
-//int qemu_main_loop(void);
-//void qemu_cleanup(int);
