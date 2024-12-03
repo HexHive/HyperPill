@@ -446,7 +446,6 @@ extern "C" int LLVMFuzzerRunDriver(int *argc, char ***argv,
 int main(int argc, char **argv) {
 	init_qemu(argc, argv);
 
-
 	argc = 1;
 	int status = LLVMFuzzerRunDriver(&argc, &argv, test_one_input_fn);
 

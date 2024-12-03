@@ -74,7 +74,6 @@ static void dump_vm_state(CPUARMState *env) {
 }
 
 static void el_change_fn(ARMCPU *cpu, void *opaque) {
-	// TODO
 	CPUARMState *env = &cpu->env;
     CPUState *cs = env_cpu(env);
 
@@ -82,11 +81,13 @@ static void el_change_fn(ARMCPU *cpu, void *opaque) {
 	unsigned int cur_el = arm_current_el(env);
 
     if (cur_el == 2 && cs->exception_index == EXCP_HVC) {
-        printf("Call to Hypervisor!\n");
+        //printf("Call to Hypervisor!\n");
         if (env->xregs[0] == 0xdeadbeef) {
             printf("======== Hyperpill ! ========\n");
-            dump_vm_state(env);
-            printf("FINISHED DUMPING\n");
+            //dump_vm_state(env);
+            vm_stop(RUN_STATE_PAUSED);
+            printf("VM stopped. You can now take a snapshot \
+                    in QEMU monitor: savevm <snapshot_tag>\n");
         }
     }
 }
@@ -146,9 +147,10 @@ void init_qemu(int argc, char **argv) {
     }
 
     char *snapshot_tag = getenv("SNAPSHOT_TAG");
-
-    qemu_reload_vm(snapshot_tag);
-    //vm_start();
+    if (snapshot_tag != NULL) {
+        qemu_reload_vm(snapshot_tag);
+        vm_start();
+    }
 
     qemu_main_loop();
     qemu_cleanup(0);
