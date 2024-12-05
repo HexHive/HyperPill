@@ -437,6 +437,7 @@ To do so, execute in L2 :
 Once the exception is triggered, L0's QEMU catches it and stops the VM. From that point we are able to perform a snapshot. To do so, type in the (L0) QEMU monitor :
 
 ```bash
+[L0] telnet localhost 1234
 [L0 qemu-monitor] savevm <tag-name>
 ```
 
