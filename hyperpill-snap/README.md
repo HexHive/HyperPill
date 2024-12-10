@@ -383,8 +383,14 @@ First, set up L0 to run L1. At the root of the project :
 [L0] qemu-img convert -f raw -O qcow2 varstore.img varstore.qcow2
 
 # WARNING : since you are running an emulated aarch64 system on an x86_64
-# host, enabling KVM to accelerate the VM is impossible. Setting up L1 will
+# host, enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2 will
 # be VERY SLOW !
+#
+# For a much faster experience, the user would need to :
+# 1) acquire a machine with an ARM CPU that has hardware support for nested
+# virtualization acceleration (at least ARMv8.4)
+# 2) have software support for nested virtualization acceleration both from
+# QEMU and Linux (to this date, there is not yet any full support from QEMU)
 
 [L0] qemu-8.2.0/build/qemu-system-aarch64 \
 	-monitor telnet:127.0.0.1:1234,server,nowait \
