@@ -1,0 +1,34 @@
+--- target/arm/helper.c
++++ target/arm/helper.c
+@@ -11074,6 +11074,7 @@
+     unsigned int old_mode;
+     unsigned int cur_el = arm_current_el(env);
+     int rt;
++    bool is_hvc = false;
+ 
+     if (tcg_enabled()) {
+         /*
+@@ -11141,6 +11142,7 @@
+     case EXCP_UDEF:
+     case EXCP_SWI:
+     case EXCP_HVC:
++	is_hvc = true;
+     case EXCP_HYP_TRAP:
+     case EXCP_SMC:
+         switch (syn_get_ec(env->exception.syndrome)) {
+@@ -11262,6 +11264,15 @@
+ 
+     qemu_log_mask(CPU_LOG_INT, "...to EL%d PC 0x%" PRIx64 " PSTATE 0x%x\n",
+                   new_el, env->pc, pstate_read(env));
++
++    if (is_hvc && new_el == 2) {
++	if (env->xregs[0] == 0xdeadbeef) {
++            printf("======== Hyperpill ! ========\n");
++            vm_stop(RUN_STATE_PAUSED);
++            printf("VM stopped. You can now take a snapshot"
++                   "in QEMU monitor: savevm <snapshot_tag>\n");
++        }
++    }
+ }
+ 
+ /*
