@@ -55,7 +55,7 @@ ubuntu 22.04).
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar -xvf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-kvm.patch
 [L0] $ make defconfig
 [L0] $ grep .config CONFIG_KVM
 # Verify that CONFIG_KVM_INTEL is set to =m
@@ -72,7 +72,7 @@ ubuntu 22.04).
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar xf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-kvm.patch
 [L0] $ make localmodconfig # just hit enter each time without typing an answer
 [L0] $ scripts/config --disable SYSTEM_TRUSTED_KEYS
 [L0] $ scripts/config --disable SYSTEM_REVOCATION_KEYS
@@ -100,7 +100,7 @@ ubuntu 22.04).
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
 [L0] $ tar -xvf qemu-8.0.0.tar.bz2
 [L0] $ cd qemu
-[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-qemu.patch
+[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-qemu.patch
 [L0] $ mkdir build; cd build;
 [L0] $ ../configure --target-list=x86_64-softmmu
 [L0] $ ninja -j$(nproc)
@@ -146,8 +146,8 @@ ubuntu 22.04).
 [L1] $ ../configure --target-list=x86_64-softmmu --enable-slirp
 [L1] $ ninja
 
-[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/bzImage
-[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/rootfs.cpio.gz
+[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/x86_64/bzImage
+[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/x86_64/rootfs.cpio.gz
 [L1] $ apt-get install -y swtpm
 [L1] $
 rm -rf /tmp/mytpm1; mkdir /tmp/mytpm1
@@ -209,7 +209,7 @@ qemu-8.0.0/build/qemu-system-x86_64 -machine q35 -accel kvm -m 4G \
 [L0] $ git clone https://github.com/kholia/OSX-KVM.git
 [L0] $ cd OSX-KVM
 [L0] $ git checkout 422bb3b7137cd13468aee86de3640835e1d774f9
-[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/osx-kvm.patch # to enable vmx
+[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/x86_64/osx-kvm.patch # to enable vmx
 
 # download ventura image
 [L0] $ follow https://github.com/kholia/OSX-KVM?tab=readme-ov-file#installation-preparation
@@ -338,9 +338,9 @@ The snapshot should now be ready for input-space-emulation and fuzzing.
 
 ## aarch64
 
-We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting 
+We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting
 virtualization acceleration from L0 (even when available). Once L1 is set up,
-we will run a minimal L2 (also an aarch64 guest machine), but this time it 
+we will run a minimal L2 (also an aarch64 guest machine), but this time it
 uses the hypervisor capabilities running in L1. We illustrate how to do that
 with QEMU/KVM.
 
@@ -348,20 +348,20 @@ with QEMU/KVM.
 
 Snapshotting must be done at a very specific moment : an EL1 -> EL2 transition.
 Here we prepare a patched QEMU that will detect this transition and stop the VM
-at this exact moment. This will allow us to snapshot the VM along with the 
+at this exact moment. This will allow us to snapshot the VM along with the
 hypervisor running inside.
 
 ```bash
-[L0] apt-get update && apt-get install -y cloud-utils xarchiver openssh git \
+[L0] apt-get update && apt-get install -y cloud-utils xarchiver openssh-server git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
 [L0] wget https://download.qemu.org/qemu-8.2.0.tar.bz2
 [L0] tar xf qemu-8.2.0.tar.bz2
 [L0] cd qemu-8.2.0
-[L0] patch -p0 < <hyperpill dir>/hyperpill-snap/aarch64/helper.patch
+[L0] patch -p0 < /path/to/hyperpill/hyperpill-snap/aarch64/helper.patch
 [L0] mkdir build; cd build;
 [L0] ../configure --target-list=aarch64-softmmu --enable-slirp
-[L0] ninja
+[L0] ninja -j$(nproc)
 ```
 
 ### Run L1 and L2 VMs for QEMU/KVM
@@ -370,21 +370,19 @@ First, set up L0 to run L1. At the root of the project :
 
 ```bash
 [L0] sudo apt install -y qemu-system-arm # Only needed for the EFI image.
-[L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/ \
-     debian-12-nocloud-arm64.qcow2
+[L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
 [L0] mv debian-12-nocloud-arm64.qcow2 disk.qcow2
 [L0] qemu-img resize disk.qcow2 30G
 [L0] truncate -s 64m varstore.img
 [L0] truncate -s 64m efi.img
 [L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
-
- # Raw images cannot be snapshotted by QEMU. converting them to qcow2 
+ # Raw images cannot be snapshotted by QEMU. converting them to qcow2
  # solves the issue.
 [L0] qemu-img convert -f raw -O qcow2 varstore.img varstore.qcow2
 
-# WARNING : since you are running an emulated aarch64 system on an x86_64
-# host, enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2 will
-# be VERY SLOW !
+# WARNING : since you are running an emulated aarch64 system on an x86_64 host,
+# enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2
+# will be VERY SLOW !
 #
 # For a much faster experience, the user would need to :
 # 1) acquire a machine with an ARM CPU that has hardware support for nested
@@ -392,17 +390,18 @@ First, set up L0 to run L1. At the root of the project :
 # 2) have software support for nested virtualization acceleration both from
 # QEMU and Linux (to this date, there is not yet any full support from QEMU)
 
+# WARNING: Increase the number of CPUs and memory to compile QEMU for L2 VM.
+# When taking snapshots, change back to "-smp 1 and -m 8192".
 [L0] qemu-8.2.0/build/qemu-system-aarch64 \
 	-monitor telnet:127.0.0.1:1234,server,nowait \
 	-nographic \
-	-smp 4 \
-	-m 4096 \
+	-smp 1 -m 8192 \
 	-cpu max \
 	-drive if=pflash,format=raw,file=efi.img,readonly=on \
 	-drive if=pflash,format=qcow2,file=varstore.qcow2 \
 	-device virtio-scsi-pci,id=scsi0 \
 	-drive if=virtio,format=qcow2,file=disk.qcow2 \
-	-netdev user,id=net0,hostfwd=tcp::8022-:22 \
+	-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 	-device virtio-net-device,netdev=net0 \
  	-M virt,virtualization=on \
 	$@
@@ -413,58 +412,59 @@ Once L1 booted successfully, we prepare it to host a guest VM "L2" :
 ```bash
 # Type root (no password) to enter L1 VM
 [L1] passwd # set root password
+[L1] apt-get update && apt-get install -y cloud-utils xarchiver openssh-server
 [L1] growpart /dev/vda 1
 [L1] resize2fs /dev/vda1
 [L1] df -h
-[L1] nano /etc/ssh/sshd_config
-# EDIT sshd_config and edit the line "PermitRootLogin ..." to 
-# "PermitRootLogin yes"
+[L1] vim /etc/ssh/sshd_config
+# EDIT sshd_config
+# edit the line "PermitRootLogin ..." to # "PermitRootLogin yes"
 [L1] systemctl restart ssh
 
-# Setup the QEMU under test - example 1: QEMU 8.0.0 
+# Setup the QEMU under test - example 1: QEMU 8.0.0
 # WARNING : this will take hours !
-[L1] apt-get update && apt-get install -y cloud-utils xarchiver openssh git \
+[L1] apt-get update && apt-get install -y git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
 [L1] wget https://download.qemu.org/qemu-8.0.0.tar.bz2
 [L1] tar xf qemu-8.0.0.tar.bz2
 [L1] cd qemu-8.0.0
 [L1] mkdir build; cd build;
-[L1] ../configure --target-list=aarch64-softmmu --enable-slirp
-[L1] ninja
+[L1] ../configure --target-list=aarch64-softmmu --enable-slirp --enable-sanitizers
+[L1] ninja -j$(nproc)
 ```
 
-For convenience, we already provide a working minimal L2 containing a device 
-driver named *dummy_hvc.ko*. This driver is a very important piece of 
-software that will trigger an exception, which will be caught by QEMU on L0. 
-Copy the kernel and the root filesystem from inside hyperpill's directory to 
-L1 :
+For convenience, we already provide a working minimal L2 containing a device
+driver named *dummy_hvc.ko*. This driver is a very important piece of software
+that will trigger an exception, which will be caught by QEMU on L0. Copy the
+kernel and the root filesystem from inside hyperpill's directory to L1 :
 
 ```bash
-[L0] scp -P8022 hyperpill-snap/aarch64/rootfs.ext4 root@localhost:/root
-[L0] scp -P8022 hyperpill-snap/aarch64/Image root@localhost:/root
+[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/rootfs.ext4 root@localhost:/root
+[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/Image root@localhost:/root
 ```
 
 Then start running L2, **with KVM enabled**.
 
 ```bash
 [L1] qemu-8.0.0/build/qemu-system-aarch64 -M virt \
-        -enable-kvm -cpu max -nographic -smp 4 \
+        -enable-kvm -cpu max -nographic \
         -kernel Image -append "rootwait root=/dev/vda console=ttyAMA0" \
         -netdev user,id=eth0 \
         -device virtio-net-device,netdev=eth0 \
         -drive file=rootfs.ext4,if=none,format=raw,id=hd0 \
         -device virtio-blk-device,drive=hd0
+        // TODO: enable more virtual devices
 ```
 
 ### Take the snapshot
 
-To trigger an EL1 -> EL2 transition, we make use of a simple Linux device 
-driver in L2. It sets up a magic value `0xdeadbeef` in register `x0` and 
-then executes the aarch64 `hvc` instruction to trigger a synchronous exception
-from EL1 to EL2. Note that it is impossible to do this from EL0 (or userspace)
-as the aarch64 specification makes an `hvc` instruction executed at EL0 an 
-undefined behaviour.
+To trigger an EL1 -> EL2 transition, we make use of a simple Linux device driver
+in L2. It sets up a magic value `0xdeadbeef` in register `x0` and then executes
+the aarch64 `hvc` instruction to trigger a synchronous exception from EL1 to
+EL2. Note that it is impossible to do this from EL0 (or userspace) as the
+aarch64 specification makes an `hvc` instruction executed at EL0 an undefined
+behaviour.
 
 To do so, execute in L2 :
 
@@ -472,14 +472,14 @@ To do so, execute in L2 :
 [L2] insmod dummy_hvc.ko
 ```
 
-Once the exception is triggered, L0's QEMU catches it and stops the VM. From 
+Once the exception is triggered, L0's QEMU catches it and stops the VM. From
 that point we are able to perform a snapshot. To do so, type in the (L0) QEMU
 monitor :
 
 ```bash
 [L0] telnet localhost 1234
-[L0 qemu-monitor] savevm <tag-name>
+[L0 qemu-monitor] savevm /path/to/snapshots/dir/mem
 ```
 
-This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name
-is important and will be used to reload the snapshot by Hyperpill's fuzzer.
+This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is
+important and will be used to reload the snapshot by Hyperpill's fuzzer.
