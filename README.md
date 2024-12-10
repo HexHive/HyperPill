@@ -3,7 +3,11 @@ HyperPill
 
 Building
 --------
-CC=clang CXX=clang++ make
+```bash
+ARCH=<arch> CC=clang CXX=clang++ make
+```
+
+Where `<arch>` is one of `[aarch64 | x86_64]` depending on which architecture the hypervisor to be tested runs on. Note: this is unrelated to the host machine architecture.
 
 Using
 --------
