@@ -1,8 +1,6 @@
 #ifndef FUZZ_H
 #define FUZZ_H
 
-#define HP_AARCH64 1
-
 #include <stdint.h>
 #include <map>
 #include <vector>

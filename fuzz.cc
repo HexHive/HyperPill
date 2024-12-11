@@ -3,8 +3,6 @@
 
 #include <ctime>
 
-#include "qemuapi.h"
-
 enum cmds {
 	OP_READ,
 	OP_WRITE,
@@ -691,7 +689,7 @@ bool op_msr_write() {
 static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
 #elif defined(HP_AARCH64)
-static uint64_t vmcall_gpregs[32]; // TODO
+static uint64_t vmcall_gpregs[20]; // TODO
 #else
 #error
 #endif
@@ -725,11 +723,11 @@ bool op_vmcall() {
 					// before rewriting regs
 	size_t local_dma_len; // Used to make a copy of dma data before
 			      // rewriting regs
+	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
 		return false;
 
 #if defined(HP_X86_64)
-	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
 
 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
@@ -780,12 +778,6 @@ bool op_vmcall() {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 #elif defined(HP_AARCH64)
-	const uint64_t fuzzable_regs_bitmap = 
-		(0b11111111111111111000000000000000000000000000000000000000000000);
-
-	aarch64_set_xregs(vmcall_gpregs);
-	aarch64_set_esr_el2(HVC);
-
 // TODO
 #else
 #error
