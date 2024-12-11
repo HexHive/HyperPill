@@ -1,3 +1,5 @@
+# this file is auto generated
+
 # to avoid reconfiguring %.fa.p
 MAKEFLAGS += --no-builtin-rules
 
@@ -11,6 +13,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/accel_tcg_cpu-exec-common.c.o \
 	vendor/lib/libcommon.fa.p/trace_trace-hmp-cmds.c.o \
 	vendor/lib/libcommon.fa.p/qom_qom-hmp-cmds.c.o \
+	vendor/lib/libcommon.fa.p/crypto_tls-cipher-suites.c.o \
 	vendor/lib/libcommon.fa.p/ui_clipboard.c.o \
 	vendor/lib/libcommon.fa.p/ui_console.c.o \
 	vendor/lib/libcommon.fa.p/ui_cursor.c.o \
@@ -25,12 +28,12 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/ui_ui-qmp-cmds.c.o \
 	vendor/lib/libcommon.fa.p/ui_util.c.o \
 	vendor/lib/libcommon.fa.p/ui_console-vc.c.o \
-	vendor/lib/libcommon.fa.p/ui_vnc-stubs.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-module.c.o \
-	vendor/lib/libcommon.fa.p/meson-generated_.._ui_dbus-display1.c.o \
 	vendor/lib/libcommon.fa.p/ui_spice-module.c.o \
+	vendor/lib/libcommon.fa.p/ui_vdagent.c.o \
 	vendor/lib/libcommon.fa.p/ui_input-linux.c.o \
 	vendor/lib/libcommon.fa.p/ui_udmabuf.c.o \
+	vendor/lib/libcommon.fa.p/ui_vnc-stubs.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-local.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-posix-acl.c.o \
 	vendor/lib/libcommon.fa.p/hw_9pfs_9p-proxy.c.o \
@@ -165,6 +168,8 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/hw_display_vga.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_virtio-dmabuf.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_acpi-vga.c.o \
+	vendor/lib/libcommon.fa.p/hw_display_dpcd.c.o \
+	vendor/lib/libcommon.fa.p/hw_display_xlnx_dp.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_ati.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_ati_2d.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_ati_dbg.c.o \
@@ -173,6 +178,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/hw_dma_pl330.c.o \
 	vendor/lib/libcommon.fa.p/hw_dma_xilinx_axidma.c.o \
 	vendor/lib/libcommon.fa.p/hw_dma_xlnx-zynq-devcfg.c.o \
+	vendor/lib/libcommon.fa.p/hw_dma_xlnx_dpdma.c.o \
 	vendor/lib/libcommon.fa.p/hw_dma_xlnx-zdma.c.o \
 	vendor/lib/libcommon.fa.p/hw_dma_omap_dma.c.o \
 	vendor/lib/libcommon.fa.p/hw_dma_soc_dma.c.o \
@@ -313,6 +319,8 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/hw_misc_bcm2835_cprman.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_bcm2835_powermgt.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_zynq_slcr.c.o \
+	vendor/lib/libcommon.fa.p/hw_misc_xlnx-zynqmp-crf.c.o \
+	vendor/lib/libcommon.fa.p/hw_misc_xlnx-zynqmp-apu-ctrl.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_xlnx-versal-xramc.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_xlnx-versal-pmc-iou-slcr.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_xlnx-versal-cfu.c.o \
@@ -334,6 +342,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/hw_misc_armsse-cpuid.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_armsse-mhu.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_pvpanic-pci.c.o \
+	vendor/lib/libcommon.fa.p/hw_misc_auxbus.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_aspeed_hace.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_aspeed_i3c.c.o \
 	vendor/lib/libcommon.fa.p/hw_misc_aspeed_lpc.c.o \
@@ -703,6 +712,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/net_filter-rewriter.c.o \
 	vendor/lib/libcommon.fa.p/net_filter-replay.c.o \
 	vendor/lib/libcommon.fa.p/net_l2tpv3.c.o \
+	vendor/lib/libcommon.fa.p/net_slirp.c.o \
 	vendor/lib/libcommon.fa.p/net_vhost-user.c.o \
 	vendor/lib/libcommon.fa.p/net_tap.c.o \
 	vendor/lib/libcommon.fa.p/net_tap-linux.c.o \
@@ -710,7 +720,6 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/net_can_can_core.c.o \
 	vendor/lib/libcommon.fa.p/net_can_can_host.c.o \
 	vendor/lib/libcommon.fa.p/net_can_can_socketcan.c.o \
-	vendor/lib/libcommon.fa.p/net_slirp.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay-internal.c.o \
 	vendor/lib/libcommon.fa.p/replay_replay-events.c.o \
@@ -731,19 +740,39 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/accel_dummy-cpus.c.o \
 	vendor/lib/libcommon.fa.p/ebpf_ebpf_rss-stub.c.o \
 	vendor/lib/libcommon.fa.p/ui_curses.c.o \
+	vendor/lib/libcommon.fa.p/ui_shader.c.o \
+	vendor/lib/libcommon.fa.p/ui_console-gl.c.o \
+	vendor/lib/libcommon.fa.p/ui_egl-helpers.c.o \
+	vendor/lib/libcommon.fa.p/ui_egl-context.c.o \
+	vendor/lib/libcommon.fa.p/ui_egl-headless.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-chardev.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-clipboard.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-console.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-error.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus-listener.c.o \
 	vendor/lib/libcommon.fa.p/ui_dbus.c.o \
+	vendor/lib/libcommon.fa.p/ui_gtk.c.o \
+	vendor/lib/libcommon.fa.p/ui_x_keymap.c.o \
+	vendor/lib/libcommon.fa.p/ui_gtk-gl-area.c.o \
+	vendor/lib/libcommon.fa.p/ui_gtk-egl.c.o \
+	vendor/lib/libcommon.fa.p/ui_spice-core.c.o \
+	vendor/lib/libcommon.fa.p/ui_spice-input.c.o \
+	vendor/lib/libcommon.fa.p/ui_spice-display.c.o \
+	vendor/lib/libcommon.fa.p/ui_spice-app.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_virtio-gpu-base.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_virtio-gpu.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_virtio-gpu-udmabuf.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_vhost-user-gpu.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_virtio-gpu-pci.c.o \
 	vendor/lib/libcommon.fa.p/hw_display_vhost-user-gpu-pci.c.o \
-	vendor/lib/libcommon.fa.p/audio_ossaudio.c.o
+	vendor/lib/libcommon.fa.p/audio_alsaaudio.c.o \
+	vendor/lib/libcommon.fa.p/audio_ossaudio.c.o \
+	vendor/lib/libcommon.fa.p/audio_paaudio.c.o \
+	vendor/lib/libcommon.fa.p/audio_sndioaudio.c.o \
+	vendor/lib/libcommon.fa.p/audio_spiceaudio.c.o \
+	vendor/lib/libcommon.fa.p/audio_dbusaudio.c.o \
+	vendor/lib/libcommon.fa.p/chardev_baum.c.o \
+	vendor/lib/libcommon.fa.p/chardev_spice.c.o
 
 LIBQEMU_AARCH64_SOFTMMU = \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/target_arm_arch_dump.c.o \
@@ -803,6 +832,8 @@ LIBQEMU_AARCH64_SOFTMMU = \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_stm32f100_soc.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_stm32f205_soc.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_stm32f405_soc.c.o \
+	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_xlnx-zynqmp.c.o \
+	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_xlnx-zcu102.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_xlnx-versal.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_xlnx-versal-virt.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/hw_arm_fsl-imx25.c.o \
@@ -988,46 +1019,109 @@ LIBQEMU_AARCH64_SOFTMMU = \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/meson-generated_.._qapi_qapi-events.c.o \
 	vendor/lib/libqemu-aarch64-softmmu.fa.p/meson-generated_.._qapi_qapi-emit-events.c.o
 
-# QEMU_SYSTEM_AARCH64 = \
+QEMU_SYSTEM_AARCH64 = \
+	vendor/lib/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o
 
 OTHERS = \
-	vendor/lib/libgdb_system.a vendor/lib/libauthz.a \
-	vendor/lib/libblock.a vendor/lib/libblockdev.a vendor/lib/libchardev.a \
-	vendor/lib/libcrypto.a vendor/lib/libevent-loop-base.a \
-	vendor/lib/libhwcore.a vendor/lib/libio.a vendor/lib/libmigration.a \
-	vendor/lib/libqemuutil.a vendor/lib/libqmp.a vendor/lib/libqom.a \
-	vendor/lib/subprojects/dtc/libfdt/libfdt.a \
-	vendor/lib/subprojects/libvduse/libvduse.a \
-	vendor/lib/subprojects/libvhost-user/libvhost-user-glib.a \
-	vendor/lib/subprojects/libvhost-user/libvhost-user.a \
-	vendor/lib/libtcg_system.a
+	vendor/lib/libhwcore.a \
+	vendor/lib/libqom.a \
+	vendor/lib/libevent-loop-base.a \
+	vendor/lib/libgdb_system.a \
+	vendor/lib/libio.a \
+	vendor/lib/libcrypto.a \
+	vendor/lib/libauthz.a \
+	vendor/lib/libblockdev.a \
+	vendor/lib/libblock.a \
+	vendor/lib/libchardev.a \
+	vendor/lib/libqmp.a \
+	vendor/lib/libqemuutil.a \
+	vendor/lib/libvhost-user-glib.a \
+	vendor/lib/libvhost-user.a \
+	vendor/lib/libtcg_system.a \
+	vendor/lib/libmigration.a \
+	vendor/lib/libvduse.a
 
 %.a: %.fa %.fa.p
 	ar cr $@ $*.fa.p/*.o
 
 QEMU_LDFLAGS := \
-	-Wl,--as-needed -Wl,--no-undefined -Wl,--whole-archive \
-	vendor/lib/qemu_system_aarch64.a \
+	-Wl,--as-needed \
+	-Wl,--no-undefined \
+	-pie \
+	-Wl,--whole-archive \
 	vendor/lib/libhwcore.a \
-	vendor/lib/libgdb_system.a \
 	vendor/lib/libqom.a \
-	vendor/lib/libqmp.a \
 	vendor/lib/libevent-loop-base.a \
+	vendor/lib/libgdb_system.a \
 	vendor/lib/libio.a \
 	vendor/lib/libcrypto.a \
 	vendor/lib/libauthz.a \
-	vendor/lib/libblock.a \
 	vendor/lib/libblockdev.a \
-	vendor/lib/libtcg_system.a \
-	vendor/lib/libmigration.a \
+	vendor/lib/libblock.a \
 	vendor/lib/libchardev.a \
+	vendor/lib/libqmp.a \
 	-Wl,--no-whole-archive \
+	-fstack-protector-strong \
+	-Wl,-z,relro \
+	-Wl,-z,now \
+	-Wl,--warn-common \
 	-Wl,--start-group \
 	vendor/lib/libqemuutil.a \
-	vendor/lib/subprojects/dtc/libfdt/libfdt.a \
-	vendor/lib/subprojects/libvhost-user/libvhost-user-glib.a \
-	vendor/lib/subprojects/libvhost-user/libvhost-user.a \
-	vendor/lib/subprojects/libvduse/libvduse.a \
-	-lm -lpam -lutil -pthread -lz -lzstd -lpixman-1 -lslirp \
-	-lpng16 -ludev -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lncursesw -ltinfo \
-	-lgmodule-2.0 -Wl,--end-group
+	vendor/lib/libvhost-user-glib.a \
+	vendor/lib/libvhost-user.a \
+	vendor/lib/libtcg_system.a \
+	vendor/lib/libmigration.a \
+	vendor/lib/libhwcore.a \
+	vendor/lib/libqom.a \
+	vendor/lib/libevent-loop-base.a \
+	vendor/lib/libgdb_system.a \
+	vendor/lib/libio.a \
+	vendor/lib/libcrypto.a \
+	vendor/lib/libauthz.a \
+	vendor/lib/libblockdev.a \
+	vendor/lib/libvduse.a \
+	vendor/lib/libblock.a \
+	vendor/lib/libchardev.a \
+	vendor/lib/libqmp.a \
+	-lfdt \
+	/usr/lib/x86_64-linux-gnu/libz.so \
+	/usr/lib/x86_64-linux-gnu/libpixman-1.so \
+	/usr/lib/x86_64-linux-gnu/libepoxy.so \
+	/usr/lib/x86_64-linux-gnu/libspice-server.so \
+	-Xlinker \
+	--dynamic-list=/media/liuqiang/Additional/project-hypervfuzz/hyperpill-for-arm/HyperPill/vendor/qemu/plugins/qemu-plugins.symbols \
+	/usr/lib/x86_64-linux-gnu/libgnutls.so \
+	/usr/lib/x86_64-linux-gnu/libpng16.so \
+	/usr/lib/x86_64-linux-gnu/libudev.so \
+	-llzo2 \
+	-lnuma \
+	/usr/lib/x86_64-linux-gnu/libgio-2.0.so \
+	/usr/lib/x86_64-linux-gnu/libgobject-2.0.so \
+	/usr/lib/x86_64-linux-gnu/libglib-2.0.so \
+	/usr/lib/x86_64-linux-gnu/libslirp.so \
+	/usr/lib/x86_64-linux-gnu/libncursesw.so \
+	/usr/lib/x86_64-linux-gnu/libtinfo.so \
+	/usr/lib/x86_64-linux-gnu/libgmodule-2.0.so \
+	-pthread \
+	/usr/lib/x86_64-linux-gnu/libgbm.so \
+	/usr/lib/x86_64-linux-gnu/libgtk-3.so \
+	/usr/lib/x86_64-linux-gnu/libgdk-3.so \
+	/usr/lib/x86_64-linux-gnu/libpangocairo-1.0.so \
+	/usr/lib/x86_64-linux-gnu/libpango-1.0.so \
+	/usr/lib/x86_64-linux-gnu/libharfbuzz.so \
+	/usr/lib/x86_64-linux-gnu/libatk-1.0.so \
+	/usr/lib/x86_64-linux-gnu/libcairo-gobject.so \
+	/usr/lib/x86_64-linux-gnu/libcairo.so \
+	/usr/lib/x86_64-linux-gnu/libgdk_pixbuf-2.0.so \
+	/usr/lib/x86_64-linux-gnu/libX11.so \
+	/usr/lib/x86_64-linux-gnu/libasound.so \
+	/usr/lib/x86_64-linux-gnu/libpulse.so \
+	/usr/lib/x86_64-linux-gnu/libsndio.so \
+	-lbrlapi \
+	-lnuma \
+	-lm \
+	-lpam \
+	/usr/lib/x86_64-linux-gnu/libcurl.so \
+	-lbz2 \
+	-lutil \
+	-Wl,--end-group

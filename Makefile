@@ -21,16 +21,16 @@ else ifeq ($(ARCH), aarch64)
 INCLUDES    = -I. \
 			  -I vendor/robin-map/include \
 			  -I arch/aarch64/qemuapi \
-			  -I /usr/include/glib-2.0 \
-			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include \
 			  -I vendor/qemu/include \
 			  -I vendor/qemu/target/arm \
 			  -I vendor/qemu-build
-ARCH_FLAGS  = -DHP_AARCH64
+ARCH_FLAGS  = -DHP_AARCH64 -DNEED_CPU_H \
+			  -DCONFIG_TARGET=\"aarch64-softmmu-config-target.h\" \
+			  -DCONFIG_DEVICES=\"aarch64-softmmu-config-devices.h\"
 else
     $(error Unsupported architecture: $(ARCH))
 endif
-CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -DNEED_CPU_H -DCONFIG_TARGET='"aarch64-softmmu-config-target.h"' -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \
@@ -70,11 +70,12 @@ OBJS        = $(OBJS_GENERIC) \
 			  arch/x86_64/bochsapi/apic.o \
               arch/x86_64/bochsapi/dbg.o
 else ifeq ($(ARCH), aarch64)
+# python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
 include Makefile.qemu
-VENDOR_LIBS:=  vendor/libfuzzer-ng/libFuzzer.a
-
+VENDOR_LIBS:= vendor/libfuzzer-ng/libFuzzer.a
 VENDOR_OBJS =
-LDFLAGS    := $(LDFLAGS) $(QEMU_LDFLAGS)
+LDFLAGS    := $(LDFLAGS) -Wl,--whole-archive vendor/lib/qemu_system_aarch64.a \
+			  -Wl,--no-whole-archive $(QEMU_LDFLAGS)
 OBJS        = arch/aarch64/qemuapi/qemu.o \
 			  arch/aarch64/breakpoints.o \
 			  arch/aarch64/control.o \
@@ -88,7 +89,7 @@ else
 endif
 
 all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
-	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(LDFLAGS) $(VENDOR_LIBS) -o fuzz
+	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o fuzz
 
 %.o: %.cc $(DEPS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $<
@@ -128,27 +129,59 @@ else ifeq ($(ARCH), aarch64)
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
-		--disable-vnc --disable-sdl --disable-bpf --enable-slirp --disable-capstone --target-list=aarch64-softmmu
+		--disable-vnc --disable-sdl --disable-bpf --enable-slirp \
+		--disable-capstone --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
-	cd vendor/qemu; meson subprojects download dtc
-	cd vendor/qemu/subprojects/dtc/; make
-	mkdir -p vendor/lib/qemu-system-aarch64.p
-	cp -r ./vendor/qemu-build/libqemu-aarch64-softmmu.fa.p vendor/lib/
-	cp -r ./vendor/qemu-build/libcommon.fa.p vendor/lib/
-	cp ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
-		vendor/lib/libcommon.fa.p/
-	cp -r ./vendor/qemu-build/subprojects/ vendor/lib/
-	cp -r ./vendor/qemu/subprojects/dtc vendor/lib/subprojects
-	cp -r ./vendor/qemu-build/gdbstub/libgdb_system.fa.p vendor/lib/
-	cp ./vendor/qemu-build/gdbstub/libgdb_system.fa vendor/lib/
-	cp -r ./vendor/qemu-build/*.fa.p vendor/lib/
-	cp ./vendor/qemu-build/*.fa vendor/lib/
-	cp -r ./vendor/qemu-build/tcg/libtcg_system.fa.p ./vendor/lib/
-	cp ./vendor/qemu-build/tcg/libtcg_system.fa ./vendor/lib/
-	cp -r ./vendor/qemu-build/libqemuutil.a.p ./vendor/lib/libqemuutil.fa.p
-	cp ./vendor/qemu-build/libqemuutil.a ./vendor/lib/libqemuutil.fa
+
+	# cd vendor/qemu; meson subprojects download dtc
+	# cd vendor/qemu/subprojects/dtc/; make
+	# cp -r ./vendor/qemu-build/subprojects/ vendor/lib/
+	# cp -r ./vendor/qemu/subprojects/dtc vendor/lib/subprojects
+
+	rsync -av ./vendor/qemu-build/libcommon.fa.p vendor/lib/
+	rsync -av ./vendor/qemu-build/libqemu-aarch64-softmmu.fa.p vendor/lib/
+	mkdir -p ./vendor/lib/qemu-system-aarch64.p
+	rsync -av ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
+		vendor/lib/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o
+
+	# python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
+	rsync -av ./vendor/qemu-build/libhwcore.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libhwcore.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libqom.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libqom.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libevent-loop-base.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libevent-loop-base.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/gdbstub/libgdb_system.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/gdbstub/libgdb_system.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libio.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libio.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libcrypto.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libcrypto.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libauthz.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libauthz.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libblockdev.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libblockdev.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libblock.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libblock.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libchardev.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libchardev.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libqmp.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libqmp.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libqemuutil.a ./vendor/lib/libqemuutil.fa
+	rsync -av ./vendor/qemu-build/libqemuutil.a.p/ ./vendor/lib/libqemuutil.fa.p/
+	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user-glib.a ./vendor/lib/libvhost-user-glib.fa
+	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user-glib.a.p/ ./vendor/lib/libvhost-user-glib.fa.p/
+	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user.a ./vendor/lib/libvhost-user.fa
+	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user.a.p/ ./vendor/lib/libvhost-user.fa.p/
+	rsync -av ./vendor/qemu-build/tcg/libtcg_system.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/tcg/libtcg_system.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libmigration.fa ./vendor/lib/
+	rsync -av ./vendor/qemu-build/libmigration.fa.p ./vendor/lib/
+	rsync -av ./vendor/qemu-build/subprojects/libvduse/libvduse.a ./vendor/lib/libvduse.fa
+	rsync -av ./vendor/qemu-build/subprojects/libvduse/libvduse.a.p/ ./vendor/lib/libvduse.fa.p/
+
 	make $(OTHERS)
-	ar cr vendor/lib/qemu_system_aarch64.a $(LIBCOMMON) $(LIBQEMU_AARCH64_SOFTMMU)
+	ar cr vendor/lib/qemu_system_aarch64.a $(LIBCOMMON) $(LIBQEMU_AARCH64_SOFTMMU) $(QEMU_SYSTEM_AARCH64)
 else
     $(error Unsupported architecture: $(ARCH))
 endif
