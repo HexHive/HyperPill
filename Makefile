@@ -23,7 +23,9 @@ INCLUDES    = -I. \
 			  -I arch/aarch64/qemuapi \
 			  -I vendor/qemu/include \
 			  -I vendor/qemu/target/arm \
-			  -I vendor/qemu-build
+			  -I vendor/qemu-build \
+			  -I /usr/include/glib-2.0 \
+			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include
 ARCH_FLAGS  = -DHP_AARCH64 -DNEED_CPU_H \
 			  -DCONFIG_TARGET=\"aarch64-softmmu-config-target.h\" \
 			  -DCONFIG_DEVICES=\"aarch64-softmmu-config-devices.h\"

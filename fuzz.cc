@@ -3,6 +3,10 @@
 
 #include <ctime>
 
+#if defined(HP_AARCH64)
+#include "qemuapi.h"
+#endif
+
 enum cmds {
 	OP_READ,
 	OP_WRITE,
@@ -58,7 +62,7 @@ void clear_seen_dma() {
 	seen_dma.clear();
 }
 
-void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
+void hyperpill_fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 	uint8_t *buf;
 
 	if (!fuzzing)
@@ -719,13 +723,13 @@ void insert_register_value_into_fuzz_input(int idx) {
  * [the corresponding registers in natural order]
  */
 bool op_vmcall() {
+	printf("OP VMCALL\n");
 	static uint8_t local_dma[4096]; // Used to make a copy of dma data
 					// before rewriting regs
 	size_t local_dma_len; // Used to make a copy of dma data before
 			      // rewriting regs
-	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
-	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
-		return false;
+	//if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
+	//	return false;
 
 #if defined(HP_X86_64)
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
@@ -778,6 +782,12 @@ bool op_vmcall() {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 #elif defined(HP_AARCH64)
+	const uint64_t fuzzable_regs_bitmap = 
+		(0b11111111111111111000000000000000000000000000000000000000000000);
+
+	aarch64_set_xregs(vmcall_gpregs);
+	aarch64_set_esr_el2(HVC);
+
 // TODO
 #else
 #error
@@ -834,6 +844,7 @@ bool op_clock_step() {
 
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
+	printf("fuzz_run_input\n");
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,

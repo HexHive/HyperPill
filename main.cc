@@ -1,4 +1,5 @@
 #include "fuzz.h"
+#include "qemuapi.h"
 #include <cstdint>
 
 bool master_fuzzer;
@@ -52,6 +53,7 @@ static void init_cpu(void) {
 }
 
 void start_cpu() {
+	printf("Starting CPU\n");
 	if (fuzzing && (fuzz_unhealthy_input || fuzz_do_not_continue))
 		return;
 
@@ -65,15 +67,18 @@ void start_cpu() {
 	}
 	reset_op_cov();
 	cpu0_set_fuzz_executing_input(true);
-	while (cpu0_get_fuzz_executing_input()) {
 #if defined(HP_X86_64)
+	while (cpu0_get_fuzz_executing_input()) {
 	BX_CPU(id)->cpu_loop();
+	}
 #elif defined(HP_AARCH64)
-// TODO
+	// FIXME : BX_CPU(id)->cpu_loop() is probably blocking, which is not the case
+	// for us with qemu_start_vm();
+	// TODO : block on a barrier or something
+	qemu_wait_until_stop();
 #else
 #error
 #endif
-	}
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
 	cpu0_set_pc(guest_rip); // reset $RIP
@@ -103,7 +108,7 @@ static void fuzz_emu_stop() {
 	cpu0_set_fuzz_executing_input(false);
 }
 
-void fuzz_emu_stop_normal(){
+extern "C" void fuzz_emu_stop_normal(){
     fuzz_emu_stop();
 }
 
@@ -145,13 +150,14 @@ unsigned long int get_pio_icount() {
 }
 
 void reset_vm() {
+	printf("Resetting VM !\n");
 #if defined(HP_X86_64)
 	bx_cpu = shadow_bx_cpu;
 	if (BX_CPU(id)->vmcs_map)
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 	fuzz_reset_memory();
 #elif defined(HP_AARCH64)
-// TODO
+	qemu_reload_vm(getenv("SNAPSHOT_BASE"));
 #else
 #error
 #endif
@@ -183,16 +189,23 @@ void fuzz_instr_before_execution(hp_instruction *i) {
 
 static void usage() {
 	printf("The following environment variables must be set:\n");
+#if defined(HP_X86_64)
 	printf("ICP_MEM_PATH\n");
 	printf("ICP_REGS_PATH\n");
 	printf("ICP_VMCS_LAYOUT_PATH\n");
 	printf("ICP_VMCS_ADDR\n");
+#elif defined(HP_AARCH64)
+	printf("SNAPSHOT_BASE\n");
+#else
+#error
+#endif
 	exit(-1);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
+
 	if (cpu0_get_fuzztrace())
 		printf("NEW INPUT\n");
 	if (!done) {
@@ -275,6 +288,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	return fuzz_unhealthy_input != 0;
 }
 
+#if defined(HP_X86_64)
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Path to VM Snapshot */
 	char *mem_path = getenv("ICP_MEM_PATH");
@@ -420,3 +434,25 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	return 0;
 }
+
+#elif defined(HP_AARCH64)
+
+/*int test_one_input_fn(const uint8_t *Data, size_t Size) {
+	// TODO
+
+	return 0;
+}*/
+
+extern "C" int LLVMFuzzerRunDriver(int *argc, char ***argv,
+                  int (*UserCb)(const uint8_t *Data, size_t Size));
+
+int main(int argc, char **argv) {
+	init_qemu(argc, argv);
+
+	// FIXME: find a way to provide arguments to both QEMU and libfuzzer-ng
+	argc = 1; // Skip provided arguments, because they are intended for QEMU, not LibFuzzer-NG
+	int status = LLVMFuzzerRunDriver(&argc, &argv, LLVMFuzzerTestOneInput);
+
+	return status;
+}
+#endif

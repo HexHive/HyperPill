@@ -2,10 +2,14 @@
 #define FUZZ_H
 
 #include <stdint.h>
+
+#ifdef __cplusplus
 #include <map>
 #include <vector>
 #include <cstring>
 #include <tsl/robin_set.h>
+#endif
+
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -35,11 +39,13 @@ typedef void hp_instruction; // TODO
 #endif
 
 extern bool fuzzing;
-extern tsl::robin_set<hp_address> cur_input;
 extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
+#ifdef __cplusplus
+extern tsl::robin_set<hp_address> cur_input;
 extern std::vector<size_t> guest_page_scratchlist; 
+#endif
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 
@@ -63,8 +69,8 @@ void fuzz_watch_memory_inc();
 void fuzz_clear_dirty();
 bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);
-bool cpu0_get_fuzz_executing_input(void);
-void cpu0_set_fuzz_executing_input(bool fuzzing);
+extern "C" bool cpu0_get_fuzz_executing_input(void);
+extern "C" void cpu0_set_fuzz_executing_input(bool fuzzing);
 
 #if defined(HP_X86_64)
 extern uint64_t vmcs_addr;
@@ -94,7 +100,7 @@ void cpu0_set_pc(uint64_t rip);
 
 // fuzz.cc
 void clear_seen_dma();
-void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
+void hyperpill_fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
 bool op_clock_step();
 bool inject_in(uint16_t addr, uint16_t size);
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
@@ -116,7 +122,7 @@ void add_mmio_range_alt(uint64_t addr, uint64_t end);
 void fuzz_instr_before_execution(hp_instruction *i);
 void fuzz_instr_after_execution(hp_instruction *i);
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-void fuzz_emu_stop_normal();
+extern "C" void fuzz_emu_stop_normal();
 void fuzz_emu_stop_unhealthy();
 void fuzz_emu_stop_crash(const char *type);
 void fuzz_hook_exception(unsigned vector, unsigned error_code);
@@ -152,8 +158,10 @@ bool empty_stacktrace(void);
 void open_db(const char* path);
 void insert_mmio(uint64_t addr, uint64_t len);
 void insert_pio(uint16_t addr, uint16_t len);
+#ifdef __cplusplus
 void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
 void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
+#endif
 
 // enum.cc
 void enum_pio_regions();
@@ -187,9 +195,11 @@ void setup_periodic_coverage();
 void check_write_coverage();
 
 // sym2addr_linux.cc
+#ifdef __cplusplus
 void load_symbol_map(char *path);
 hp_address sym_to_addr(std::string bin, std::string name);
 std::pair<std::string, std::string> addr_to_sym(size_t addr);
+#endif
 
 // symbolize.cc
 void load_symbolization_files(char* path);
