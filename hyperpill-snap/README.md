@@ -478,7 +478,7 @@ monitor :
 
 ```bash
 [L0] telnet localhost 1234
-[L0 qemu-monitor] savevm /path/to/snapshots/dir/mem
+[L0 qemu-monitor] savevm /path/to/snapshots/dir/vm
 ```
 
 This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is
