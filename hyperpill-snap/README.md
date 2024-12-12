@@ -440,7 +440,7 @@ that will trigger an exception, which will be caught by QEMU on L0. Copy the
 kernel and the root filesystem from inside hyperpill's directory to L1 :
 
 ```bash
-[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/rootfs.ext4 root@localhost:/root
+[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/rootfs.cpio.gz root@localhost:/root
 [L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/Image root@localhost:/root
 ```
 

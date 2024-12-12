@@ -10,7 +10,7 @@ static int init(void)
 	asm volatile("mov x0, 0xdead\n");
 	asm volatile("mov x1, 0xbeef\n");
 	asm volatile("lsl x0, x0, 16\n");
-	asm volatile("orr x0, x0 x1\n");
+	asm volatile("orr x0, x0, x1\n");
 	asm volatile("hvc #0\n");
 
 	return 0;

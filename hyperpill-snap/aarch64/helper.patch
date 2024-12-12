@@ -25,8 +25,8 @@
 +	if (env->xregs[0] == 0xdeadbeef) {
 +            printf("======== Hyperpill ! ========\n");
 +            vm_stop(RUN_STATE_PAUSED);
-+            printf("VM stopped. You can now take a snapshot"
-+                   "in QEMU monitor: savevm /path/to/snapshots/dir/mem\n");
++            printf("VM stopped. You can now take a snapshot "
++                   "in QEMU monitor: savevm /path/to/snapshots/dir/vm\n");
 +        }
 +    }
  }
