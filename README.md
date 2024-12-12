@@ -1,6 +1,8 @@
 HyperPill
 =========
 
+!!! For better communication, please join our [discord](https://discord.gg/9tuPhCtr) server. !!!
+
 Building
 --------
 CC=clang CXX=clang++ make
