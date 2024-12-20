@@ -1,5 +1,4 @@
 #include "fuzz.h"
-#include "qemuapi.h"
 #include <cstdint>
 
 bool master_fuzzer;
@@ -108,7 +107,10 @@ static void fuzz_emu_stop() {
 	cpu0_set_fuzz_executing_input(false);
 }
 
-extern "C" void fuzz_emu_stop_normal(){
+#if defined(HP_AARCH64)
+extern "C"
+#endif
+void fuzz_emu_stop_normal(){
     fuzz_emu_stop();
 }
 
@@ -149,6 +151,10 @@ unsigned long int get_pio_icount() {
 	return pio_icount;
 }
 
+#if defined(HP_AARCH64)
+char __snapshot_tag[320];
+#endif
+
 void reset_vm() {
 	printf("Resetting VM !\n");
 #if defined(HP_X86_64)
@@ -157,7 +163,7 @@ void reset_vm() {
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 	fuzz_reset_memory();
 #elif defined(HP_AARCH64)
-	qemu_reload_vm(getenv("SNAPSHOT_BASE"));
+	qemu_reload_vm(__snapshot_tag);
 #else
 #error
 #endif
@@ -195,7 +201,9 @@ static void usage() {
 	printf("ICP_VMCS_LAYOUT_PATH\n");
 	printf("ICP_VMCS_ADDR\n");
 #elif defined(HP_AARCH64)
-	printf("SNAPSHOT_BASE\n");
+	printf("ICP_EFI_PATH\n");
+	printf("ICP_VARSTORE_PATH\n");
+	printf("ICP_VM_PATH\n");
 #else
 #error
 #endif
@@ -288,13 +296,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	return fuzz_unhealthy_input != 0;
 }
 
-#if defined(HP_X86_64)
 extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
+	char *icp_db_path = getenv("ICP_DB_PATH");
+	verbose = getenv("VERBOSE");
+#if defined(HP_X86_64)
 	/* Path to VM Snapshot */
 	char *mem_path = getenv("ICP_MEM_PATH");
 	char *regs_path = getenv("ICP_REGS_PATH");
-	char *icp_db_path = getenv("ICP_DB_PATH");
-	verbose = getenv("VERBOSE");
 
 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
 	 * collected, so we also need to load a mapping of VMCS encodings to
@@ -381,22 +389,10 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Save guest RIP so that we can restore it after each fuzzer input */
 	guest_rip = BX_CPU(id)->get_rip();
 
-	/* For addr -> symbol */
-	if (getenv("SYMBOLS_DIR"))
-		load_symbolization_files(getenv("SYMBOLS_DIR"));
-
-	/* For symbol - > addr (for breakpoints)*/
-	if (getenv("SYMBOL_MAPPING"))
-		load_symbol_map(getenv("SYMBOL_MAPPING"));
-
 	BX_CPU(id)->TLB_flush();
 	fuzz_walk_ept();
 	vmcs_fixup();
 	init_register_feedback();
-
-	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
-		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
-			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
 
 	uint32_t pciid = 0;
 	if (getenv("PCI_ID")) {
@@ -421,6 +417,57 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * state after each fuzzer input
 	 */
 	shadow_bx_cpu = bx_cpu;
+#elif defined(HP_AARCH64)
+	char *efi_path = getenv("ICP_EFI_PATH");
+	char *vm_path = getenv("ICP_VM_PATH");
+
+	if (!(efi_path && vm_path)) {
+		usage();
+	}
+
+	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	cpu0_set_fuzztrace(fuzztrace);
+
+	// construct argc/argv for qemu
+	char vm_path_copy[256];
+	memcpy(vm_path_copy, vm_path, strlen(vm_path));
+	snprintf(__snapshot_tag, sizeof(__snapshot_tag), "%s/vm", basename(dirname(vm_path_copy)));
+
+	char efi_arg[320];
+	snprintf(efi_arg, sizeof(efi_arg), "%s", efi_path);
+	char vm_arg[320];
+	snprintf(vm_arg, sizeof(vm_arg), "if=virtio,format=qcow2,file=%s", vm_path);
+
+	// should be the same as when launching L1 vm
+	int qemu_argc = 22;
+	char *qemu_argv[] = {
+		"qemu-system-aarch64",
+		"-monitor", "telnet:127.0.0.1:1235,server,nowait",
+		"-nographic",
+		"-smp", "1",
+		"-m", "8192",
+		"-cpu", "max",
+		"-bios", efi_arg,
+		"-device", "virtio-scsi-pci,id=scsi0",
+		"-drive", vm_arg,
+		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
+		"-device", "virtio-net-device,netdev=net0",
+		"-M", "virt,virtualization=on",
+		NULL
+	};
+	init_qemu(qemu_argc, qemu_argv, __snapshot_tag);
+#endif
+	/* For addr -> symbol */
+	if (getenv("SYMBOLS_DIR"))
+		load_symbolization_files(getenv("SYMBOLS_DIR"));
+
+	/* For symbol - > addr (for breakpoints)*/
+	if (getenv("SYMBOL_MAPPING"))
+		load_symbol_map(getenv("SYMBOL_MAPPING"));
+
+	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
+		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
+			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
 
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
@@ -434,25 +481,3 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	return 0;
 }
-
-#elif defined(HP_AARCH64)
-
-/*int test_one_input_fn(const uint8_t *Data, size_t Size) {
-	// TODO
-
-	return 0;
-}*/
-
-extern "C" int LLVMFuzzerRunDriver(int *argc, char ***argv,
-                  int (*UserCb)(const uint8_t *Data, size_t Size));
-
-int main(int argc, char **argv) {
-	init_qemu(argc, argv);
-
-	// FIXME: find a way to provide arguments to both QEMU and libfuzzer-ng
-	argc = 1; // Skip provided arguments, because they are intended for QEMU, not LibFuzzer-NG
-	int status = LLVMFuzzerRunDriver(&argc, &argv, LLVMFuzzerTestOneInput);
-
-	return status;
-}
-#endif

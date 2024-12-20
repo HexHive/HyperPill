@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 /* QEMU related functionality */
-void init_qemu(int argc, char **argv);
+void init_qemu(int argc, char **argv, char *snapshot_tag);
 
 bool qemu_reload_vm(char *tag);
 

@@ -52,6 +52,7 @@ After the enumeration stage is complete, we can fuzz the snapshot:
 ```
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 Additionally, for elf-based hypervisors, it will be convenient to store copies

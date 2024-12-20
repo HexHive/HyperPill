@@ -28,3 +28,5 @@ void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
 }
 
 void hp_add_persistent_memory_range(hp_address start, size_t len) { }
+
+void fuzz_watch_memory_inc() { };

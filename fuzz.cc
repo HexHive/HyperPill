@@ -62,7 +62,7 @@ void clear_seen_dma() {
 	seen_dma.clear();
 }
 
-void hyperpill_fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
+void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 	uint8_t *buf;
 
 	if (!fuzzing)

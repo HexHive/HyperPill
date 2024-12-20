@@ -373,12 +373,8 @@ First, set up L0 to run L1. At the root of the project :
 [L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
 [L0] mv debian-12-nocloud-arm64.qcow2 disk.qcow2
 [L0] qemu-img resize disk.qcow2 30G
-[L0] truncate -s 64m varstore.img
 [L0] truncate -s 64m efi.img
 [L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
- # Raw images cannot be snapshotted by QEMU. converting them to qcow2
- # solves the issue.
-[L0] qemu-img convert -f raw -O qcow2 varstore.img varstore.qcow2
 
 # WARNING : since you are running an emulated aarch64 system on an x86_64 host,
 # enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2
@@ -397,8 +393,7 @@ First, set up L0 to run L1. At the root of the project :
 	-nographic \
 	-smp 1 -m 8192 \
 	-cpu max \
-	-drive if=pflash,format=raw,file=efi.img,readonly=on \
-	-drive if=pflash,format=qcow2,file=varstore.qcow2 \
+    -bios efi.img \
 	-device virtio-scsi-pci,id=scsi0 \
 	-drive if=virtio,format=qcow2,file=disk.qcow2 \
 	-netdev user,id=net0,hostfwd=tcp::2222-:22 \
@@ -450,10 +445,9 @@ Then start running L2, **with KVM enabled**.
 [L1] qemu-8.0.0/build/qemu-system-aarch64 -M virt \
         -enable-kvm -cpu max -nographic \
         -kernel Image -append "rootwait root=/dev/vda console=ttyAMA0" \
+        -initrd rootfs.cpio.gz \
         -netdev user,id=eth0 \
-        -device virtio-net-device,netdev=eth0 \
-        -drive file=rootfs.ext4,if=none,format=raw,id=hd0 \
-        -device virtio-blk-device,drive=hd0
+        -device virtio-net-device,netdev=eth0
         // TODO: enable more virtual devices
 ```
 
@@ -469,7 +463,7 @@ behaviour.
 To do so, execute in L2 :
 
 ```bash
-[L2] insmod dummy_hvc.ko
+[L2] insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
 ```
 
 Once the exception is triggered, L0's QEMU catches it and stops the VM. From
@@ -478,7 +472,10 @@ monitor :
 
 ```bash
 [L0] telnet localhost 1234
-[L0 qemu-monitor] savevm /path/to/snapshots/dir/vm
+# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+[L0 qemu-monitor] savevm dir/vm
+[L0] cp efi.img /path/to/snapshots/dir/
+[L0] cp disk.qcow2 /path/to/snapshots/dir/vm
 ```
 
 This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is

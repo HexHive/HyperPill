@@ -190,9 +190,9 @@ endif
 
 clean:
 ifeq ($(ARCH), x86_64)
-	rm -rf vendor/bochs-build arch/x86_64/bochsapi/*.o
+	rm -rf vendor/bochs-build arch/x86_64/*.o arch/x86_64/bochsapi/*.o
 else ifeq ($(ARCH), aarch64)
-	rm -rf vendor/qemu-build #TODO
+	rm -rf vendor/qemu-build arch/aarch64/*.o arch/aarch64/qemuapi/*.o
 else
     $(error Unsupported architecture: $(ARCH))
 endif

@@ -131,7 +131,7 @@ void qemu_start_vm() {
     qemu_mutex_unlock_iothread();
 }
 
-bool qemu_reload_vm(char *tag) {
+bool qemu_reload_vm(char *snapshot_tag) {
     Error *err;
 
     if (!qemu_mutex_iothread_locked())
@@ -139,7 +139,7 @@ bool qemu_reload_vm(char *tag) {
 
     vm_stop(RUN_STATE_RESTORE_VM);
 
-    bool success = load_snapshot(tag, NULL, false, NULL, &err);
+    bool success = load_snapshot(snapshot_tag, NULL, false, NULL, &err);
     if(!success) {
         printf("Error loading snapshot\n");
         error_report_err(err);
@@ -155,23 +155,21 @@ void save_pre_hyp_pc() {
     pre_hyp_pc = env->elr_el[2];
 }
 
-void init_qemu(int argc, char **argv) {
+void init_qemu(int argc, char **argv, char *snapshot_tag) {
     qemu_init(argc, argv);
 
     qemu_mutex_init(&barrier_mutex);
     qemu_cond_init(&barrier_cond);
-    
+
     CPUState *cpu;
     CPU_FOREACH(cpu) {
         arm_register_el_change_hook(ARM_CPU(cpu), el_change_fn, NULL);
         arm_register_pre_el_change_hook(ARM_CPU(cpu), pre_el_change_fn, NULL);
     }
 
-    char *snapshot_tag = getenv("SNAPSHOT_BASE");
-    if (snapshot_tag != NULL) {
-        qemu_reload_vm(snapshot_tag);
-    } else {
-        exit(-1);
+    printf(".loading vm snapshot\n");
+    if (!qemu_reload_vm(snapshot_tag)) {
+        printf("Fail to load snapshot %s\n", snapshot_tag);
     }
 
     CPU_FOREACH(cpu) {

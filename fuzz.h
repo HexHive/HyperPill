@@ -21,7 +21,8 @@
 #include "cpu/cpu.h"
 #include "memory/memory-bochs.h"
 #elif defined(HP_AARCH64)
-// TODO
+#include "qemuapi.h"
+#include <libgen.h>
 #else
 #error
 #endif
@@ -44,7 +45,7 @@ extern bool master_fuzzer;
 extern bool verbose;
 #ifdef __cplusplus
 extern tsl::robin_set<hp_address> cur_input;
-extern std::vector<size_t> guest_page_scratchlist; 
+extern std::vector<size_t> guest_page_scratchlist;
 #endif
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
@@ -69,8 +70,14 @@ void fuzz_watch_memory_inc();
 void fuzz_clear_dirty();
 bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);
-extern "C" bool cpu0_get_fuzz_executing_input(void);
-extern "C" void cpu0_set_fuzz_executing_input(bool fuzzing);
+#if defined(HP_AARCH64)
+extern "C"
+#endif
+bool cpu0_get_fuzz_executing_input(void);
+#if defined(HP_AARCH64)
+extern "C"
+#endif
+void cpu0_set_fuzz_executing_input(bool fuzzing);
 
 #if defined(HP_X86_64)
 extern uint64_t vmcs_addr;
@@ -90,7 +97,7 @@ void dump_regs();
 void walk_ept(bool enum_mmio);
 void fuzz_walk_ept();
 void fuzz_walk_cr3();
-void fuzz_hook_memory_access(hp_address phy, unsigned len, 
+void fuzz_hook_memory_access(hp_address phy, unsigned len,
                              unsigned memtype, unsigned rw, void* data);
 void handle_breakpoints(hp_instruction *i);
 void handle_syscall_hooks(hp_instruction *i);
@@ -100,7 +107,7 @@ void cpu0_set_pc(uint64_t rip);
 
 // fuzz.cc
 void clear_seen_dma();
-void hyperpill_fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
+void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
 bool op_clock_step();
 bool inject_in(uint16_t addr, uint16_t size);
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
@@ -122,7 +129,10 @@ void add_mmio_range_alt(uint64_t addr, uint64_t end);
 void fuzz_instr_before_execution(hp_instruction *i);
 void fuzz_instr_after_execution(hp_instruction *i);
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-extern "C" void fuzz_emu_stop_normal();
+#if defined(HP_AARCH64)
+extern "C"
+#endif
+void fuzz_emu_stop_normal();
 void fuzz_emu_stop_unhealthy();
 void fuzz_emu_stop_crash(const char *type);
 void fuzz_hook_exception(unsigned vector, unsigned error_code);
