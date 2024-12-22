@@ -9,6 +9,7 @@ LIBCOMMON = \
 	vendor/lib/libcommon.fa.p/gdbstub_syscalls.c.o \
 	vendor/lib/libcommon.fa.p/cpu-common.c.o \
 	vendor/lib/libcommon.fa.p/page-vary-common.c.o \
+	vendor/lib/libcommon.fa.p/disas_capstone.c.o \
 	vendor/lib/libcommon.fa.p/disas_disas.c.o \
 	vendor/lib/libcommon.fa.p/accel_tcg_cpu-exec-common.c.o \
 	vendor/lib/libcommon.fa.p/trace_trace-hmp-cmds.c.o \
@@ -1087,6 +1088,7 @@ QEMU_LDFLAGS := \
 	/usr/lib/x86_64-linux-gnu/libz.so \
 	/usr/lib/x86_64-linux-gnu/libpixman-1.so \
 	/usr/lib/x86_64-linux-gnu/libepoxy.so \
+	/usr/lib/x86_64-linux-gnu/libcapstone.so \
 	/usr/lib/x86_64-linux-gnu/libspice-server.so \
 	-Xlinker \
 	--dynamic-list=/media/liuqiang/Additional/project-hypervfuzz/hyperpill-for-arm/HyperPill/vendor/qemu/plugins/qemu-plugins.symbols \
