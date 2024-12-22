@@ -1071,7 +1071,11 @@ size_t MutationDispatcher::Mutate_InsertOpBytes(uint8_t *Data, size_t Size,
 
 size_t MutationDispatcher::Mutate_MutateOpBytes(uint8_t *Data, size_t Size,
                                                   size_t MaxSize) {
-    enum { OP_IN, OP_OUT, OP_READ, OP_WRITE, OP_VMCALL };
+    enum {
+    #if defined(HP_X86_64)
+      OP_IN, OP_OUT,
+    #endif
+      OP_READ, OP_WRITE, OP_VMCALL };
     if(!OurBaseII || !OurBaseII->InputOps.size()) {
         return 0;
     }
@@ -1088,9 +1092,13 @@ size_t MutationDispatcher::Mutate_MutateOpBytes(uint8_t *Data, size_t Size,
     if(MaxSize < BeginMutate + MutateLen)
         return 0;
 
+    #if defined(HP_X86_64)
     switch (opType % 5) {
       case OP_IN:
       case OP_OUT:
+    #else
+    switch (opType % 3) {
+    #endif
       case OP_READ:
       case OP_WRITE:
           if (op.dma_start) // mutate the op and the dma section separately

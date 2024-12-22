@@ -14,6 +14,7 @@
 
 static std::vector<std::tuple<hp_address, hp_address, unsigned int>> ept_exit_ranges; // Start, Base, Reason
 
+#if defined(HP_X86_64)
 static std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -138,6 +139,7 @@ void enum_pio_regions() {
         insert_pio(a.first, a.second);
     }
 }
+#endif
 
 void enum_handle_ept_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end) {
