@@ -47,11 +47,21 @@ export PROJECT_ROOT=/path/to/HyperPill
 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
+If ARCH=aarch64, since the enumeration of the input-spaces has been not
+implemented, please dump the mtree `info mtree -f` within L1's QEMU monitor and
+save it to dir/mtree. Then add the following envs according to what virtual
+device(s) you are fuzzing.
+
+```
+KVM=1 ARCH=aarch64 MANUAL_RANGES=$SNAPSHOT_BASE/mtree RANGE_REGEX="pl061" $PROJECT_ROOT/scripts/run_hyperpill.sh
+```
+
 After the enumeration stage is complete, we can fuzz the snapshot:
 
 ```
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=x86_64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
@@ -64,6 +74,8 @@ To use these symbols, we need to infer the symbol map. To do this:
 
 ```
 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
+KVM=1 ARCH=x86_64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
+KVM=1 ARCH=aarch64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 ```
 
 Save the output to `dir/layout`. An example:
@@ -83,12 +95,16 @@ Then, remove SYMBOLS_DIR and rerun the fuzzer. Every new PC will be symbolized.
 
 ```
 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=x86_64 $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=aarch64 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 We can reproduce a crash:
 
 ```
 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
+KVM=1 ARCH=x86_64 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
+KVM=1 ARCH=aarch64 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
 ```
 
 Add have more debugging information:

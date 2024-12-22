@@ -305,8 +305,6 @@ EOF
 [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
 [L0 qemu-monitor] info registers
 # Copy the output of the above command to /path/to/snapshots/dir/regs
-[L0 qemu-monitor] info mtree -f
-# Copy the output of the above command to /path/to/snapshots/dir/mtree
 [L0] sudo dmesg | grep "VMCS.*last" | cut -f2 -d"(" | cut -f1 -d ")"
 # Copy the output of the above command to /path/to/snapshots/dir/vmcs
 ```
