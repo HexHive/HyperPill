@@ -33,6 +33,14 @@ void qemu_signal_stop();
 void qemu_set_running();
 bool qemu_is_running();
 
+// mem.c
+int __cpu0_memory_rw_debug(uint64_t addr, void *ptr, size_t len, bool is_write);
+
+// regs.c
+uint64_t __cpu0_get_pc();
+void __cpu0_set_pc(uint64_t pc);
+void __dump_regs();
+
 #ifdef __cplusplus
 }
 #endif

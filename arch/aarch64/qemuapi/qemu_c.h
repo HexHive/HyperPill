@@ -16,4 +16,7 @@
 #include "cpu.h"
 #include "internals.h"
 
+/* <qemu>/accel/tcg/ */
+#include "internal-target.h"
+
 #endif

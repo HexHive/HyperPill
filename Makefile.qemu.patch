@@ -1,0 +1,112 @@
+From 1f5faea93b6058c134d3d6a4a958c4927a3140bf Mon Sep 17 00:00:00 2001
+From: Qiang Liu <cyruscyliu@gmail.com>
+Date: Sun, 22 Dec 2024 16:29:03 +0100
+Subject: [PATCH] Enable hooks with a few fixes
+
+---
+ accel/tcg/cpu-exec.c             | 11 +++++++++++
+ accel/tcg/internal-target.h      |  3 +++
+ accel/tcg/translator.c           |  4 ++++
+ hw/block/pflash_cfi01.c          |  4 +++-
+ include/exec/translation-block.h |  5 +++++
+ 5 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
+index 6a4af14..b0df428 100644
+--- a/accel/tcg/cpu-exec.c
++++ b/accel/tcg/cpu-exec.c
+@@ -45,6 +45,13 @@
+ #include "internal-common.h"
+ #include "internal-target.h"
+ 
++/* Callback for an executed TB */
++exec_tb_cb_t exec_tb_cb;
++
++void register_exec_tb_cb(exec_tb_cb_t cb) {
++    exec_tb_cb = cb;
++}
++
+ /* -icount align implementation. */
+ 
+ typedef struct SyncClocks {
+@@ -918,6 +925,10 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
+ 
+     trace_exec_tb(tb, pc);
+     tb = cpu_tb_exec(cpu, tb, tb_exit);
++
++    /* notify that the tb has been executed */
++    exec_tb_cb(cpu->cpu_index, tb);
++
+     if (*tb_exit != TB_EXIT_REQUESTED) {
+         *last_tb = tb;
+         return;
+diff --git a/accel/tcg/internal-target.h b/accel/tcg/internal-target.h
+index 4e36cf8..3d74045 100644
+--- a/accel/tcg/internal-target.h
++++ b/accel/tcg/internal-target.h
+@@ -12,6 +12,9 @@
+ #include "exec/exec-all.h"
+ #include "exec/translate-all.h"
+ 
++typedef void (*exec_tb_cb_t)(int cpu_index, TranslationBlock *tb);
++void register_exec_tb_cb(exec_tb_cb_t cb);
++
+ /*
+  * Access to the various translations structures need to be serialised
+  * via locks for consistency.  In user-mode emulation access to the
+diff --git a/accel/tcg/translator.c b/accel/tcg/translator.c
+index 38c3400..cebd986 100644
+--- a/accel/tcg/translator.c
++++ b/accel/tcg/translator.c
+@@ -15,6 +15,7 @@
+ #include "exec/plugin-gen.h"
+ #include "tcg/tcg-op-common.h"
+ #include "internal-target.h"
++#include "target/arm/tcg/translate.h"
+ 
+ static void set_can_do_io(DisasContextBase *db, bool val)
+ {
+@@ -213,6 +214,9 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
+     tb->size = db->pc_next - db->pc_first;
+     tb->icount = db->num_insns;
+ 
++    DisasContext *dc = container_of(db, DisasContext, base);
++    tb->pc_last = dc->pc_curr;
++
+     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
+         && qemu_log_in_addr_range(db->pc_first)) {
+         FILE *logfile = qemu_log_trylock();
+diff --git a/hw/block/pflash_cfi01.c b/hw/block/pflash_cfi01.c
+index 5e848a9..dbbad08 100644
+--- a/hw/block/pflash_cfi01.c
++++ b/hw/block/pflash_cfi01.c
+@@ -1034,7 +1034,9 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
+     PFlashCFI01 *pfl = opaque;
+ 
+     /* This is called after bdrv_activate_all.  */
+-    qemu_del_vm_change_state_handler(pfl->vmstate);
++    if (pfl->vmstate) {
++        qemu_del_vm_change_state_handler(pfl->vmstate);
++    }
+     pfl->vmstate = NULL;
+ 
+     trace_pflash_postload_cb(pfl->name);
+diff --git a/include/exec/translation-block.h b/include/exec/translation-block.h
+index e2b26e1..54c18c4 100644
+--- a/include/exec/translation-block.h
++++ b/include/exec/translation-block.h
+@@ -54,6 +54,11 @@ struct TranslationBlock {
+      */
+     vaddr pc;
+ 
++    /*
++     * Guest PC of the last guest instruction in this TB
++     */
++    vaddr pc_last;
++
+     /*
+      * Target-specific data associated with the TranslationBlock, e.g.:
+      * x86: the original user, the Code Segment virtual base,
+-- 
+2.34.1
+

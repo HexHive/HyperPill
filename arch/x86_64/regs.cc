@@ -248,9 +248,6 @@ void icp_set_vmcs(uint64_t vmcs) {
     BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 }
 
-void fuzz_reset_registers() {
-}
-
 void dump_regs() {
 	static const char *general_64bit_regname[17] = {
 		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",

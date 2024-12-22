@@ -52,7 +52,6 @@ static void init_cpu(void) {
 }
 
 void start_cpu() {
-	printf("Starting CPU\n");
 	if (fuzzing && (fuzz_unhealthy_input || fuzz_do_not_continue))
 		return;
 
@@ -156,7 +155,8 @@ char __snapshot_tag[320];
 #endif
 
 void reset_vm() {
-	printf("Resetting VM !\n");
+	if (verbose)
+		printf("Resetting VM !\n");
 #if defined(HP_X86_64)
 	bx_cpu = shadow_bx_cpu;
 	if (BX_CPU(id)->vmcs_map)
@@ -468,9 +468,14 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
 			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
 
+	/* Save guest RIP so that we can restore it after each fuzzer input */
+	guest_rip = cpu0_get_pc();
+
+#if defined(HP_X86_64)
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
+#endif
 	reset_vm();
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */

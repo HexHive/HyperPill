@@ -844,7 +844,6 @@ bool op_clock_step() {
 
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
-	printf("fuzz_run_input\n");
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,

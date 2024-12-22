@@ -1,6 +1,5 @@
 #include "qemu_c.h"
 #include "qemuapi.h"
-//#include "fuzz.h"
 
 /* previous PC before entering hypervisor */
 static uint64_t pre_hyp_pc = 0;
@@ -115,7 +114,6 @@ static void el_change_fn(ARMCPU *cpu, void *opaque) {
 }
 
 void aarch64_set_xregs(uint64_t xregs[32]) {
-    printf("Setting regs\n");
     CPUARMState *env = &(ARM_CPU(cpu0))->env;
     memcpy(env->xregs, xregs, sizeof(xregs[32]));
 }
@@ -143,8 +141,6 @@ bool qemu_reload_vm(char *snapshot_tag) {
     if(!success) {
         printf("Error loading snapshot\n");
         error_report_err(err);
-    } else {
-        printf("Successful snapshot load\n");
     }
 
     return success;
@@ -153,6 +149,24 @@ bool qemu_reload_vm(char *snapshot_tag) {
 void save_pre_hyp_pc() {
     CPUARMState *env = &(ARM_CPU(cpu0))->env;
     pre_hyp_pc = env->elr_el[2];
+}
+
+void exec_tb_fn(int cpu_index, TranslationBlock *tb) {
+    static uint64_t prev_pc = 0;
+
+    if(tb == NULL || cpu0->cpu_index != cpu_index)
+        return;
+
+    // printf("TB executed: cpu_index=%d pc=0x%"PRIxPTR" pc_end=0x%"PRIxPTR "\n",
+    //    cpu_index, tb->pc, tb->pc_last);
+
+    if (prev_pc == 0) {
+        prev_pc = tb->pc;
+        return;
+    }
+
+    qemu_ctrl_flow_insn(prev_pc, tb->pc);
+    prev_pc = tb->pc;
 }
 
 void init_qemu(int argc, char **argv, char *snapshot_tag) {
@@ -182,6 +196,32 @@ void init_qemu(int argc, char **argv, char *snapshot_tag) {
 
     assert(cpu0 != NULL);
 
+    printf("CPU0 is at index : %d\n", cpu0->cpu_index);
+
     /* Save PC address pre VMENTER before restarting the VM */
     save_pre_hyp_pc();
+
+    /* Register TB execution callback */
+    register_exec_tb_cb(exec_tb_fn);
+
+    printf("Enters Hypervisor at address : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->pc);
+    printf("Last PC before entering Hypervisor : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->elr_el[2]);
+}
+
+// mem.c
+int __cpu0_memory_rw_debug(vaddr addr, void *ptr, size_t len, bool is_write) {
+    return cpu_memory_rw_debug(cpu0, addr, ptr, len, is_write);
+}
+
+// regs.c
+void __dump_regs(void) {
+    cpu_dump_state(cpu0, NULL, CPU_DUMP_FPU);
+}
+
+uint64_t __cpu0_get_pc(void) {
+    return (&(ARM_CPU(cpu0))->env)->pc;
+}
+
+void __cpu0_set_pc(uint64_t pc) {
+    (&(ARM_CPU(cpu0))->env)->pc = pc;
 }

@@ -23,6 +23,7 @@ INCLUDES    = -I. \
 			  -I arch/aarch64/qemuapi \
 			  -I vendor/qemu/include \
 			  -I vendor/qemu/target/arm \
+			  -I vendor/qemu/accel/tcg \
 			  -I vendor/qemu-build \
 			  -I /usr/include/glib-2.0 \
 			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include
@@ -127,6 +128,7 @@ else ifeq ($(ARCH), aarch64)
 	if [ ! -d "vendor/qemu" ]; then \
 		git clone https://github.com/qemu/qemu.git vendor/qemu \
 			--branch v8.2.7 --depth=1; \
+		git am Makefile.qemu.patch \
 	fi
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
