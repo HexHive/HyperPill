@@ -370,12 +370,12 @@ First, set up L0 to run L1. At the root of the project :
 	-nographic \
 	-smp 1 -m 8192 \
 	-cpu max \
-    -bios efi.img \
+	-drive if=pflash,format=raw,file=efi.img,readonly=on \
 	-device virtio-scsi-pci,id=scsi0 \
 	-drive if=virtio,format=qcow2,file=disk.qcow2 \
 	-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 	-device virtio-net-device,netdev=net0 \
- 	-M virt,virtualization=on \
+	-M virt,virtualization=on \
 	$@
 ```
 

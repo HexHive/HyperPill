@@ -433,7 +433,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	snprintf(__snapshot_tag, sizeof(__snapshot_tag), "%s/vm", basename(dirname(vm_path_copy)));
 
 	char efi_arg[320];
-	snprintf(efi_arg, sizeof(efi_arg), "%s", efi_path);
+	snprintf(efi_arg, sizeof(efi_arg), "if=pflash,format=raw,file=%s,readonly=on", efi_path);
 	char vm_arg[320];
 	snprintf(vm_arg, sizeof(vm_arg), "if=virtio,format=qcow2,file=%s", vm_path);
 
@@ -446,7 +446,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		"-smp", "1",
 		"-m", "8192",
 		"-cpu", "max",
-		"-bios", efi_arg,
+		"-drive", efi_arg,
 		"-device", "virtio-scsi-pci,id=scsi0",
 		"-drive", vm_arg,
 		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
