@@ -202,7 +202,6 @@ static void usage() {
 	printf("ICP_VMCS_ADDR\n");
 #elif defined(HP_AARCH64)
 	printf("ICP_EFI_PATH\n");
-	printf("ICP_VARSTORE_PATH\n");
 	printf("ICP_VM_PATH\n");
 #else
 #error
