@@ -1,5 +1,21 @@
 # HP-Snap Instructions
 
+<!-- toc -->
+
+- [x86-64](#x86-64)
+  * [Setup L0 KVM](#setup-l0-kvm)
+  * [Run L1 and L2 VMs](#run-l1-and-l2-vms)
+    + [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
+    + [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
+  * [Take the snapshot](#take-the-snapshot)
+- [aarch64](#aarch64)
+  * [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
+  * [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
+  * [Take the snapshot](#take-the-snapshot-1)
+- [[Optional] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
+
+<!-- tocstop -->
+
 Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
 
 ## x86-64
@@ -233,45 +249,6 @@ for Running GUI Linux in a virtual machine on a Mac
 image, install ubuntu, and restart the ubuntu
 ```
 
-#### [Optional] Obtain Symbols for Debugging
-
-``` bash
-# install the debugging symbols for the Linux kernel
-[L1] uname -r # 6.1.0-23-amd64
-[L1] sudo apt-get install -y linux-image-$(uname -r)-dbg
-[L1] cd qemu-8.0.0/build && ldd qemu-system-x86_64
-# linux-vdso.so.1 (0x00007ffea85f8000)
-# libasan.so.8 => /lib/x86_64-linux-gnu/libasan.so.8 (0x00007f3250800000)
-# libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007f3253b7c000)
-# libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f3253b5d000)
-# libfdt.so.1 => /lib/x86_64-linux-gnu/libfdt.so.1 (0x00007f3253b52000)
-# libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007f3250620000)
-# libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007f3253af1000)
-# libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007f3250ec8000)
-# libslirp.so.0 => /lib/x86_64-linux-gnu/libslirp.so.0 (0x00007f3253acd000)
-# libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007f3253ac7000)
-# libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f3250541000)
-# libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f3250ea8000)
-# libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3250360000)
-# /lib64/ld-linux-x86-64.so.2 (0x00007f3253c31000)
-# libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007f32502fd000)
-# libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007f32502cf000)
-# libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f3253ab9000)
-# libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f3250235000)
-# libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007f32501de000)
-
-# copy the debugging symbols for the Linux kernel and kvm
-[L0] cd /path/to/snapshots/dir/symbols
-[L0] scp -P 2222 root@localhost:/usr/lib/debug/boot/vmlinux-6.1.0-23-amd64 vmlinux
-[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm-intel.ko .
-[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm.ko .
-# copy the debugging symbols for the QEMU
-[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libc.so.6 .
-[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libglib-2.0.so.0 .
-[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libslirp.so.0 .
-[L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
-```
-
 ### Take the snapshot
 
 ``` bash
@@ -480,3 +457,44 @@ monitor :
 
 This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is
 important and will be used to reload the snapshot by Hyperpill's fuzzer.
+
+## [Optional] Obtain Symbols for Debugging
+
+Adjust the kernel version and architecture accordingly.
+
+``` bash
+# install the debugging symbols for the Linux kernel
+[L1] uname -r # 6.1.0-23-amd64
+[L1] sudo apt-get install -y linux-image-$(uname -r)-dbg
+[L1] cd qemu-8.0.0/build && ldd qemu-system-x86_64
+# linux-vdso.so.1 (0x00007ffea85f8000)
+# libasan.so.8 => /lib/x86_64-linux-gnu/libasan.so.8 (0x00007f3250800000)
+# libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007f3253b7c000)
+# libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f3253b5d000)
+# libfdt.so.1 => /lib/x86_64-linux-gnu/libfdt.so.1 (0x00007f3253b52000)
+# libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007f3250620000)
+# libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007f3253af1000)
+# libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007f3250ec8000)
+# libslirp.so.0 => /lib/x86_64-linux-gnu/libslirp.so.0 (0x00007f3253acd000)
+# libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007f3253ac7000)
+# libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f3250541000)
+# libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f3250ea8000)
+# libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3250360000)
+# /lib64/ld-linux-x86-64.so.2 (0x00007f3253c31000)
+# libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007f32502fd000)
+# libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007f32502cf000)
+# libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f3253ab9000)
+# libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f3250235000)
+# libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007f32501de000)
+
+# copy the debugging symbols for the Linux kernel and kvm
+[L0] cd /path/to/snapshots/dir/symbols
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/boot/vmlinux-6.1.0-23-amd64 vmlinux
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm-intel.ko .
+[L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm.ko .
+# copy the debugging symbols for the QEMU
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libc.so.6 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libglib-2.0.so.0 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libslirp.so.0 .
+[L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
+```
