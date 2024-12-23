@@ -190,7 +190,7 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 		break;
 	case Word:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x66\x89\x02", 2);
+		cpu_physical_memory_write(phy, "\x66\x89\x02", 3);
 		break;
 	case Long:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
