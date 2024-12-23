@@ -15,7 +15,7 @@ INCLUDES    = -I vendor/bochs \
 			  -I vendor/bochs/gui \
 			  -I vendor/include \
 			  -I vendor/robin-map/include
-CFLAGS      = $(INCLUDES) -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS=-stdlib=libc++
 
 LIBFUZZER_FLAGS = -max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 ${LIBFUZZER_ARGS}
