@@ -1091,12 +1091,16 @@ QEMU_LDFLAGS := \
 	/usr/lib/x86_64-linux-gnu/libcapstone.so \
 	/usr/lib/x86_64-linux-gnu/libspice-server.so \
 	-Xlinker \
-	--dynamic-list=/media/liuqiang/Additional/project-hypervfuzz/hyperpill-for-arm/HyperPill/vendor/qemu/plugins/qemu-plugins.symbols \
+	--dynamic-list=vendor/qemu/plugins/qemu-plugins.symbols \
 	/usr/lib/x86_64-linux-gnu/libgnutls.so \
 	/usr/lib/x86_64-linux-gnu/libpng16.so \
 	/usr/lib/x86_64-linux-gnu/libudev.so \
+	-lzstd \
 	-llzo2 \
 	-lnuma \
+	-lrbd \
+	-lrados \
+	-lnfs \
 	/usr/lib/x86_64-linux-gnu/libgio-2.0.so \
 	/usr/lib/x86_64-linux-gnu/libgobject-2.0.so \
 	/usr/lib/x86_64-linux-gnu/libglib-2.0.so \

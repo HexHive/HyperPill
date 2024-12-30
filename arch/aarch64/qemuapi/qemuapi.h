@@ -41,6 +41,9 @@ uint64_t __cpu0_get_pc();
 void __cpu0_set_pc(uint64_t pc);
 void __dump_regs();
 
+// instrument.cc
+void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
+
 #ifdef __cplusplus
 }
 #endif
