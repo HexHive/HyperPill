@@ -1,7 +1,7 @@
 HyperPill
 =========
 
-!!! For better communication, please join our [discord](https://discord.gg/9tuPhCtr) server. !!!
+!!! For better communication, please join our [discord](https://discord.gg/dxdvHvrK8D) server. !!!
 
 Building
 --------
