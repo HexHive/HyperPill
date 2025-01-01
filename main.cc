@@ -455,6 +455,10 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		NULL
 	};
 	init_qemu(qemu_argc, qemu_argv, __snapshot_tag);
+
+    signal(SIGINT, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
 #endif
 	/* For addr -> symbol */
 	if (getenv("SYMBOLS_DIR"))
