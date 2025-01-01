@@ -210,7 +210,26 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-// TODO
+	aarch64_set_far_el2(addr && (1 << 12 -1));
+	aarch64_set_hpfar_el2(addr);
+	aarch64_set_xreg(1, val);
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!write%d %lx %lx (reason: data abort)\n", size, addr, val);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(0, 1, 1); // question
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(1, 1, 1);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(2, 1, 1);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(3, 1, 1);
+		break;
+	}
 #else
 #error
 #endif
@@ -275,7 +294,25 @@ bool inject_read(hp_address addr, int size) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_esr_el2(RW);
+	aarch64_set_far_el2(addr & (1 << 12 -1));
+	aarch64_set_hpfar_el2(addr);
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!read%d %lx %lx (reason: data abort)\n", size, addr);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(0, 0, 0);
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(1, 0, 0);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(2, 0, 0);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(3, 0, 0);
+		break;
+	}
 #else
 #error
 #endif

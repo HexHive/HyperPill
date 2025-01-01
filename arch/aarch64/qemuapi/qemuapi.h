@@ -27,6 +27,13 @@ const uint8_t excp_codes[2] = {
 
 void aarch64_set_esr_el2(aa64_syndrom syndrom);
 
+void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read);
+void aarch64_set_far_el2(uint64_t far);
+uint64_t aarch64_get_far_el2(void);
+uint64_t aarch64_get_hpfar_el2(void);
+void aarch64_set_hpfar_el2(uint64_t addr);
+void aarch64_set_xreg(uint64_t index, uint64_t value);
+
 /* Concurrency related stuff */
 void qemu_wait_until_stop();
 void qemu_signal_stop();
