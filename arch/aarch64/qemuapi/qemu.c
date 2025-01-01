@@ -4,43 +4,23 @@
 /* previous PC before entering hypervisor */
 static uint64_t pre_hyp_pc = 0;
 
-static bool fuzztrace_input = false;
 QemuMutex barrier_mutex;
 QemuCond barrier_cond;
 
 /* The CPU handling the VM EXIT */
 static CPUState *cpu0 = NULL;
 
-/* Forward declaration */
-bool cpu0_get_fuzz_executing_input(void);
-
 void qemu_wait_until_stop() {
     qemu_mutex_lock(&barrier_mutex);
 
-    while(cpu0_get_fuzz_executing_input()) {
+    while(__cpu0_get_fuzz_executing_input()) {
         qemu_cond_wait(&barrier_cond, &barrier_mutex);
     }
 
     qemu_mutex_unlock(&barrier_mutex);
 }
 
-void qemu_signal_stop() {
-    qemu_mutex_lock(&barrier_mutex);
-    fuzztrace_input = false;
-    qemu_cond_signal(&barrier_cond);
-    qemu_mutex_unlock(&barrier_mutex);
-}
 
-void qemu_set_running() {
-    qemu_mutex_lock(&barrier_mutex);
-    fuzztrace_input = true;
-	qemu_start_vm();
-    qemu_mutex_unlock(&barrier_mutex);
-}
-
-bool qemu_is_running() {
-    return fuzztrace_input;
-}
 
 /* Copied from QEMU 8.2.0, target/arm/tcg/helper-a64.c */
 static int el_from_spsr(uint32_t spsr)
@@ -316,6 +296,40 @@ void init_qemu(int argc, char **argv, char *snapshot_tag) {
     printf("Last PC before entering Hypervisor : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->elr_el[2]);
 }
 
+// control.c
+bool __cpu0_get_fuzztrace(void) {
+    return cpu0->fuzztrace;
+}
+
+void __cpu0_set_fuzztrace(bool fuzztrace) {
+    cpu0->fuzztrace = fuzztrace;
+}
+
+static void qemu_signal_stop() {
+    qemu_mutex_lock(&barrier_mutex);
+    qemu_cond_signal(&barrier_cond);
+    qemu_mutex_unlock(&barrier_mutex);
+}
+
+static void qemu_set_running() {
+    qemu_mutex_lock(&barrier_mutex);
+	qemu_start_vm();
+    qemu_mutex_unlock(&barrier_mutex);
+}
+
+bool __cpu0_get_fuzz_executing_input(void) {
+    return cpu0->fuzz_executing_input;
+}
+
+void __cpu0_set_fuzz_executing_input(bool fuzzing) {
+    cpu0->fuzz_executing_input = fuzzing;
+    if (!fuzzing) {
+        qemu_signal_stop();
+    } else {
+        qemu_set_running();
+    }
+}
+
 // mem.c
 int __cpu0_memory_rw_debug(vaddr addr, void *ptr, size_t len, bool is_write) {
     return cpu_memory_rw_debug(cpu0, addr, ptr, len, is_write);
@@ -334,11 +348,3 @@ void __cpu0_set_pc(uint64_t pc) {
     (&(ARM_CPU(cpu0))->env)->pc = pc;
 }
 
-// control.c
-bool __cpu0_get_fuzztrace(void) {
-    return cpu0->fuzztrace;
-}
-
-void __cpu0_set_fuzztrace(bool fuzztrace) {
-    cpu0->fuzztrace = fuzztrace;
-}

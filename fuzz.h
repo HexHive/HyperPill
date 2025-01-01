@@ -71,13 +71,7 @@ void fuzz_watch_memory_inc();
 void fuzz_clear_dirty();
 bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);
-#if defined(HP_AARCH64)
-extern "C"
-#endif
 bool cpu0_get_fuzz_executing_input(void);
-#if defined(HP_AARCH64)
-extern "C"
-#endif
 void cpu0_set_fuzz_executing_input(bool fuzzing);
 
 #if defined(HP_X86_64)

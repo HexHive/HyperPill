@@ -36,9 +36,16 @@ void aarch64_set_xreg(uint64_t index, uint64_t value);
 
 /* Concurrency related stuff */
 void qemu_wait_until_stop();
-void qemu_signal_stop();
-void qemu_set_running();
 bool qemu_is_running();
+
+// instrument.cc
+void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
+
+// control.c
+bool __cpu0_get_fuzztrace(void);
+void __cpu0_set_fuzztrace(bool fuzztrace);
+bool __cpu0_get_fuzz_executing_input(void);
+void __cpu0_set_fuzz_executing_input(bool fuzzing);
 
 // mem.c
 int __cpu0_memory_rw_debug(uint64_t addr, void *ptr, size_t len, bool is_write);
@@ -48,12 +55,7 @@ uint64_t __cpu0_get_pc();
 void __cpu0_set_pc(uint64_t pc);
 void __dump_regs();
 
-// instrument.cc
-void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
 
-// control.c
-bool __cpu0_get_fuzztrace(void);
-void __cpu0_set_fuzztrace(bool fuzztrace);
 
 #ifdef __cplusplus
 }
