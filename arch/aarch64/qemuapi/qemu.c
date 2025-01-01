@@ -98,10 +98,8 @@ static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
     
         printf("Detecting EL2 -> EL%u\n", new_el);
         if (new_el == 1) {
-            if (pre_hyp_pc == env->elr_el[2]) {
-                printf("Detecting an ERET to guest VM\n");
-                fuzz_emu_stop_normal();
-            }
+            printf("Detecting an ERET to guest VM\n");
+            fuzz_emu_stop_normal();
         }
     }
 }
