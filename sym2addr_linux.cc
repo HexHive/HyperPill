@@ -50,7 +50,13 @@ static std::string executeCommand(const char* cmd) {
 // Function to parse the output of 'nm' command and construct map of addresses to symbol names
 static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPath) {
     std::map<std::string, size_t> symbolMap;
+#if defined(HP_X86_64)
     std::string nmOutput = executeCommand(("nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
+#elif defined(HP_AARCH64)
+    std::string nmOutput = executeCommand(("aarch64-linux-gnu-nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
+#else
+#error
+#endif
     size_t pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);
@@ -63,7 +69,13 @@ static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPat
             symbolMap.emplace(name, strtoull(address.c_str(), NULL, 16));
         }
     }
+#if defined(HP_X86_64)
     nmOutput = executeCommand(("nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
+#elif defined(HP_AARCH64)
+    nmOutput = executeCommand(("aarch64-linux-gnu-nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
+#else
+#error
+#endif
     pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);
@@ -130,7 +142,7 @@ void load_symbol_map(char *path) {
                     if(log)
                         printf(".info Symbol Name added: %s@%s %lx\n", name.c_str(), binfile.c_str(), it.second+offset);
                     sym2addr[std::make_pair(binfile, name)] = it.second + offset;
-                    printf("Looking up %s@%s %lx\n", name.c_str(), binfile.c_str(), sym2addr[std::make_pair(binfile, name)]);
+                    // printf("Looking up %s@%s %lx\n", name.c_str(), binfile.c_str(), sym2addr[std::make_pair(binfile, name)]);
                     /* if(!sym2addr.emplace(std::make_pair(binfile, name), it.second + offset).second) */
                     /*     printf(".warning Symbol Name Collision: %s@%s %lx %lx\n", name.c_str(), binfile.c_str(), it.second+offset, sym2addr[std::make_pair(binfile, name)]); */
                 }

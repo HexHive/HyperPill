@@ -47,7 +47,14 @@ static uint64_t get_addr_of_symbol(const char* symbolname)
     char addr[100];
 
     char cmd[500];
+#if defined(HP_X86_64)
     snprintf(cmd, 500, "nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
+#elif defined(HP_AARCH64)
+    snprintf(cmd, 500, "aarch64-linux-gnu-nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
+#else
+#error
+#endif
+
     fp = popen(cmd, "r");
     if (fp == NULL) {
         printf("Failed to run command %s\n", cmd);

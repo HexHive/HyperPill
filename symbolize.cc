@@ -88,7 +88,7 @@ void symbolize(size_t pc) {
             return ;
     }                                                                                         
     printf("Trying to read from %lx\n", pc&(~0xFFFLL));
-    bool valid = cpu0_read_instr_buf(pc, instr_buf);
+    bool valid = cpu0_read_instr_buf(pc&(~0xFFFLL), instr_buf);
     if (!valid)
         abort();
 
@@ -105,7 +105,7 @@ void symbolize(size_t pc) {
             for(int i=offset; i<offset+segment_length; i++) {
                 sum += instr_buf[i];
                 printf("%02x ", instr_buf[i]);
-                if(i%16 ==0)
+                if(i%16 ==15)
                     printf("\n");
             }
             printf("\n");
@@ -139,15 +139,4 @@ void symbolize(size_t pc) {
     size_t vstart = match_addr - voffset;
     ranges[std::make_pair(vstart, size)] = match;
     printf("Symbolization Range: %lx - %lx size: %lx file: %s section: %s sh_addr: %lx \n", vstart, vstart+size, size, match.c_str(), name, shaddr);
-    if(size < 0x500) {
-        uint8_t* malc = (uint8_t*)malloc(size);
-        cpu0_read_virtual(vstart, size, malc);
-        cpu0_read_virtual(match_addr, size, malc);
-        for(int i=0; i<size; i++){
-            printf("%02x ", malc[i]);
-            if(i%0x10==0xf)
-                printf("\n");
-        }
-        printf("\n");
-    }
 }
