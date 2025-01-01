@@ -17,17 +17,6 @@ Using
 To fuzz a hypervisor, we first must obtain a snapshot.
 To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/)
 
-After collecting the snapshot, the snapshot directory should contain the
-following files:
-* `dir/mem`
-* `dir/regs`
-* `dir/vmcs`
-
-where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
-
-P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
-make your life easy.
-
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.
 
@@ -49,11 +38,12 @@ KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 
 If ARCH=aarch64, since the enumeration of the input-spaces has been not
 implemented, please dump the mtree `info mtree -f` within L1's QEMU monitor and
-save it to dir/mtree. Then add the following envs according to what virtual
-device(s) you are fuzzing.
+save it to dir/mtree. Then export the following envs according to what virtual
+device(s) you are fuzzing (e.g. pl061).
 
 ```
-MANUAL_RANGES=$SNAPSHOT_BASE/mtree RANGE_REGEX="pl061"
+export MANUAL_RANGES=$SNAPSHOT_BASE/mtree
+export RANGE_REGEX="pl061"
 ```
 
 After the enumeration stage is complete, we can fuzz the snapshot:
@@ -62,7 +52,7 @@ After the enumeration stage is complete, we can fuzz the snapshot:
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 KVM=1 ARCH=x86_64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
-KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) MANUAL_RANGES=$SNAPSHOT_BASE/mtree RANGE_REGEX="pl061" $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 Additionally, for elf-based hypervisors, it will be convenient to store copies
@@ -75,7 +65,7 @@ To use these symbols, we need to infer the symbol map. To do this:
 ```
 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 KVM=1 ARCH=x86_64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
-KVM=1 ARCH=aarch64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols MANUAL_RANGES=$SNAPSHOT_BASE/mtree RANGE_REGEX="pl061" $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
+KVM=1 ARCH=aarch64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 ```
 
 Save the output to `dir/layout`. An example:

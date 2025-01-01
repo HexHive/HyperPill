@@ -295,8 +295,8 @@ EOF
 
 [L2] $ gcc snap.c -o snap
 [L2] $ ./snap
-# Copy the output of the above command to /path/to/snapshots/dir/lspci
 [L2] $ lspci -v
+# Copy the output of the above command to /path/to/snapshots/dir/lspci
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
@@ -310,6 +310,17 @@ EOF
 ```
 
 The snapshot should now be ready for input-space-emulation and fuzzing.
+
+After collecting the snapshot, the snapshot directory should contain the
+following files:
+* `dir/mem`
+* `dir/regs`
+* `dir/vmcs`
+
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+
+P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
+make your life easy.
 
 ## aarch64
 
@@ -364,7 +375,7 @@ First, set up L0 to run L1. At the root of the project :
 # WARNING: Increase the number of CPUs and memory to compile QEMU for L2 VM.
 # When taking snapshots, change back to "-smp 1 and -m 8192".
 [L0] qemu-8.2.0/build/qemu-system-aarch64 \
-	-monitor telnet:127.0.0.1:1234,server,nowait \
+	-monitor telnet:127.0.0.1:55556,server,nowait \
 	-nographic \
 	-smp 1 -m 8192 \
 	-cpu max \
@@ -446,15 +457,18 @@ that point we are able to perform a snapshot. To do so, type in the (L0) QEMU
 monitor :
 
 ```bash
-[L0] telnet localhost 1234
-# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+[L0] telnet localhost 55556
 [L0 qemu-monitor] savevm dir/vm
 [L0] cp efi.img /path/to/snapshots/dir/
 [L0] cp disk.qcow2 /path/to/snapshots/dir/vm
 ```
 
-This will save a snapshot in the qcow virtual disk of the L0 VM. The tag name is
-important and will be used to reload the snapshot by Hyperpill's fuzzer.
+This will save a snapshot in the qcow virtual disk of the L1 VM.
+
+After collecting the snapshot, the snapshot directory should contain the
+following files:
+* `dir/efi.img`
+* `dir/vm`
 
 ## [Optional] Obtain Symbols for Debugging
 
