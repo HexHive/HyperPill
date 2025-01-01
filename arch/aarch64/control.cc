@@ -1,14 +1,12 @@
 #include "fuzz.h"
 #include "qemuapi.h"
 
-static bool aarch64_fuzztrace = false;
-
 bool cpu0_get_fuzztrace(void) {
-    return aarch64_fuzztrace;
+    return __cpu0_get_fuzztrace();
 }
 
 void cpu0_set_fuzztrace(bool fuzztrace) {
-    aarch64_fuzztrace = fuzztrace;
+    __cpu0_set_fuzztrace(fuzztrace);
 }
 
 extern "C" void cpu0_set_fuzz_executing_input(bool fuzzing) {

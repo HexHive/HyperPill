@@ -330,7 +330,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	init_cpu();
 
 	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
-	BX_CPU(id)->fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	cpu0_set_fuzztrace(fuzztrace);
 
 	/* Load the snapshot */
 	printf(".loading memory snapshot from %s\n", mem_path);
@@ -424,9 +425,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		usage();
 	}
 
-	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
-	cpu0_set_fuzztrace(fuzztrace);
-
 	// construct argc/argv for qemu
 	char vm_path_copy[256];
 	memcpy(vm_path_copy, vm_path, strlen(vm_path));
@@ -460,6 +458,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
     signal(SIGHUP, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
 #endif
+	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	cpu0_set_fuzztrace(fuzztrace);
+
 	/* For addr -> symbol */
 	if (getenv("SYMBOLS_DIR"))
 		load_symbolization_files(getenv("SYMBOLS_DIR"));

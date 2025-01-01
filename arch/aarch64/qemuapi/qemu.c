@@ -335,3 +335,12 @@ uint64_t __cpu0_get_pc(void) {
 void __cpu0_set_pc(uint64_t pc) {
     (&(ARM_CPU(cpu0))->env)->pc = pc;
 }
+
+// control.c
+bool __cpu0_get_fuzztrace(void) {
+    return cpu0->fuzztrace;
+}
+
+void __cpu0_set_fuzztrace(bool fuzztrace) {
+    cpu0->fuzztrace = fuzztrace;
+}

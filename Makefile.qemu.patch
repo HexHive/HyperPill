@@ -1,15 +1,19 @@
-From 1f5faea93b6058c134d3d6a4a958c4927a3140bf Mon Sep 17 00:00:00 2001
+From 73cb5b5b2334d015be5542b93eae8b7eb16b4666 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sun, 22 Dec 2024 16:29:03 +0100
-Subject: [PATCH] Enable hooks with a few fixes
+Subject: [PATCH] Patch QEMU for HyperPill/ARM
 
+- Enable pc hooks
+- Enable disassembler
 ---
  accel/tcg/cpu-exec.c             | 11 +++++++++++
  accel/tcg/internal-target.h      |  3 +++
- accel/tcg/translator.c           |  4 ++++
+ accel/tcg/translator.c           |  8 ++++++++
  hw/block/pflash_cfi01.c          |  4 +++-
  include/exec/translation-block.h |  5 +++++
- 5 files changed, 26 insertions(+), 1 deletion(-)
+ include/hw/core/cpu.h            |  4 ++++
+ target/arm/tcg/translate-a64.c   |  2 +-
+ 7 files changed, 35 insertions(+), 2 deletions(-)
 
 diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
 index 6a4af14..b0df428 100644
@@ -55,7 +59,7 @@ index 4e36cf8..3d74045 100644
   * Access to the various translations structures need to be serialised
   * via locks for consistency.  In user-mode emulation access to the
 diff --git a/accel/tcg/translator.c b/accel/tcg/translator.c
-index 38c3400..cebd986 100644
+index 38c3400..bfb6d10 100644
 --- a/accel/tcg/translator.c
 +++ b/accel/tcg/translator.c
 @@ -15,6 +15,7 @@
@@ -66,12 +70,16 @@ index 38c3400..cebd986 100644
  
  static void set_can_do_io(DisasContextBase *db, bool val)
  {
-@@ -213,6 +214,9 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
+@@ -213,6 +214,13 @@ void translator_loop(CPUState *cpu, TranslationBlock *tb, int *max_insns,
      tb->size = db->pc_next - db->pc_first;
      tb->icount = db->num_insns;
  
 +    DisasContext *dc = container_of(db, DisasContext, base);
 +    tb->pc_last = dc->pc_curr;
++
++    if (cpu->fuzztrace) {
++        ops->disas_log(db, cpu, stdout);
++    }
 +
      if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
          && qemu_log_in_addr_range(db->pc_first)) {
@@ -107,6 +115,34 @@ index e2b26e1..54c18c4 100644
      /*
       * Target-specific data associated with the TranslationBlock, e.g.:
       * x86: the original user, the Code Segment virtual base,
+diff --git a/include/hw/core/cpu.h b/include/hw/core/cpu.h
+index c0c8320..bb48698 100644
+--- a/include/hw/core/cpu.h
++++ b/include/hw/core/cpu.h
+@@ -568,6 +568,10 @@ struct CPUState {
+     /* track IOMMUs whose translations we've cached in the TCG TLB */
+     GArray *iommu_notifiers;
+ 
++    bool fuzztrace;
++    bool fuzzdebug_gdb;
++    bool fuzz_executing_input;
++
+     /*
+      * MUST BE LAST in order to minimize the displacement to CPUArchState.
+      */
+diff --git a/target/arm/tcg/translate-a64.c b/target/arm/tcg/translate-a64.c
+index 5beac07..6235182 100644
+--- a/target/arm/tcg/translate-a64.c
++++ b/target/arm/tcg/translate-a64.c
+@@ -14242,7 +14242,7 @@ static void aarch64_tr_disas_log(const DisasContextBase *dcbase,
+ {
+     DisasContext *dc = container_of(dcbase, DisasContext, base);
+ 
+-    fprintf(logfile, "IN: %s\n", lookup_symbol(dc->base.pc_first));
++    // fprintf(logfile, "IN: %s\n", lookup_symbol(dc->base.pc_first));
+     target_disas(logfile, cpu, dc->base.pc_first, dc->base.tb->size);
+ }
+ 
 -- 
 2.34.1
 

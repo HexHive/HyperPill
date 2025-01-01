@@ -51,6 +51,10 @@ void __dump_regs();
 // instrument.cc
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
 
+// control.c
+bool __cpu0_get_fuzztrace(void);
+void __cpu0_set_fuzztrace(bool fuzztrace);
+
 #ifdef __cplusplus
 }
 #endif

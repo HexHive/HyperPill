@@ -23,6 +23,7 @@
 #elif defined(HP_AARCH64)
 #include "qemuapi.h"
 #include <libgen.h>
+#include <csignal>
 #else
 #error
 #endif
