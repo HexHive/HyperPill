@@ -210,11 +210,11 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_far_el2(addr && (1 << 12 -1));
-	aarch64_set_hpfar_el2(addr);
+	aarch64_set_far_el2(addr && 0xfff);
+	aarch64_set_hpfar_el2(addr && (~(0xfff)));
 	aarch64_set_xreg(1, val);
 	if (cpu0_get_fuzztrace() || log_ops) {
-		printf("!write%d %lx %lx (reason: data abort)\n", size, addr, val);
+		printf("!write%d %lx %lx\n", size, addr, val);
 	}
 	switch (size) {
 	case Byte:
@@ -294,10 +294,10 @@ bool inject_read(hp_address addr, int size) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_far_el2(addr & (1 << 12 -1));
-	aarch64_set_hpfar_el2(addr);
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
 	if (cpu0_get_fuzztrace() || log_ops) {
-		printf("!read%d %lx %lx (reason: data abort)\n", size, addr);
+		printf("!read%d %lx\n", size, addr);
 	}
 	switch (size) {
 	case Byte:
