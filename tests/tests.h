@@ -7,7 +7,7 @@ static void test_mem_write_up_to_8(uint64_t addr, size_t size, uint64_t data) {
 
 // addr: guest physical address
 static void test_mmio_write(uint64_t addr, size_t size, uint64_t data) {
-	printf("[INJECT MMIO WRITE] addr: 0x%ld value: 0x%lx \n", addr, data);
+	printf("[INJECT MMIO WRITE] addr: 0x%lx value: 0x%lx \n", addr, data);
 	if (!inject_write(addr, size, data))
 		printf("inject write error/n");
 	start_cpu();
