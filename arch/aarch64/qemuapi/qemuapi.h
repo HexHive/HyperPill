@@ -10,8 +10,6 @@ void init_qemu(int argc, char **argv, char *snapshot_tag);
 
 bool qemu_reload_vm(char *tag);
 
-void qemu_start_vm();
-
 /* AARCH64 cpu related functions */
 void aarch64_set_xregs(uint64_t xregs[32]);
 

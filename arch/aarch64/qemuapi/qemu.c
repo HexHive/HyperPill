@@ -212,11 +212,6 @@ void aarch64_set_xreg(uint64_t index, uint64_t value) {
     env->xregs[index] = value;
 }
 
-void qemu_start_vm() {
-    vm_start();
-    qemu_mutex_unlock_iothread();
-}
-
 bool qemu_reload_vm(char *snapshot_tag) {
     Error *err;
 
@@ -309,6 +304,13 @@ static void qemu_signal_stop() {
     qemu_mutex_lock(&barrier_mutex);
     qemu_cond_signal(&barrier_cond);
     qemu_mutex_unlock(&barrier_mutex);
+}
+
+static void qemu_start_vm() {
+    vm_start();
+    if (qemu_mutex_iothread_locked()) {
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 static void qemu_set_running() {
