@@ -441,10 +441,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	snprintf(vm_arg, sizeof(vm_arg), "if=virtio,format=qcow2,file=%s", vm_path);
 
 	// should be the same as when launching L1 vm
-	int qemu_argc = 22;
+	int qemu_argc = 20;
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
-		"-monitor", "telnet:127.0.0.1:1235,server,nowait",
 		"-nographic",
 		"-smp", "1",
 		"-m", "8192",
@@ -452,7 +451,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		"-drive", efi_arg,
 		"-device", "virtio-scsi-pci,id=scsi0",
 		"-drive", vm_arg,
-		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
+		"-netdev", "user,id=net0",
 		"-device", "virtio-net-device,netdev=net0",
 		"-M", "virt,virtualization=on",
 		NULL
