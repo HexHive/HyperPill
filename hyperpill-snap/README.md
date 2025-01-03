@@ -295,8 +295,6 @@ EOF
 
 [L2] $ gcc snap.c -o snap
 [L2] $ ./snap
-[L2] $ lspci -v
-# Copy the output of the above command to /path/to/snapshots/dir/lspci
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
@@ -427,14 +425,30 @@ kernel and the root filesystem from inside hyperpill's directory to L1 :
 
 Then start running L2, **with KVM enabled**.
 
+Note that each arm device is unique and there is not a single snapshot for all.
+I enable a few virtio devices via pci bus (see virt general virtual platform in
+https://qemu-project.gitlab.io/qemu/system/arm/virt.html). With QEMU, a device
+tree blob can be dump via `-machine dumpdtb=path/to/dtb`. The device tree blob
+can be converted to a device tree source via `dtc -I dtb -O dts -o virt.dts
+virt.dtb`.
+
 ```bash
 [L1] qemu-8.0.0/build/qemu-system-aarch64 -M virt \
         -enable-kvm -cpu max -nographic \
         -kernel Image -append "rootwait root=/dev/vda console=ttyAMA0" \
         -initrd rootfs.cpio.gz \
-        -netdev user,id=eth0 \
-        -device virtio-net-device,netdev=eth0
-        // TODO: enable more virtual devices
+        \
+        -drive file=null-co://,if=none,format=raw,id=disk0 \
+        -device virtio-blk-device,drive=disk0 \
+        -netdev user,id=net0 \
+        -device virtio-net-device,netdev=net0 \
+        -device virtio-serial \
+        -device virtio-scsi \
+        -device virtio-rng \
+        -device virtio-balloon \
+        -object cryptodev-backend-builtin,id=cryptodev0 \
+        -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+        -device qemu-xhci -device usb-kbd -device usb-mouse
 ```
 
 ### Take the snapshot
