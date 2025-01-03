@@ -61,9 +61,6 @@ static int el_from_spsr(uint32_t spsr)
     }
 }
 
-/* Forward declaration */
-void fuzz_emu_stop_normal();
-
 static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
 	CPUARMState *env = &cpu->env;
     CPUState *cs = env_cpu(env);
@@ -77,7 +74,7 @@ static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
         unsigned int new_el = el_from_spsr(spsr);
     
         if (new_el == 1) {
-            fuzz_emu_stop_normal();
+            fuzz_hook_back_to_el1_kernel();
         }
     }
 }
@@ -248,6 +245,7 @@ void exec_tb_fn(int cpu_index, TranslationBlock *tb) {
 
     qemu_ctrl_flow_insn(prev_pc, tb->pc);
     prev_pc = tb->pc;
+    qemu_tb_after_execution(NULL);
 }
 
 void init_qemu(int argc, char **argv, char *snapshot_tag) {

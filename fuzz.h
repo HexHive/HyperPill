@@ -20,6 +20,23 @@
 #include "bochs.h"
 #include "cpu/cpu.h"
 #include "memory/memory-bochs.h"
+void icp_init_params();
+void icp_init_mem(const char* filename);
+void icp_init_regs(const char* filename);
+void fuzz_reset_memory();
+void fuzz_clear_dirty();
+void fuzz_watch_memory_inc();
+extern uint64_t vmcs_addr;
+void icp_set_vmcs(uint64_t vmcs);
+void redo_paging();
+void vmcs_fixup();
+void icp_init_shadow_vmcs_layout(const char* filename);
+bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
+int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
+void ept_mark_page_table();
+void ept_locate_pc();
+void fuzz_walk_ept();
+void fuzz_walk_cr3();
 #elif defined(HP_AARCH64)
 #include "qemuapi.h"
 #include <libgen.h>
@@ -63,31 +80,7 @@ bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);
 bool cpu0_get_fuzz_executing_input(void);
 void cpu0_set_fuzz_executing_input(bool fuzzing);
-
-#if defined(HP_X86_64)
-void icp_init_params();
-void icp_init_mem(const char* filename);
-void icp_init_regs(const char* filename);
-void fuzz_reset_memory();
-void fuzz_clear_dirty();
-void fuzz_watch_memory_inc();
-extern uint64_t vmcs_addr;
-void icp_set_vmcs(uint64_t vmcs);
-void redo_paging();
-void vmcs_fixup();
-void icp_init_shadow_vmcs_layout(const char* filename);
-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
-#endif
-
-void ept_mark_page_table();
-void ept_locate_pc();
-void mark_page_not_guest(hp_phy_address addr, int level);
-bool frame_is_guest(hp_phy_address addr);
 void dump_regs();
-void walk_ept(bool enum_mmio);
-void fuzz_walk_ept();
-void fuzz_walk_cr3();
 void fuzz_hook_memory_access(hp_address phy, unsigned len,
                              unsigned memtype, unsigned rw, void* data);
 void handle_breakpoints(hp_instruction *i);
@@ -126,19 +119,17 @@ void add_mmio_range_all(uint64_t addr, uint64_t end);
 void fuzz_instr_before_execution(hp_instruction *i);
 void fuzz_instr_after_execution(hp_instruction *i);
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-#if defined(HP_AARCH64)
-extern "C"
-#endif
 void fuzz_emu_stop_normal();
 void fuzz_emu_stop_unhealthy();
 void fuzz_emu_stop_crash(const char *type);
 void fuzz_hook_exception(unsigned vector, unsigned error_code);
 void fuzz_hook_hlt();
-void fuzz_reset_exception_counter();
 void fuzz_run_input(const uint8_t* Data, size_t Size);
 void start_cpu();
 unsigned long int get_icount();
+#if defined(HP_X86_64)
 unsigned long int get_pio_icount();
+#endif
 void reset_vm();
 
 // conveyor.h
@@ -188,7 +179,7 @@ void init_register_feedback();
 #if defined(HP_X86_64)
 bool fuzz_hook_vmlaunch();
 #elif defined(HP_AARCH64)
-// TODO
+extern "C" bool fuzz_hook_back_to_el1_kernel(void);
 #else
 #error
 #endif

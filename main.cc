@@ -28,7 +28,10 @@ static bool fuzzenum;
 uint64_t icount_limit_floor = 200000;
 uint64_t icount_limit = 5000000;
 
-static unsigned long int icount, pio_icount;
+static unsigned long int icount;
+#if defined(HP_X86_64)
+static unsigned long int pio_icount;
+#endif
 
 static void dump_hex(const uint8_t *data, size_t len) {
 	for (int i = 0; i < len; i++)
@@ -57,7 +60,9 @@ void start_cpu() {
 	srand(1); /* rdrand */
 	cpu0_set_pc(guest_rip);
 	icount = 0;
+#if defined(HP_X86_64)
 	pio_icount = 0;
+#endif
 	clear_seen_dma();
 	if (cpu0_get_fuzztrace()) {
 		dump_regs();
@@ -105,9 +110,6 @@ static void fuzz_emu_stop() {
 	cpu0_set_fuzz_executing_input(false);
 }
 
-#if defined(HP_AARCH64)
-extern "C"
-#endif
 void fuzz_emu_stop_normal(){
     fuzz_emu_stop();
 }
@@ -145,9 +147,11 @@ unsigned long int get_icount() {
 	return icount;
 }
 
+#if defined(HP_X86_64)
 unsigned long int get_pio_icount() {
 	return pio_icount;
 }
+#endif
 
 #if defined(HP_AARCH64)
 char __snapshot_tag[320];
@@ -175,11 +179,6 @@ void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
 }
 
 void fuzz_instr_after_execution(hp_instruction *i) {
-}
-
-void fuzz_instr_before_execution(hp_instruction *i) {
-	handle_breakpoints(i);
-	handle_syscall_hooks(i);
 	if (!fuzzing && !fuzzenum)
 		return;
 
@@ -189,7 +188,14 @@ void fuzz_instr_before_execution(hp_instruction *i) {
 	    fuzz_emu_stop_unhealthy();
 	}
     icount++;
+#if defined(HP_X86_64)
     pio_icount++;
+#endif
+}
+
+void fuzz_instr_before_execution(hp_instruction *i) {
+	handle_breakpoints(i);
+	handle_syscall_hooks(i);
 }
 
 static void usage() {
