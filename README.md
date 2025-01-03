@@ -26,19 +26,25 @@ organized and easy to manage.
 ├── snapshots/kvm
 ```
 
-First, enumerate the input-spaces:
+First, create a working directory.
 
 ```
-# Create a working directory
 mkdir -p /tmp/fuzz/; cd /tmp/fuzz
 export SNAPSHOT_BASE=/path/to/snapshots/kvm
 export PROJECT_ROOT=/path/to/HyperPill
+```
+
+Second, enumerate the input-spaces.
+
+For x86_64 hypervisors,
+
+```
 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
-If ARCH=aarch64, since the enumeration of the input-spaces has been not
-implemented, please dump the mtree `info mtree -f` within L1's QEMU monitor and
-save it to dir/mtree. Then export the following envs according to what virtual
+For aarch64 hypervisors, we obtain the mmio regions from the device tree blob,
+or if QEMU/KVM, from the outpuf of `info mtree -f` within the monitor of QEMU
+that runs L2 VM. Then export the following envs according to what virtual
 device(s) you are fuzzing (e.g. pl061).
 
 ```

@@ -932,13 +932,13 @@ void add_mmio_range_alt(uint64_t addr, uint64_t end) {
 }
 void init_regions(const char *path) {
 	open_db(path);
+#if defined(HP_X86_64)
 	if (getenv("FUZZ_ENUM")) {
-	#if defined(HP_X86_64)
 		enum_pio_regions();
-	#endif
 		enum_mmio_regions();
         exit(0);
 	}
+#endif
 	if (getenv("MANUAL_RANGES")) {
 		load_manual_ranges(getenv("MANUAL_RANGES"),
 				   getenv("RANGE_REGEX"), pio_regions,

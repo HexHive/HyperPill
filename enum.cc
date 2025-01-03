@@ -12,9 +12,9 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 
+#if defined(HP_X86_64)
 static std::vector<std::tuple<hp_address, hp_address, unsigned int>> ept_exit_ranges; // Start, Base, Reason
 
-#if defined(HP_X86_64)
 static std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -139,23 +139,16 @@ void enum_pio_regions() {
         insert_pio(a.first, a.second);
     }
 }
-#endif
 
 void enum_handle_ept_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end) {
     ept_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
-#if defined(HP_X86_64)
     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
     else if(gap_reason == VMX_VMEXIT_EPT_VIOLATION)
         printf("%lx +%lx Potential Violation\n", gap_start, gap_end - gap_start);
     else
         abort();
-#elif defined(HP_AARCH64)
-// TODO
-#else
-#error
-#endif
 }
 
 void enum_mmio_regions(void) {
@@ -210,3 +203,4 @@ void enum_mmio_regions(void) {
         insert_mmio(it.first, it.second);
     }
 }
+#endif

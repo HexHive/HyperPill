@@ -167,10 +167,12 @@ void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, 
 #endif
 
 // enum.cc
+#if defined(HP_X86_64)
 void enum_pio_regions();
 void enum_mmio_regions();
 void enum_handle_ept_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end);
+#endif
 
 // feedback.c
 void add_indicator_value(uint64_t val);
@@ -189,20 +191,18 @@ bool fuzz_hook_vmlaunch();
 #error
 #endif
 
-// link_map.c
+// link_map.cc
 void load_link_map(char* map_path, char* obj_regex, size_t base);
 
-// sourcecov.c
+// sourcecov.cc
 void init_sourcecov(size_t baseaddr);
 void setup_periodic_coverage();
 void check_write_coverage();
 
 // sym2addr_linux.cc
-#ifdef __cplusplus
 void load_symbol_map(char *path);
 hp_address sym_to_addr(std::string bin, std::string name);
 std::pair<std::string, std::string> addr_to_sym(size_t addr);
-#endif
 
 // symbolize.cc
 void load_symbolization_files(char* path);
