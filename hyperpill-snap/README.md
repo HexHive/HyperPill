@@ -316,8 +316,10 @@ EOF
 
 [L2] $ gcc snap.c -o snap
 [L2] $ ./snap
-# Copy the output of the above command to /path/to/snapshots/dir/lspci
 [L2] $ lspci -v
+# Copy the output of the above command to /path/to/snapshots/dir/lspci
+[L1 qemu-monitor] info mtree -f
+# Copy the output of the above command to /path/to/snapshots/dir/mtree
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
@@ -326,8 +328,6 @@ EOF
 [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
 [L0 qemu-monitor] info registers
 # Copy the output of the above command to /path/to/snapshots/dir/regs
-[L0 qemu-monitor] info mtree -f
-# Copy the output of the above command to /path/to/snapshots/dir/mtree
 [L0] sudo dmesg | grep "VMCS.*last" | cut -f2 -d"(" | cut -f1 -d ")"
 # Copy the output of the above command to /path/to/snapshots/dir/vmcs
 ```
