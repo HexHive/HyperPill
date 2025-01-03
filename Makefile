@@ -128,7 +128,9 @@ else ifeq ($(ARCH), aarch64)
 	if [ ! -d "vendor/qemu" ]; then \
 		git clone https://github.com/qemu/qemu.git vendor/qemu \
 			--branch v8.2.7 --depth=1; \
-		git am Makefile.qemu.patch; \
+		cd vendor/qemu; \
+		git am ../../Makefile.qemu.patch; \
+		cd ../..; \
 	fi
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
