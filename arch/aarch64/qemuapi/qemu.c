@@ -76,9 +76,7 @@ static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
         uint32_t spsr = env->banked_spsr[spsr_idx];
         unsigned int new_el = el_from_spsr(spsr);
     
-        printf("Detecting EL2 -> EL%u\n", new_el);
         if (new_el == 1) {
-            printf("Detecting an ERET to guest VM\n");
             fuzz_emu_stop_normal();
         }
     }
@@ -333,6 +331,14 @@ void __cpu0_set_fuzz_executing_input(bool fuzzing) {
 }
 
 // mem.c
+void __cpu0_mem_write_physical_page(hwaddr addr, size_t len, void *buf) {
+    cpu_physical_memory_write(addr, buf, len);
+}
+
+void __cpu0_mem_read_physical_page(hwaddr addr, size_t len, void *buf) {
+    cpu_physical_memory_read(addr, buf, len);
+}
+
 int __cpu0_memory_rw_debug(vaddr addr, void *ptr, size_t len, bool is_write) {
     return cpu_memory_rw_debug(cpu0, addr, ptr, len, is_write);
 }

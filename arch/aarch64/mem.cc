@@ -1,4 +1,5 @@
 #include "fuzz.h"
+#include "qemuapi.h"
 
 uint64_t lookup_gpa_by_hpa(uint64_t hpa) { assert(0); }
 
@@ -7,15 +8,15 @@ void cpu0_read_virtual(hp_address start, size_t size, void *data) {
 }
 
 void cpu0_write_virtual(hp_address start, size_t size, void *data) {
-    assert(0);
+    __cpu0_memory_rw_debug(start, data, size, true);
 }
 
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
-    assert(0);
+    __cpu0_mem_write_physical_page(addr, len, buf);
 }
 
 void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
-    assert(0);
+    __cpu0_mem_read_physical_page(addr, len, buf);
 }
 
 /* given a virtual address of L1, return the instruction bytes */

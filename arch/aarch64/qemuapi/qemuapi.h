@@ -46,6 +46,8 @@ bool __cpu0_get_fuzz_executing_input(void);
 void __cpu0_set_fuzz_executing_input(bool fuzzing);
 
 // mem.c
+void __cpu0_mem_read_physical_page(uint64_t addr, size_t len, void *buf);
+void __cpu0_mem_write_physical_page(uint64_t addr, size_t len, void *buf);
 int __cpu0_memory_rw_debug(uint64_t addr, void *ptr, size_t len, bool is_write);
 
 // regs.c

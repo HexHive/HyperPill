@@ -8,7 +8,6 @@ bool fuzz_unhealthy_input = false; /* We reached an execution timeout */
 bool fuzz_do_not_continue = false; /* Don't inject new instructions. */
 
 bool fuzzing;
-static bool executing_input;
 
 #if defined(HP_X86_64)
 BOCHSAPI BX_CPU_C bx_cpu = BX_CPU_C(0);
