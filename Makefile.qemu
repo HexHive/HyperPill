@@ -1119,6 +1119,10 @@ QEMU_LDFLAGS := \
 	/usr/lib/x86_64-linux-gnu/libpulse.so \
 	/usr/lib/x86_64-linux-gnu/libsndio.so \
 	-lbrlapi \
+ 	-lzstd \
+ 	-lrbd \
+ 	-lrados \
+ 	-lnfs \
 	-lnuma \
 	-lm \
 	-lpam \
