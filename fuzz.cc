@@ -147,17 +147,13 @@ static uint16_t pio_region_size(uint16_t addr) {
 }
 #endif
 
-bool inject_halt() {
 #if defined(HP_X86_64)
+bool inject_halt() {
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_HLT);
 	BX_CPU(id)->VMwrite32(VMCS_VMEXIT_QUALIFICATION, 0);
-#elif defined(HP_AARCH64)
-// TODO
-#else
-#error
-#endif
 	return true;
 }
+#endif
 
 // INJECTORS
 bool inject_write(hp_address addr, int size, uint64_t val) {
@@ -927,7 +923,7 @@ void add_mmio_region(uint64_t addr, uint64_t size) {
 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
 	       size);
 }
-void add_mmio_range_alt(uint64_t addr, uint64_t end) {
+void add_mmio_range_all(uint64_t addr, uint64_t end) {
 	add_mmio_region(addr, end - addr);
 }
 void init_regions(const char *path) {

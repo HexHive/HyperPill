@@ -33,9 +33,9 @@ typedef bx_address hp_address;
 typedef bx_phy_address hp_phy_address;
 typedef bxInstruction_c hp_instruction;
 #elif defined(HP_AARCH64)
-typedef uint64_t hp_address; // TODO
-typedef uint64_t hp_phy_address; // TODO
-typedef void hp_instruction; // TODO
+typedef uint64_t hp_address;
+typedef uint64_t hp_phy_address;
+typedef void hp_instruction;
 #else
 #error
 #endif
@@ -44,10 +44,8 @@ extern bool fuzzing;
 extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
-#ifdef __cplusplus
 extern tsl::robin_set<hp_address> cur_input;
 extern std::vector<size_t> guest_page_scratchlist;
-#endif
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 
@@ -102,21 +100,27 @@ void cpu0_set_pc(uint64_t rip);
 void clear_seen_dma();
 void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
 bool op_clock_step();
+#if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size);
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
+#endif
 bool inject_read(hp_address addr, int size);
 bool inject_write(hp_address addr, int size, uint64_t val);
+#if defined(HP_X86_64)
 bool inject_halt();
 uint32_t inject_pci_read(uint8_t device, uint8_t function, uint8_t offset);
 bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
+void set_pci_device(uint8_t dev, uint8_t function);
 uint64_t inject_rdmsr(hp_address msr);
 bool inject_wrmsr(hp_address msr, uint64_t value);
+#endif
 void insert_register_value_into_fuzz_input(int idx);
-void set_pci_device(uint8_t dev, uint8_t function);
 void init_regions(const char* path);
+#if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size);
+#endif
 void add_mmio_region(uint64_t addr, uint64_t size);
-void add_mmio_range_alt(uint64_t addr, uint64_t end);
+void add_mmio_range_all(uint64_t addr, uint64_t end);
 
 // main.cc
 void fuzz_instr_before_execution(hp_instruction *i);
@@ -161,10 +165,8 @@ bool empty_stacktrace(void);
 void open_db(const char* path);
 void insert_mmio(uint64_t addr, uint64_t len);
 void insert_pio(uint16_t addr, uint16_t len);
-#ifdef __cplusplus
 void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
 void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
-#endif
 
 // enum.cc
 #if defined(HP_X86_64)
