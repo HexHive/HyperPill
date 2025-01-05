@@ -6,7 +6,17 @@
 
 bx_devices_c::bx_devices_c() {}
 bx_devices_c::~bx_devices_c() {}
+
+static char output_buf[128];
+static char output_index = 0;
+
 Bit32u bx_devices_c::inp(Bit16u addr, unsigned len) {
+    if (addr == 0x3fd) {
+        printf("%s\n", output_buf);
+        memset(output_buf, 0, 128);
+        output_index = 0;
+        return 0x20;
+    }
     printf("PIO READ ADDR: %x\n", addr);
     return 0;
     if (addr >= 0x3f8 && addr <= 0x3ff)
@@ -16,6 +26,11 @@ Bit32u bx_devices_c::inp(Bit16u addr, unsigned len) {
     return 0;
 }
 void bx_devices_c::outp(Bit16u addr, Bit32u value, unsigned len) { 
+    if (addr == 0x3f8) {
+        output_buf[output_index++] = (unsigned char)value;
+        return;
+    }
+    printf("PIO WRIT ADDR: %x %c\n", addr, value);
     /* for(int i=0; i<BX_GENERAL_REGISTERS+4; i++){ */
     /*     printf("%d: %lx\n",i, BX_CPU(id)->gen_reg[i].rrx); */
     /* } */
