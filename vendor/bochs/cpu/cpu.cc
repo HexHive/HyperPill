@@ -125,6 +125,10 @@ void BX_CPU_C::cpu_loop(void)
       if (BX_CPU_THIS_PTR fuzztrace)
           debug_disasm_instruction(BX_CPU_THIS_PTR prev_rip);
 
+      if (i->getIaOpcode() == 0) {
+        printf("Failed to decode instructions !\n");
+        assert(0);
+      }
       // want to allow changing of the instruction inside instrumentation callback
       BX_INSTR_BEFORE_EXECUTION(BX_CPU_ID, i);
       RIP += i->ilen();
