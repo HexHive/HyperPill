@@ -36,6 +36,9 @@ void aarch64_set_xreg(uint64_t index, uint64_t value);
 void qemu_wait_until_stop();
 bool qemu_is_running();
 
+// breakpoints.cc
+bool __add_breakpoint(uint64_t addr, int (*h)(void));
+
 // instrument.cc
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
 

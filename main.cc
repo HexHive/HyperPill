@@ -194,7 +194,9 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 }
 
 void fuzz_instr_before_execution(hp_instruction *i) {
+#if defined(HP_X86_64)
 	handle_breakpoints(i);
+#endif
 	handle_syscall_hooks(i);
 }
 
@@ -413,10 +415,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 				}
 			}
 	}
-	if (getenv("KVM")) {
-		add_pc_range(0, 0x7fffffffffff);
-		apply_breakpoints_linux();
-    }
 	/*
 	 * make a copy of the bochs CPU state, which we use to reset the CPU
 	 * state after each fuzzer input
@@ -477,6 +475,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
 			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
+
+	if (getenv("KVM")) {
+#if defined(HP_X86_64)
+		add_pc_range(0, 0x7fffffffffff);
+#endif
+		apply_breakpoints_linux();
+    }
 
 	/* Save guest RIP so that we can restore it after each fuzzer input */
 	guest_rip = cpu0_get_pc();

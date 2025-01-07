@@ -229,7 +229,14 @@ void save_pre_hyp_pc() {
     pre_hyp_pc = env->elr_el[2];
 }
 
-void exec_tb_fn(int cpu_index, TranslationBlock *tb) {
+void before_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
+    if(tb == NULL || cpu0->cpu_index != cpu_index)
+        return;
+
+    qemu_tb_before_execution(NULL);
+}
+
+void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
     static uint64_t prev_pc = 0;
 
     if(tb == NULL || cpu0->cpu_index != cpu_index)
@@ -281,10 +288,17 @@ void init_qemu(int argc, char **argv, char *snapshot_tag) {
     save_pre_hyp_pc();
 
     /* Register TB execution callback */
-    register_exec_tb_cb(exec_tb_fn);
+    register_exec_tb_cb(before_exec_tb_fn, after_exec_tb_fn);
 
     printf("Enters Hypervisor at address : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->pc);
     printf("Last PC before entering Hypervisor : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->elr_el[2]);
+}
+
+// breakpoints.c
+#define GDB_BREAKPOINT_HW        1
+
+bool __add_breakpoint(vaddr addr, int (*h)(void)) {
+    return gdb_breakpoint_insert(cpu0, GDB_BREAKPOINT_HW, addr, 0x1000, h);
 }
 
 // control.c
