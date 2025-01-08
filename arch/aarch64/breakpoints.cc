@@ -13,13 +13,19 @@ void apply_breakpoints_linux() {
 
     // TODO exit/abort/sanitizer stuff
     add_breakpoint(sym_to_addr("vmlinux", "hyp_panic"), []() {
-        fuzz_emu_stop_crash("vmlinux: panic");
+        fuzz_emu_stop_crash("vmlinux: hyp_panic");
         abort();
         return -1;
     });
 
     add_breakpoint(sym_to_addr("vmlinux", "panic"), []() {
         fuzz_emu_stop_crash("vmlinux: panic");
+        abort();
+        return -1;
+    });
+
+    add_breakpoint(sym_to_addr("vmlinux", "__guest_exit_panic"), []() {
+        fuzz_emu_stop_crash("vmlinux: __guest_exit_panic");
         abort();
         return -1;
     });
