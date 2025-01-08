@@ -9,6 +9,12 @@ bool fuzz_hook_back_to_el1_kernel(void) {
     return true;
 }
 
+extern "C"
+bool __fuzz_emu_stop_normal(void) {
+    fuzz_emu_stop_normal();
+    return true;
+}
+
 size_t init_random_register_data_len(void) {
     return 0; // TODO
 }

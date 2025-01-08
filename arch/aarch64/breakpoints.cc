@@ -30,5 +30,3 @@ void apply_breakpoints_linux() {
         return -1;
     });
 }
-
-void handle_syscall_hooks(hp_instruction *i) { }

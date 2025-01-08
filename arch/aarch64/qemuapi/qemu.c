@@ -307,7 +307,7 @@ static void hp_vcpu_mem_access(
             default: abort();
         }
         uint8_t data[__size];
-        printf("load, 0x%08"PRIx64", %lx\n", addr, size);
+        // printf("load, 0x%08"PRIx64", %lx\n", addr, size);
         // if (is_l2_page_bitmap[hwaddr >> 12]) {
         if (0) {
              if (__cpu0_get_fuzztrace()) {
@@ -350,8 +350,30 @@ static void hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
         tb, hp_vcpu_tb_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
 }
 
+static void hp_vcpu_syscall(qemu_plugin_id_t id, unsigned int cpu_index,
+                         int64_t num, uint64_t a1, uint64_t a2,
+                         uint64_t a3, uint64_t a4, uint64_t a5,
+                         uint64_t a6, uint64_t a7, uint64_t a8)
+{
+    switch (num) {
+    case 93: /* exit */
+    case 94: /* exit_group */
+        __fuzz_emu_stop_normal();
+        abort();
+        break;
+    case 129: /* kill */
+    case 130: /* tkill */
+        if (a1 == 6) { /* sigabrt */
+            __fuzz_emu_stop_normal();
+            abort();
+        }
+        break;
+    }
+}
+
 int hp_qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info) {
     qemu_plugin_register_vcpu_tb_trans_cb(id, hp_vcpu_tb_trans);
+    qemu_plugin_register_vcpu_syscall_cb(id, hp_vcpu_syscall);
     return 0;
 }
 

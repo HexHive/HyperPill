@@ -196,8 +196,8 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 void fuzz_instr_before_execution(hp_instruction *i) {
 #if defined(HP_X86_64)
 	handle_breakpoints(i);
-#endif
 	handle_syscall_hooks(i);
+#endif
 }
 
 static void usage() {
