@@ -337,23 +337,24 @@ static void hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
     for (i = 0; i < n; i++) {
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
 
-        uint64_t effective_addr = (uint64_t)qemu_plugin_insn_haddr(insn);
-        data = g_new0(InsnData, 1);
-        data->addr = effective_addr;
-
         qemu_plugin_register_vcpu_mem_cb(
-            insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_RW, data);
-        qemu_plugin_register_vcpu_insn_exec_cb(
-            insn, hp_vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, data);
+            insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_RW, NULL);
+
+        // find svc (syscall)
+        uint32_t insn_opcode = *((uint32_t *)qemu_plugin_insn_data(insn));
+        if (!(extract32(insn_opcode, 0, 5) == 0x1 && extract32(insn_opcode, 21, 11) == 0x6a0)) {
+            continue;
+        }
+        // qemu_plugin_register_vcpu_insn_exec_cb(
+            // insn, hp_vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
     }
     qemu_plugin_register_vcpu_tb_exec_cb(
         tb, hp_vcpu_tb_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
 }
 
-static void hp_vcpu_syscall(qemu_plugin_id_t id, unsigned int cpu_index,
-                         int64_t num, uint64_t a1, uint64_t a2,
-                         uint64_t a3, uint64_t a4, uint64_t a5,
-                         uint64_t a6, uint64_t a7, uint64_t a8)
+void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2,
+                     uint64_t a3, uint64_t a4, uint64_t a5,
+                     uint64_t a6, uint64_t a7, uint64_t a8)
 {
     switch (num) {
     case 93: /* exit */
@@ -373,7 +374,6 @@ static void hp_vcpu_syscall(qemu_plugin_id_t id, unsigned int cpu_index,
 
 int hp_qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info) {
     qemu_plugin_register_vcpu_tb_trans_cb(id, hp_vcpu_tb_trans);
-    qemu_plugin_register_vcpu_syscall_cb(id, hp_vcpu_syscall);
     return 0;
 }
 

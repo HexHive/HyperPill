@@ -1,4 +1,4 @@
-From a520263d10ff10c6b1efae4005911aa6c586b9eb Mon Sep 17 00:00:00 2001
+From cf4fc7e33d8d69b6d76b69c35bcc0414e540b877 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sun, 22 Dec 2024 16:29:03 +0100
 Subject: [PATCH] Patch QEMU for HyperPill/ARM
@@ -8,6 +8,7 @@ Subject: [PATCH] Patch QEMU for HyperPill/ARM
 - Enable breakpoint handlers
 - Disable existing plugins
 - Enable mem access hook
+- Hook SVC
 ---
  accel/hvf/hvf-accel-ops.c             |   2 +-
  accel/kvm/kvm-all.c                   |   2 +-
@@ -49,6 +50,7 @@ Subject: [PATCH] Patch QEMU for HyperPill/ARM
  system/physmem.c                      |   2 -
  system/vl.c                           |   2 +-
  target/arm/debug_helper.c             |   2 +-
+ target/arm/helper.c                   |  13 ++++
  target/arm/tcg/translate-a64.c        |   2 +-
  target/i386/tcg/sysemu/bpt_helper.c   |   2 +-
  target/ppc/cpu.c                      |   2 +-
@@ -57,7 +59,7 @@ Subject: [PATCH] Patch QEMU for HyperPill/ARM
  tcg/tcg-op.c                          |   2 +-
  tests/plugin/mem.c                    |   2 +-
  tests/qtest/fuzz/generic_fuzz.c       | 108 --------------------------
- 48 files changed, 154 insertions(+), 224 deletions(-)
+ 49 files changed, 167 insertions(+), 224 deletions(-)
 
 diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
 index abe7adf..35a0436 100644
@@ -1030,6 +1032,37 @@ index cbfba53..30280cb 100644
  }
  
  void hw_breakpoint_update_all(ARMCPU *cpu)
+diff --git a/target/arm/helper.c b/target/arm/helper.c
+index 9ff266a..8278af0 100644
+--- a/target/arm/helper.c
++++ b/target/arm/helper.c
+@@ -11092,6 +11092,15 @@ static bool syndrome_is_sync_extabt(uint32_t syndrome)
+     }
+ }
+ 
++
++__attribute__((weak))
++void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2,
++                     uint64_t a3, uint64_t a4, uint64_t a5,
++                     uint64_t a6, uint64_t a7, uint64_t a8);
++
++void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2,
++                     uint64_t a3, uint64_t a4, uint64_t a5,
++                     uint64_t a6, uint64_t a7, uint64_t a8) {}
+ /* Handle exception entry to a target EL which is using AArch64 */
+ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+ {
+@@ -11169,6 +11178,10 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+     case EXCP_BKPT:
+     case EXCP_UDEF:
+     case EXCP_SWI:
++        hp_vcpu_syscall(env->xregs[8], env->xregs[0], env->xregs[1],
++                        env->xregs[2], env->xregs[3], env->xregs[4],
++                        env->xregs[5], 0, 0);
++        /* fall through */
+     case EXCP_HVC:
+     case EXCP_HYP_TRAP:
+     case EXCP_SMC:
 diff --git a/target/arm/tcg/translate-a64.c b/target/arm/tcg/translate-a64.c
 index 5beac07..6235182 100644
 --- a/target/arm/tcg/translate-a64.c
