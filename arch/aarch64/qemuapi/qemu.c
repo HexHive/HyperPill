@@ -264,8 +264,114 @@ void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
     qemu_tb_after_execution(NULL);
 }
 
+typedef struct {
+    uint64_t addr;
+} InsnData;
+
+static void hp_vcpu_mem_access(
+        unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+        uint64_t vaddr, void *userdata) {
+    printf("hp_vcpu_mem_access\n");
+    struct qemu_plugin_hwaddr *hwaddr;
+
+    if (cpu0->cpu_index != cpu_index) {
+        return;
+    }
+
+    hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
+    if (hwaddr && qemu_plugin_hwaddr_is_io(hwaddr)) {
+        return;
+    }
+
+    bool rw;
+    rw = qemu_plugin_mem_is_store(meminfo);
+
+    if (hwaddr) {
+        uint64_t addr = qemu_plugin_hwaddr_phys_addr(hwaddr);
+        const char *name = qemu_plugin_hwaddr_device_name(hwaddr);
+        if (rw) {
+            printf("str, 0x%08"PRIx64", %s", addr, name);
+        } else {
+            printf(" ld, 0x%08"PRIx64", %s", addr, name);
+        }
+    }
+}
+
+static void hp_vcpu_insn_exec(unsigned int cpu_index, void *userdata) {
+    printf("hp_vcpu_insn_exec\n");
+}
+
+static void hp_vcpu_tb_exec(unsigned int cpu_index, void *userdata) {
+    printf("hp_vcpu_tb_exec\n");
+}
+
+// a plugin solution
+static hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
+    size_t n = qemu_plugin_tb_n_insns(tb);
+    size_t i;
+    InsnData *data;
+
+    for (i = 0; i < n; i++) {
+        struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
+
+        uint64_t effective_addr = (uint64_t)qemu_plugin_insn_haddr(insn);
+        data->addr = effective_addr;
+
+        qemu_plugin_register_vcpu_mem_cb(
+            insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_W, data);
+        qemu_plugin_register_vcpu_insn_exec_cb(
+            insn, hp_vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, data);
+    }
+    qemu_plugin_register_vcpu_tb_exec_cb(
+        tb, hp_vcpu_tb_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
+}
+
+int hp_qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info) {
+    qemu_plugin_register_vcpu_tb_trans_cb(id, hp_vcpu_tb_trans);
+    return 0;
+}
+
+extern struct qemu_plugin_state plugin;
+int hp_qemu_plugin_load() {
+    struct qemu_plugin_ctx *ctx;
+    int rc;
+
+    ctx = malloc(sizeof(*ctx));
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->desc = NULL;
+
+    qemu_rec_mutex_lock(&plugin.lock);
+
+    /* find an unused random id with &ctx as the seed */
+    ctx->id = (uint64_t)(uintptr_t)ctx;
+    for (;;) {
+        void *existing;
+
+        ctx->id = rand();
+        existing = g_hash_table_lookup(plugin.id_ht, &ctx->id);
+        if (likely(existing == NULL)) {
+            bool success;
+
+            success = g_hash_table_insert(plugin.id_ht, &ctx->id, &ctx->id);
+            g_assert(success);
+            break;
+        }
+    }
+    QTAILQ_INSERT_TAIL(&plugin.ctxs, ctx, entry);
+    ctx->installing = true;
+    rc = hp_qemu_plugin_install(ctx->id, NULL); // always 0
+    ctx->installing = false;
+    if (rc) {
+        // ignored ...
+    }
+
+    qemu_rec_mutex_unlock(&plugin.lock);
+    return rc;
+}
+
 void init_qemu(int argc, char **argv, char *snapshot_tag) {
     qemu_init(argc, argv);
+    hp_qemu_plugin_load();
 
     qemu_mutex_init(&barrier_mutex);
     qemu_cond_init(&barrier_cond);
@@ -376,4 +482,3 @@ uint64_t __cpu0_get_pc(void) {
 void __cpu0_set_pc(uint64_t pc) {
     (&(ARM_CPU(cpu0))->env)->pc = pc;
 }
-

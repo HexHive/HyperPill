@@ -24,6 +24,7 @@ INCLUDES    = -I. \
 			  -I vendor/qemu/include \
 			  -I vendor/qemu/target/arm \
 			  -I vendor/qemu/accel/tcg \
+			  -I vendor/qemu/plugins \
 			  -I vendor/qemu-build \
 			  -I /usr/include/glib-2.0 \
 			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include

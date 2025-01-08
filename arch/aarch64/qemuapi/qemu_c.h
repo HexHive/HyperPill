@@ -19,4 +19,7 @@
 /* <qemu>/accel/tcg/ */
 #include "internal-target.h"
 
+#include "qemu/qemu-plugin.h"
+#include "plugin.h"
+
 #endif
