@@ -1,51 +1,123 @@
-From 73cb5b5b2334d015be5542b93eae8b7eb16b4666 Mon Sep 17 00:00:00 2001
+From 36bcbe5c47d1227c28075ceae6029afe735de9d2 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sun, 22 Dec 2024 16:29:03 +0100
 Subject: [PATCH] Patch QEMU for HyperPill/ARM
 
 - Enable pc hooks
 - Enable disassembler
+- Enable breakpoint handlers
 ---
- accel/tcg/cpu-exec.c             | 11 +++++++++++
- accel/tcg/internal-target.h      |  3 +++
- accel/tcg/translator.c           |  8 ++++++++
- hw/block/pflash_cfi01.c          |  4 +++-
- include/exec/translation-block.h |  5 +++++
- include/hw/core/cpu.h            |  4 ++++
- target/arm/tcg/translate-a64.c   |  2 +-
- 7 files changed, 35 insertions(+), 2 deletions(-)
+ accel/hvf/hvf-accel-ops.c           |  2 +-
+ accel/kvm/kvm-all.c                 |  2 +-
+ accel/kvm/kvm-cpus.h                |  2 +-
+ accel/tcg/cpu-exec.c                | 20 +++++++++++++++++++-
+ accel/tcg/internal-target.h         |  3 +++
+ accel/tcg/tcg-accel-ops.c           |  4 ++--
+ accel/tcg/translator.c              |  8 ++++++++
+ cpu-common.c                        |  3 ++-
+ gdbstub/gdbstub.c                   |  2 +-
+ gdbstub/internals.h                 |  2 +-
+ gdbstub/system.c                    |  4 ++--
+ gdbstub/user.c                      |  4 ++--
+ hw/block/pflash_cfi01.c             |  4 +++-
+ include/exec/translation-block.h    |  5 +++++
+ include/hw/core/cpu.h               |  7 ++++++-
+ include/sysemu/accel-ops.h          |  2 +-
+ linux-user/main.c                   |  2 +-
+ target/arm/debug_helper.c           |  2 +-
+ target/arm/tcg/translate-a64.c      |  2 +-
+ target/i386/tcg/sysemu/bpt_helper.c |  2 +-
+ target/ppc/cpu.c                    |  2 +-
+ target/riscv/debug.c                |  4 ++--
+ 22 files changed, 65 insertions(+), 23 deletions(-)
 
+diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
+index abe7adf..35a0436 100644
+--- a/accel/hvf/hvf-accel-ops.c
++++ b/accel/hvf/hvf-accel-ops.c
+@@ -474,7 +474,7 @@ static void hvf_start_vcpu_thread(CPUState *cpu)
+                        cpu, QEMU_THREAD_JOINABLE);
+ }
+ 
+-static int hvf_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
++static int hvf_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len, int (*h)(void))
+ {
+     struct hvf_sw_breakpoint *bp;
+     int err;
+diff --git a/accel/kvm/kvm-all.c b/accel/kvm/kvm-all.c
+index e39a810..5552132 100644
+--- a/accel/kvm/kvm-all.c
++++ b/accel/kvm/kvm-all.c
+@@ -3216,7 +3216,7 @@ bool kvm_supports_guest_debug(void)
+     return kvm_has_guest_debug;
+ }
+ 
+-int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len)
++int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len, void (*h)())
+ {
+     struct kvm_sw_breakpoint *bp;
+     int err;
+diff --git a/accel/kvm/kvm-cpus.h b/accel/kvm/kvm-cpus.h
+index ca40add..41adbb0 100644
+--- a/accel/kvm/kvm-cpus.h
++++ b/accel/kvm/kvm-cpus.h
+@@ -19,7 +19,7 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu);
+ void kvm_cpu_synchronize_post_init(CPUState *cpu);
+ void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu);
+ bool kvm_supports_guest_debug(void);
+-int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len);
++int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len, void (*)() h);
+ int kvm_remove_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len);
+ void kvm_remove_all_breakpoints(CPUState *cpu);
+ 
 diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
-index 6a4af14..b0df428 100644
+index 6a4af14..9c75398 100644
 --- a/accel/tcg/cpu-exec.c
 +++ b/accel/tcg/cpu-exec.c
-@@ -45,6 +45,13 @@
+@@ -45,6 +45,15 @@
  #include "internal-common.h"
  #include "internal-target.h"
  
 +/* Callback for an executed TB */
-+exec_tb_cb_t exec_tb_cb;
++exec_tb_cb_t before_exec_tb_cb;
++exec_tb_cb_t after_exec_tb_cb;
 +
-+void register_exec_tb_cb(exec_tb_cb_t cb) {
-+    exec_tb_cb = cb;
++void register_exec_tb_cb(exec_tb_cb_t cb0, exec_tb_cb_t cb1) {
++    before_exec_tb_cb = cb0;
++    after_exec_tb_cb = cb1;
 +}
 +
  /* -icount align implementation. */
  
  typedef struct SyncClocks {
-@@ -918,6 +925,10 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
+@@ -364,7 +373,11 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
+             }
+ 
+             if (match_bp) {
+-                cpu->exception_index = EXCP_DEBUG;
++                if (bp->h) {
++                    cpu->exception_index = bp->h();
++                } else {
++                    cpu->exception_index = EXCP_DEBUG;
++                }
+                 return true;
+             }
+         } else if (((pc ^ bp->pc) & TARGET_PAGE_MASK) == 0) {
+@@ -917,7 +930,12 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
+     int32_t insns_left;
  
      trace_exec_tb(tb, pc);
++    before_exec_tb_cb(cpu->cpu_index, tb);
      tb = cpu_tb_exec(cpu, tb, tb_exit);
 +
 +    /* notify that the tb has been executed */
-+    exec_tb_cb(cpu->cpu_index, tb);
++    after_exec_tb_cb(cpu->cpu_index, tb);
 +
      if (*tb_exit != TB_EXIT_REQUESTED) {
          *last_tb = tb;
          return;
 diff --git a/accel/tcg/internal-target.h b/accel/tcg/internal-target.h
-index 4e36cf8..3d74045 100644
+index 4e36cf8..512c20d 100644
 --- a/accel/tcg/internal-target.h
 +++ b/accel/tcg/internal-target.h
 @@ -12,6 +12,9 @@
@@ -53,11 +125,33 @@ index 4e36cf8..3d74045 100644
  #include "exec/translate-all.h"
  
 +typedef void (*exec_tb_cb_t)(int cpu_index, TranslationBlock *tb);
-+void register_exec_tb_cb(exec_tb_cb_t cb);
++void register_exec_tb_cb(exec_tb_cb_t cb0, exec_tb_cb_t cb1);
 +
  /*
   * Access to the various translations structures need to be serialised
   * via locks for consistency.  In user-mode emulation access to the
+diff --git a/accel/tcg/tcg-accel-ops.c b/accel/tcg/tcg-accel-ops.c
+index 1b57290..286cb11 100644
+--- a/accel/tcg/tcg-accel-ops.c
++++ b/accel/tcg/tcg-accel-ops.c
+@@ -126,7 +126,7 @@ static inline int xlat_gdb_type(CPUState *cpu, int gdbtype)
+     return cputype;
+ }
+ 
+-static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
++static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void))
+ {
+     CPUState *cpu;
+     int err = 0;
+@@ -135,7 +135,7 @@ static int tcg_insert_breakpoint(CPUState *cs, int type, vaddr addr, vaddr len)
+     case GDB_BREAKPOINT_SW:
+     case GDB_BREAKPOINT_HW:
+         CPU_FOREACH(cpu) {
+-            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
++            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, h, NULL);
+             if (err) {
+                 break;
+             }
 diff --git a/accel/tcg/translator.c b/accel/tcg/translator.c
 index 38c3400..bfb6d10 100644
 --- a/accel/tcg/translator.c
@@ -84,6 +178,93 @@ index 38c3400..bfb6d10 100644
      if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
          && qemu_log_in_addr_range(db->pc_first)) {
          FILE *logfile = qemu_log_trylock();
+diff --git a/cpu-common.c b/cpu-common.c
+index c81fd72..cb9e08f 100644
+--- a/cpu-common.c
++++ b/cpu-common.c
+@@ -371,7 +371,7 @@ void process_queued_cpu_work(CPUState *cpu)
+ }
+ 
+ /* Add a breakpoint.  */
+-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
++int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags, int (*h)(void),
+                           CPUBreakpoint **breakpoint)
+ {
+     CPUClass *cc = CPU_GET_CLASS(cpu);
+@@ -385,6 +385,7 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
+ 
+     bp->pc = pc;
+     bp->flags = flags;
++    bp->h = h;
+ 
+     /* keep all GDB-injected breakpoints in front */
+     if (flags & BP_GDB) {
+diff --git a/gdbstub/gdbstub.c b/gdbstub/gdbstub.c
+index 46d752b..73c40bb 100644
+--- a/gdbstub/gdbstub.c
++++ b/gdbstub/gdbstub.c
+@@ -1121,7 +1121,7 @@ static void handle_insert_bp(GArray *params, void *user_ctx)
+     res = gdb_breakpoint_insert(gdbserver_state.c_cpu,
+                                 get_param(params, 0)->val_ul,
+                                 get_param(params, 1)->val_ull,
+-                                get_param(params, 2)->val_ull);
++                                get_param(params, 2)->val_ull, NULL);
+     if (res >= 0) {
+         gdb_put_packet("OK");
+         return;
+diff --git a/gdbstub/internals.h b/gdbstub/internals.h
+index 5c0c725..fe63591 100644
+--- a/gdbstub/internals.h
++++ b/gdbstub/internals.h
+@@ -215,7 +215,7 @@ void gdb_syscall_handling(const char *syscall_packet);
+  * and user mode.
+  */
+ bool gdb_supports_guest_debug(void);
+-int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len);
++int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void));
+ int gdb_breakpoint_remove(CPUState *cs, int type, vaddr addr, vaddr len);
+ void gdb_breakpoint_remove_all(CPUState *cs);
+ 
+diff --git a/gdbstub/system.c b/gdbstub/system.c
+index 83fd452..8c69934 100644
+--- a/gdbstub/system.c
++++ b/gdbstub/system.c
+@@ -637,11 +637,11 @@ bool gdb_supports_guest_debug(void)
+     return false;
+ }
+ 
+-int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len)
++int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void))
+ {
+     const AccelOpsClass *ops = cpus_get_accel();
+     if (ops->insert_breakpoint) {
+-        return ops->insert_breakpoint(cs, type, addr, len);
++        return ops->insert_breakpoint(cs, type, addr, len, h);
+     }
+     return -ENOSYS;
+ }
+diff --git a/gdbstub/user.c b/gdbstub/user.c
+index dbe1d9b..942ff75 100644
+--- a/gdbstub/user.c
++++ b/gdbstub/user.c
+@@ -439,7 +439,7 @@ bool gdb_supports_guest_debug(void)
+     return true;
+ }
+ 
+-int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len)
++int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void))
+ {
+     CPUState *cpu;
+     int err = 0;
+@@ -448,7 +448,7 @@ int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len)
+     case GDB_BREAKPOINT_SW:
+     case GDB_BREAKPOINT_HW:
+         CPU_FOREACH(cpu) {
+-            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, NULL);
++            err = cpu_breakpoint_insert(cpu, addr, BP_GDB, h, NULL);
+             if (err) {
+                 break;
+             }
 diff --git a/hw/block/pflash_cfi01.c b/hw/block/pflash_cfi01.c
 index 5e848a9..dbbad08 100644
 --- a/hw/block/pflash_cfi01.c
@@ -116,10 +297,18 @@ index e2b26e1..54c18c4 100644
       * Target-specific data associated with the TranslationBlock, e.g.:
       * x86: the original user, the Code Segment virtual base,
 diff --git a/include/hw/core/cpu.h b/include/hw/core/cpu.h
-index c0c8320..bb48698 100644
+index c0c8320..ad8bf2c 100644
 --- a/include/hw/core/cpu.h
 +++ b/include/hw/core/cpu.h
-@@ -568,6 +568,10 @@ struct CPUState {
+@@ -357,6 +357,7 @@ typedef struct CPUNegativeOffsetState {
+ typedef struct CPUBreakpoint {
+     vaddr pc;
+     int flags; /* BP_* */
++    int (*h)(void);
+     QTAILQ_ENTRY(CPUBreakpoint) entry;
+ } CPUBreakpoint;
+ 
+@@ -568,6 +569,10 @@ struct CPUState {
      /* track IOMMUs whose translations we've cached in the TCG TLB */
      GArray *iommu_notifiers;
  
@@ -130,6 +319,54 @@ index c0c8320..bb48698 100644
      /*
       * MUST BE LAST in order to minimize the displacement to CPUArchState.
       */
+@@ -1068,7 +1073,7 @@ void cpu_single_step(CPUState *cpu, int enabled);
+ #define BP_WATCHPOINT_HIT_WRITE (BP_MEM_WRITE << BP_HIT_SHIFT)
+ #define BP_WATCHPOINT_HIT       (BP_MEM_ACCESS << BP_HIT_SHIFT)
+ 
+-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
++int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags, int (*h)(void),
+                           CPUBreakpoint **breakpoint);
+ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags);
+ void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint);
+diff --git a/include/sysemu/accel-ops.h b/include/sysemu/accel-ops.h
+index ef91fc2..4bd0f7f 100644
+--- a/include/sysemu/accel-ops.h
++++ b/include/sysemu/accel-ops.h
+@@ -50,7 +50,7 @@ struct AccelOpsClass {
+     /* gdbstub hooks */
+     bool (*supports_guest_debug)(void);
+     int (*update_guest_debug)(CPUState *cpu);
+-    int (*insert_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
++    int (*insert_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len, int (*h)(void));
+     int (*remove_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
+     void (*remove_all_breakpoints)(CPUState *cpu);
+ };
+diff --git a/linux-user/main.c b/linux-user/main.c
+index 0cdaf30..27370bb 100644
+--- a/linux-user/main.c
++++ b/linux-user/main.c
+@@ -251,7 +251,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
+        BP_CPU break/watchpoints are handled correctly on clone. */
+     QTAILQ_INIT(&new_cpu->breakpoints);
+     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
+-        cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
++        cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL, NULL);
+     }
+ 
+     return new_env;
+diff --git a/target/arm/debug_helper.c b/target/arm/debug_helper.c
+index cbfba53..30280cb 100644
+--- a/target/arm/debug_helper.c
++++ b/target/arm/debug_helper.c
+@@ -733,7 +733,7 @@ void hw_breakpoint_update(ARMCPU *cpu, int n)
+         return;
+     }
+ 
+-    cpu_breakpoint_insert(CPU(cpu), addr, flags, &env->cpu_breakpoint[n]);
++    cpu_breakpoint_insert(CPU(cpu), addr, flags, NULL, &env->cpu_breakpoint[n]);
+ }
+ 
+ void hw_breakpoint_update_all(ARMCPU *cpu)
 diff --git a/target/arm/tcg/translate-a64.c b/target/arm/tcg/translate-a64.c
 index 5beac07..6235182 100644
 --- a/target/arm/tcg/translate-a64.c
@@ -143,6 +380,54 @@ index 5beac07..6235182 100644
      target_disas(logfile, cpu, dc->base.pc_first, dc->base.tb->size);
  }
  
+diff --git a/target/i386/tcg/sysemu/bpt_helper.c b/target/i386/tcg/sysemu/bpt_helper.c
+index 4d96a48..0c10fb8 100644
+--- a/target/i386/tcg/sysemu/bpt_helper.c
++++ b/target/i386/tcg/sysemu/bpt_helper.c
+@@ -61,7 +61,7 @@ static int hw_breakpoint_insert(CPUX86State *env, int index)
+     switch (hw_breakpoint_type(dr7, index)) {
+     case DR7_TYPE_BP_INST:
+         if (hw_breakpoint_enabled(dr7, index)) {
+-            err = cpu_breakpoint_insert(cs, drN, BP_CPU,
++            err = cpu_breakpoint_insert(cs, drN, BP_CPU, NULL,
+                                         &env->cpu_breakpoint[index]);
+         }
+         break;
+diff --git a/target/ppc/cpu.c b/target/ppc/cpu.c
+index e3ad8e0..c5fb3c6 100644
+--- a/target/ppc/cpu.c
++++ b/target/ppc/cpu.c
+@@ -120,7 +120,7 @@ void ppc_update_ciabr(CPUPPCState *env)
+     }
+ 
+     if (priv) {
+-        cpu_breakpoint_insert(cs, ciea, BP_CPU, &env->ciabr_breakpoint);
++        cpu_breakpoint_insert(cs, ciea, BP_CPU, NULL, &env->ciabr_breakpoint);
+     }
+ }
+ 
+diff --git a/target/riscv/debug.c b/target/riscv/debug.c
+index 4945d1a..09467cf 100644
+--- a/target/riscv/debug.c
++++ b/target/riscv/debug.c
+@@ -312,7 +312,7 @@ static void type2_breakpoint_insert(CPURISCVState *env, target_ulong index)
+     }
+ 
+     if (ctrl & TYPE2_EXEC) {
+-        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
++        cpu_breakpoint_insert(cs, addr, flags, NULL, &env->cpu_breakpoint[index]);
+     }
+ 
+     if (ctrl & TYPE2_LOAD) {
+@@ -438,7 +438,7 @@ static void type6_breakpoint_insert(CPURISCVState *env, target_ulong index)
+     }
+ 
+     if (ctrl & TYPE6_EXEC) {
+-        cpu_breakpoint_insert(cs, addr, flags, &env->cpu_breakpoint[index]);
++        cpu_breakpoint_insert(cs, addr, flags, NULL, &env->cpu_breakpoint[index]);
+     }
+ 
+     if (ctrl & TYPE6_LOAD) {
 -- 
 2.34.1
 
