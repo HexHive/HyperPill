@@ -268,45 +268,68 @@ typedef struct {
     uint64_t addr;
 } InsnData;
 
+enum Sizes { Byte, Word, Long, Quad, end_sizes };
 static void hp_vcpu_mem_access(
         unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
-        uint64_t vaddr, void *userdata) {
-    printf("hp_vcpu_mem_access\n");
-    struct qemu_plugin_hwaddr *hwaddr;
-
+        uint64_t vaddr, void *userdata, enum qemu_plugin_pos pos, uint32_t size) {
+    if (pos == QEMU_PLUGIN_UNKNOW_POS) {
+        abort();
+    }
+    if (pos == QEMU_PLUGIN_AFTER) {
+        return;
+    }
     if (cpu0->cpu_index != cpu_index) {
         return;
     }
 
+    struct qemu_plugin_hwaddr *hwaddr;
     hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
     if (hwaddr && qemu_plugin_hwaddr_is_io(hwaddr)) {
         return;
     }
 
-    bool rw;
+    enum qemu_plugin_mem_rw rw;
     rw = qemu_plugin_mem_is_store(meminfo);
 
     if (hwaddr) {
         uint64_t addr = qemu_plugin_hwaddr_phys_addr(hwaddr);
         const char *name = qemu_plugin_hwaddr_device_name(hwaddr);
-        if (rw) {
-            printf("str, 0x%08"PRIx64", %s", addr, name);
-        } else {
-            printf(" ld, 0x%08"PRIx64", %s", addr, name);
+        if (strncmp("RAM", name, strlen("RAM")) != 0) {
+            return;
         }
+        size_t __size = 0;
+        switch (size) {
+            case Byte: __size = 1; break;
+            case Word: __size = 2; break;
+            case Long: __size = 4; break;
+            case Quad: __size = 8; break;
+            case end_sizes: __size = 16; break;
+            default: abort();
+        }
+        uint8_t data[__size];
+        printf("load, 0x%08"PRIx64", %lx\n", addr, size);
+        // if (is_l2_page_bitmap[hwaddr >> 12]) {
+        if (0) {
+             if (__cpu0_get_fuzztrace()) {
+                 /* printf(".dma inject: %lx +%lx ",phy, len); */
+             }
+             fuzz_dma_read_cb(hwaddr, __size, data);
+         }
+        __cpu0_mem_write_physical_page(hwaddr, __size, data);
     }
 }
 
 static void hp_vcpu_insn_exec(unsigned int cpu_index, void *userdata) {
-    printf("hp_vcpu_insn_exec\n");
+    // printf("hp_vcpu_insn_exec\n");
 }
 
 static void hp_vcpu_tb_exec(unsigned int cpu_index, void *userdata) {
-    printf("hp_vcpu_tb_exec\n");
+    // printf("hp_vcpu_tb_exec\n");
 }
 
 // a plugin solution
-static hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
+static void hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
+    // printf("hp_vcpu_tb_trans\n");
     size_t n = qemu_plugin_tb_n_insns(tb);
     size_t i;
     InsnData *data;
@@ -315,10 +338,11 @@ static hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
         struct qemu_plugin_insn *insn = qemu_plugin_tb_get_insn(tb, i);
 
         uint64_t effective_addr = (uint64_t)qemu_plugin_insn_haddr(insn);
+        data = g_new0(InsnData, 1);
         data->addr = effective_addr;
 
         qemu_plugin_register_vcpu_mem_cb(
-            insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_W, data);
+            insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_RW, data);
         qemu_plugin_register_vcpu_insn_exec_cb(
             insn, hp_vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, data);
     }

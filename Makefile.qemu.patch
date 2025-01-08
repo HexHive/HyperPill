@@ -1,4 +1,4 @@
-From d57f0d328d8dd653af658fe0b5b361188c022d12 Mon Sep 17 00:00:00 2001
+From a520263d10ff10c6b1efae4005911aa6c586b9eb Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sun, 22 Dec 2024 16:29:03 +0100
 Subject: [PATCH] Patch QEMU for HyperPill/ARM
@@ -7,31 +7,57 @@ Subject: [PATCH] Patch QEMU for HyperPill/ARM
 - Enable disassembler
 - Enable breakpoint handlers
 - Disable existing plugins
+- Enable mem access hook
 ---
- accel/hvf/hvf-accel-ops.c           |  2 +-
- accel/kvm/kvm-all.c                 |  2 +-
- accel/kvm/kvm-cpus.h                |  2 +-
- accel/tcg/cpu-exec.c                | 20 +++++++++++++++++++-
- accel/tcg/internal-target.h         |  3 +++
- accel/tcg/tcg-accel-ops.c           |  4 ++--
- accel/tcg/translator.c              |  8 ++++++++
- cpu-common.c                        |  3 ++-
- gdbstub/gdbstub.c                   |  2 +-
- gdbstub/internals.h                 |  2 +-
- gdbstub/system.c                    |  4 ++--
- gdbstub/user.c                      |  4 ++--
- hw/block/pflash_cfi01.c             |  4 +++-
- include/exec/translation-block.h    |  5 +++++
- include/hw/core/cpu.h               |  7 ++++++-
- include/sysemu/accel-ops.h          |  2 +-
- linux-user/main.c                   |  2 +-
- system/vl.c                         |  2 +-
- target/arm/debug_helper.c           |  2 +-
- target/arm/tcg/translate-a64.c      |  2 +-
- target/i386/tcg/sysemu/bpt_helper.c |  2 +-
- target/ppc/cpu.c                    |  2 +-
- target/riscv/debug.c                |  4 ++--
- 23 files changed, 66 insertions(+), 24 deletions(-)
+ accel/hvf/hvf-accel-ops.c             |   2 +-
+ accel/kvm/kvm-all.c                   |   2 +-
+ accel/kvm/kvm-cpus.h                  |   2 +-
+ accel/tcg/atomic_common.c.inc         |   4 +-
+ accel/tcg/atomic_template.h           |  16 ++--
+ accel/tcg/cpu-exec.c                  |  20 ++++-
+ accel/tcg/internal-target.h           |   3 +
+ accel/tcg/ldst_common.c.inc           |  39 ++++++----
+ accel/tcg/plugin-gen.c                |  16 ++--
+ accel/tcg/plugin-helpers.h            |   2 +-
+ accel/tcg/tcg-accel-ops.c             |   4 +-
+ accel/tcg/translator.c                |   8 ++
+ contrib/plugins/cache.c               |   2 +-
+ contrib/plugins/execlog.c             |   2 +-
+ contrib/plugins/hotpages.c            |   2 +-
+ contrib/plugins/hwprofile.c           |   2 +-
+ cpu-common.c                          |   3 +-
+ gdbstub/gdbstub.c                     |   2 +-
+ gdbstub/internals.h                   |   2 +-
+ gdbstub/system.c                      |   4 +-
+ gdbstub/user.c                        |   4 +-
+ hw/block/pflash_cfi01.c               |   4 +-
+ include/exec/memory.h                 |  14 ----
+ include/exec/memory_ldst_cached.h.inc |   3 -
+ include/exec/plugin-gen.h             |   4 +-
+ include/exec/translation-block.h      |   5 ++
+ include/hw/core/cpu.h                 |   7 +-
+ include/qemu/plugin.h                 |   4 +-
+ include/qemu/qemu-plugin.h            |  11 ++-
+ include/sysemu/accel-ops.h            |   2 +-
+ include/sysemu/replay.h               |   2 +-
+ linux-user/main.c                     |   2 +-
+ memory_ldst.c.inc                     |   4 -
+ plugins/core.c                        |   4 +-
+ replay/replay-audio.c                 |   2 +-
+ replay/stubs-system.c                 |   2 +-
+ system/memory.c                       |  12 ---
+ system/physmem.c                      |   2 -
+ system/vl.c                           |   2 +-
+ target/arm/debug_helper.c             |   2 +-
+ target/arm/tcg/translate-a64.c        |   2 +-
+ target/i386/tcg/sysemu/bpt_helper.c   |   2 +-
+ target/ppc/cpu.c                      |   2 +-
+ target/riscv/debug.c                  |   4 +-
+ tcg/tcg-op-ldst.c                     |  27 ++++---
+ tcg/tcg-op.c                          |   2 +-
+ tests/plugin/mem.c                    |   2 +-
+ tests/qtest/fuzz/generic_fuzz.c       | 108 --------------------------
+ 48 files changed, 154 insertions(+), 224 deletions(-)
 
 diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
 index abe7adf..35a0436 100644
@@ -71,6 +97,98 @@ index ca40add..41adbb0 100644
 +int kvm_insert_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len, void (*)() h);
  int kvm_remove_breakpoint(CPUState *cpu, int type, vaddr addr, vaddr len);
  void kvm_remove_all_breakpoints(CPUState *cpu);
+ 
+diff --git a/accel/tcg/atomic_common.c.inc b/accel/tcg/atomic_common.c.inc
+index 95a5c5f..70c223b 100644
+--- a/accel/tcg/atomic_common.c.inc
++++ b/accel/tcg/atomic_common.c.inc
+@@ -14,9 +14,9 @@
+  */
+ 
+ static void atomic_trace_rmw_post(CPUArchState *env, uint64_t addr,
+-                                  MemOpIdx oi)
++                                  MemOpIdx oi, enum qemu_plugin_pos pos, uint32_t size)
+ {
+-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_RW);
++    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_RW, pos, size);
+ }
+ 
+ /*
+diff --git a/accel/tcg/atomic_template.h b/accel/tcg/atomic_template.h
+index 1dc2151..4a8d5b3 100644
+--- a/accel/tcg/atomic_template.h
++++ b/accel/tcg/atomic_template.h
+@@ -83,7 +83,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, abi_ptr addr,
+     ret = qatomic_cmpxchg__nocheck(haddr, cmpv, newv);
+ #endif
+     ATOMIC_MMU_CLEANUP;
+-    atomic_trace_rmw_post(env, addr, oi);
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);
+     return ret;
+ }
+ 
+@@ -97,7 +97,7 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, abi_ptr addr, ABI_TYPE val,
+ 
+     ret = qatomic_xchg__nocheck(haddr, val);
+     ATOMIC_MMU_CLEANUP;
+-    atomic_trace_rmw_post(env, addr, oi);
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);
+     return ret;
+ }
+ 
+@@ -109,7 +109,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, abi_ptr addr,            \
+     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+     ret = qatomic_##X(haddr, val);                                  \
+     ATOMIC_MMU_CLEANUP;                                             \
+-    atomic_trace_rmw_post(env, addr, oi);                           \
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);                           \
+     return ret;                                                     \
+ }
+ 
+@@ -145,7 +145,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, abi_ptr addr,            \
+         cmp = qatomic_cmpxchg__nocheck(haddr, old, new);            \
+     } while (cmp != old);                                           \
+     ATOMIC_MMU_CLEANUP;                                             \
+-    atomic_trace_rmw_post(env, addr, oi);                           \
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);    \
+     return RET;                                                     \
+ }
+ 
+@@ -188,7 +188,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, abi_ptr addr,
+     ret = qatomic_cmpxchg__nocheck(haddr, BSWAP(cmpv), BSWAP(newv));
+ #endif
+     ATOMIC_MMU_CLEANUP;
+-    atomic_trace_rmw_post(env, addr, oi);
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);
+     return BSWAP(ret);
+ }
+ 
+@@ -202,7 +202,7 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, abi_ptr addr, ABI_TYPE val,
+ 
+     ret = qatomic_xchg__nocheck(haddr, BSWAP(val));
+     ATOMIC_MMU_CLEANUP;
+-    atomic_trace_rmw_post(env, addr, oi);
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);
+     return BSWAP(ret);
+ }
+ 
+@@ -214,7 +214,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, abi_ptr addr,            \
+     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+     ret = qatomic_##X(haddr, BSWAP(val));                           \
+     ATOMIC_MMU_CLEANUP;                                             \
+-    atomic_trace_rmw_post(env, addr, oi);                           \
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);    \
+     return BSWAP(ret);                                              \
+ }
+ 
+@@ -247,7 +247,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, abi_ptr addr,            \
+         ldn = qatomic_cmpxchg__nocheck(haddr, ldo, BSWAP(new));     \
+     } while (ldo != ldn);                                           \
+     ATOMIC_MMU_CLEANUP;                                             \
+-    atomic_trace_rmw_post(env, addr, oi);                           \
++    atomic_trace_rmw_post(env, addr, oi, QEMU_PLUGIN_AFTER, -1);    \
+     return RET;                                                     \
+ }
  
 diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
 index 6a4af14..9c75398 100644
@@ -132,6 +250,207 @@ index 4e36cf8..512c20d 100644
  /*
   * Access to the various translations structures need to be serialised
   * via locks for consistency.  In user-mode emulation access to the
+diff --git a/accel/tcg/ldst_common.c.inc b/accel/tcg/ldst_common.c.inc
+index 4483351..60ca0f1 100644
+--- a/accel/tcg/ldst_common.c.inc
++++ b/accel/tcg/ldst_common.c.inc
+@@ -123,9 +123,9 @@ void helper_st_i128(CPUArchState *env, uint64_t addr, Int128 val, MemOpIdx oi)
+  * Load helpers for cpu_ldst.h
+  */
+ 
+-static void plugin_load_cb(CPUArchState *env, abi_ptr addr, MemOpIdx oi)
++static void plugin_load_cb(CPUArchState *env, abi_ptr addr, MemOpIdx oi, enum qemu_plugin_pos pos, uint32_t size)
+ {
+-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R);
++    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_R, pos, size);
+ }
+ 
+ uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr addr, MemOpIdx oi, uintptr_t ra)
+@@ -133,8 +133,9 @@ uint8_t cpu_ldb_mmu(CPUArchState *env, abi_ptr addr, MemOpIdx oi, uintptr_t ra)
+     uint8_t ret;
+ 
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_UB);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 0);
+     ret = do_ld1_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
+-    plugin_load_cb(env, addr, oi);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 0);
+     return ret;
+ }
+ 
+@@ -144,8 +145,9 @@ uint16_t cpu_ldw_mmu(CPUArchState *env, abi_ptr addr,
+     uint16_t ret;
+ 
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 1);
+     ret = do_ld2_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
+-    plugin_load_cb(env, addr, oi);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 1);
+     return ret;
+ }
+ 
+@@ -155,8 +157,9 @@ uint32_t cpu_ldl_mmu(CPUArchState *env, abi_ptr addr,
+     uint32_t ret;
+ 
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 2);
+     ret = do_ld4_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
+-    plugin_load_cb(env, addr, oi);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 2);
+     return ret;
+ }
+ 
+@@ -166,8 +169,9 @@ uint64_t cpu_ldq_mmu(CPUArchState *env, abi_ptr addr,
+     uint64_t ret;
+ 
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 3);
+     ret = do_ld8_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
+-    plugin_load_cb(env, addr, oi);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 3);
+     return ret;
+ }
+ 
+@@ -177,57 +181,62 @@ Int128 cpu_ld16_mmu(CPUArchState *env, abi_ptr addr,
+     Int128 ret;
+ 
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 4);
+     ret = do_ld16_mmu(env_cpu(env), addr, oi, ra);
+-    plugin_load_cb(env, addr, oi);
++    plugin_load_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 4);
+     return ret;
+ }
+ 
+ /*
+  * Store helpers for cpu_ldst.h
+  */
+-
+-static void plugin_store_cb(CPUArchState *env, abi_ptr addr, MemOpIdx oi)
++static void plugin_store_cb(CPUArchState *env, abi_ptr addr, MemOpIdx oi, enum qemu_plugin_pos pos, uint32_t size)
+ {
+-    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W);
++    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, oi, QEMU_PLUGIN_MEM_W, pos, size);
+ }
+ 
+ void cpu_stb_mmu(CPUArchState *env, abi_ptr addr, uint8_t val,
+                  MemOpIdx oi, uintptr_t retaddr)
+ {
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 0);
+     helper_stb_mmu(env, addr, val, oi, retaddr);
+-    plugin_store_cb(env, addr, oi);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 0);
+ }
+ 
+ void cpu_stw_mmu(CPUArchState *env, abi_ptr addr, uint16_t val,
+                  MemOpIdx oi, uintptr_t retaddr)
+ {
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 1);
+     do_st2_mmu(env_cpu(env), addr, val, oi, retaddr);
+-    plugin_store_cb(env, addr, oi);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 1);
+ }
+ 
+ void cpu_stl_mmu(CPUArchState *env, abi_ptr addr, uint32_t val,
+                     MemOpIdx oi, uintptr_t retaddr)
+ {
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 2);
+     do_st4_mmu(env_cpu(env), addr, val, oi, retaddr);
+-    plugin_store_cb(env, addr, oi);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 2);
+ }
+ 
+ void cpu_stq_mmu(CPUArchState *env, abi_ptr addr, uint64_t val,
+                  MemOpIdx oi, uintptr_t retaddr)
+ {
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 3);
+     do_st8_mmu(env_cpu(env), addr, val, oi, retaddr);
+-    plugin_store_cb(env, addr, oi);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 3);
+ }
+ 
+ void cpu_st16_mmu(CPUArchState *env, abi_ptr addr, Int128 val,
+                   MemOpIdx oi, uintptr_t retaddr)
+ {
+     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_BEFORE, 4);
+     do_st16_mmu(env_cpu(env), addr, val, oi, retaddr);
+-    plugin_store_cb(env, addr, oi);
++    plugin_store_cb(env, addr, oi, QEMU_PLUGIN_AFTER, 4);
+ }
+ 
+ /*
+diff --git a/accel/tcg/plugin-gen.c b/accel/tcg/plugin-gen.c
+index 78b331b..2d80b81 100644
+--- a/accel/tcg/plugin-gen.c
++++ b/accel/tcg/plugin-gen.c
+@@ -95,7 +95,7 @@ void HELPER(plugin_vcpu_udata_cb)(uint32_t cpu_index, void *udata)
+ 
+ void HELPER(plugin_vcpu_mem_cb)(unsigned int vcpu_index,
+                                 qemu_plugin_meminfo_t info, uint64_t vaddr,
+-                                void *userdata)
++                                void *userdata, enum qemu_plugin_pos pos, uint32_t size)
+ { }
+ 
+ static void gen_empty_udata_cb(void)
+@@ -130,22 +130,28 @@ static void gen_empty_inline_cb(void)
+     tcg_temp_free_i64(val);
+ }
+ 
+-static void gen_empty_mem_cb(TCGv_i64 addr, uint32_t info)
++static void gen_empty_mem_cb(TCGv_i64 addr, uint32_t info, uint32_t pos, uint32_t size)
+ {
+     TCGv_i32 cpu_index = tcg_temp_ebb_new_i32();
+     TCGv_i32 meminfo = tcg_temp_ebb_new_i32();
+     TCGv_ptr udata = tcg_temp_ebb_new_ptr();
++    TCGv_i32 __pos = tcg_temp_ebb_new_i32();
++    TCGv_i32 __size = tcg_temp_ebb_new_i32();
+ 
+     tcg_gen_movi_i32(meminfo, info);
+     tcg_gen_movi_ptr(udata, 0);
+     tcg_gen_ld_i32(cpu_index, tcg_env,
+                    -offsetof(ArchCPU, env) + offsetof(CPUState, cpu_index));
++    tcg_gen_movi_i32(__pos, pos);
++    tcg_gen_movi_i32(__size, size);
+ 
+-    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr, udata);
++    gen_helper_plugin_vcpu_mem_cb(cpu_index, meminfo, addr, udata, __pos, __size);
+ 
+     tcg_temp_free_ptr(udata);
+     tcg_temp_free_i32(meminfo);
+     tcg_temp_free_i32(cpu_index);
++    tcg_temp_free_i32(__pos);
++    tcg_temp_free_i32(__size);
+ }
+ 
+ /*
+@@ -200,12 +206,12 @@ static void plugin_gen_empty_callback(enum plugin_gen_from from)
+     }
+ }
+ 
+-void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info)
++void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     enum qemu_plugin_mem_rw rw = get_plugin_meminfo_rw(info);
+ 
+     gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, PLUGIN_GEN_CB_MEM, rw);
+-    gen_empty_mem_cb(addr, info);
++    gen_empty_mem_cb(addr, info, pos, size);
+     tcg_gen_plugin_cb_end();
+ 
+     gen_plugin_cb_start(PLUGIN_GEN_FROM_MEM, PLUGIN_GEN_CB_INLINE, rw);
+diff --git a/accel/tcg/plugin-helpers.h b/accel/tcg/plugin-helpers.h
+index 8e685e0..0c60f96 100644
+--- a/accel/tcg/plugin-helpers.h
++++ b/accel/tcg/plugin-helpers.h
+@@ -1,4 +1,4 @@
+ #ifdef CONFIG_PLUGIN
+ DEF_HELPER_FLAGS_2(plugin_vcpu_udata_cb, TCG_CALL_NO_RWG | TCG_CALL_PLUGIN, void, i32, ptr)
+-DEF_HELPER_FLAGS_4(plugin_vcpu_mem_cb, TCG_CALL_NO_RWG | TCG_CALL_PLUGIN, void, i32, i32, i64, ptr)
++DEF_HELPER_FLAGS_6(plugin_vcpu_mem_cb, TCG_CALL_NO_RWG | TCG_CALL_PLUGIN, void, i32, i32, i64, ptr, i32, i32)
+ #endif
 diff --git a/accel/tcg/tcg-accel-ops.c b/accel/tcg/tcg-accel-ops.c
 index 1b57290..286cb11 100644
 --- a/accel/tcg/tcg-accel-ops.c
@@ -180,6 +499,58 @@ index 38c3400..bfb6d10 100644
      if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
          && qemu_log_in_addr_range(db->pc_first)) {
          FILE *logfile = qemu_log_trylock();
+diff --git a/contrib/plugins/cache.c b/contrib/plugins/cache.c
+index 9e7ade3..2729830 100644
+--- a/contrib/plugins/cache.c
++++ b/contrib/plugins/cache.c
+@@ -386,7 +386,7 @@ static bool access_cache(Cache *cache, uint64_t addr)
+ }
+ 
+ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
+-                            uint64_t vaddr, void *userdata)
++                            uint64_t vaddr, void *userdata, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     uint64_t effective_addr;
+     struct qemu_plugin_hwaddr *hwaddr;
+diff --git a/contrib/plugins/execlog.c b/contrib/plugins/execlog.c
+index 82dc2f5..19ecbee 100644
+--- a/contrib/plugins/execlog.c
++++ b/contrib/plugins/execlog.c
+@@ -44,7 +44,7 @@ static void expand_last_exec(int cpu_index)
+  * Add memory read or write information to current instruction log
+  */
+ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
+-                     uint64_t vaddr, void *udata)
++                     uint64_t vaddr, void *udata, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     GString *s;
+ 
+diff --git a/contrib/plugins/hotpages.c b/contrib/plugins/hotpages.c
+index 8316ae5..bf861bd 100644
+--- a/contrib/plugins/hotpages.c
++++ b/contrib/plugins/hotpages.c
+@@ -107,7 +107,7 @@ static void plugin_init(void)
+ }
+ 
+ static void vcpu_haddr(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+-                       uint64_t vaddr, void *udata)
++                       uint64_t vaddr, void *udata, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     struct qemu_plugin_hwaddr *hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
+     uint64_t page;
+diff --git a/contrib/plugins/hwprofile.c b/contrib/plugins/hwprofile.c
+index 739ac0c..6f3c107 100644
+--- a/contrib/plugins/hwprofile.c
++++ b/contrib/plugins/hwprofile.c
+@@ -193,7 +193,7 @@ static void inc_count(IOCounts *count, bool is_write, unsigned int cpu_index)
+ }
+ 
+ static void vcpu_haddr(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+-                       uint64_t vaddr, void *udata)
++                       uint64_t vaddr, void *udata, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     struct qemu_plugin_hwaddr *hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
+ 
 diff --git a/cpu-common.c b/cpu-common.c
 index c81fd72..cb9e08f 100644
 --- a/cpu-common.c
@@ -282,6 +653,88 @@ index 5e848a9..dbbad08 100644
      pfl->vmstate = NULL;
  
      trace_pflash_postload_cb(pfl->name);
+diff --git a/include/exec/memory.h b/include/exec/memory.h
+index 831f7c9..0e73fe0 100644
+--- a/include/exec/memory.h
++++ b/include/exec/memory.h
+@@ -49,19 +49,6 @@ typedef struct RamDiscardManager RamDiscardManager;
+ DECLARE_OBJ_CHECKERS(RamDiscardManager, RamDiscardManagerClass,
+                      RAM_DISCARD_MANAGER, TYPE_RAM_DISCARD_MANAGER);
+ 
+-#ifdef CONFIG_FUZZ
+-void fuzz_dma_read_cb(size_t addr,
+-                      size_t len,
+-                      MemoryRegion *mr);
+-#else
+-static inline void fuzz_dma_read_cb(size_t addr,
+-                                    size_t len,
+-                                    MemoryRegion *mr)
+-{
+-    /* Do Nothing */
+-}
+-#endif
+-
+ /* Possible bits for global_dirty_log_{start|stop} */
+ 
+ /* Dirty tracking enabled because migration is running */
+@@ -3021,7 +3008,6 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
+                           void *buf, hwaddr len)
+ {
+     assert(addr < cache->len && len <= cache->len - addr);
+-    fuzz_dma_read_cb(cache->xlat + addr, len, cache->mrs.mr);
+     if (likely(cache->ptr)) {
+         memcpy(buf, cache->ptr + addr, len);
+         return MEMTX_OK;
+diff --git a/include/exec/memory_ldst_cached.h.inc b/include/exec/memory_ldst_cached.h.inc
+index d7834f8..4e09bb8 100644
+--- a/include/exec/memory_ldst_cached.h.inc
++++ b/include/exec/memory_ldst_cached.h.inc
+@@ -28,7 +28,6 @@ static inline uint16_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
+     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
+ {
+     assert(addr < cache->len && 2 <= cache->len - addr);
+-    fuzz_dma_read_cb(cache->xlat + addr, 2, cache->mrs.mr);
+     if (likely(cache->ptr)) {
+         return LD_P(uw)(cache->ptr + addr);
+     } else {
+@@ -40,7 +39,6 @@ static inline uint32_t ADDRESS_SPACE_LD_CACHED(l)(MemoryRegionCache *cache,
+     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
+ {
+     assert(addr < cache->len && 4 <= cache->len - addr);
+-    fuzz_dma_read_cb(cache->xlat + addr, 4, cache->mrs.mr);
+     if (likely(cache->ptr)) {
+         return LD_P(l)(cache->ptr + addr);
+     } else {
+@@ -52,7 +50,6 @@ static inline uint64_t ADDRESS_SPACE_LD_CACHED(q)(MemoryRegionCache *cache,
+     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
+ {
+     assert(addr < cache->len && 8 <= cache->len - addr);
+-    fuzz_dma_read_cb(cache->xlat + addr, 8, cache->mrs.mr);
+     if (likely(cache->ptr)) {
+         return LD_P(q)(cache->ptr + addr);
+     } else {
+diff --git a/include/exec/plugin-gen.h b/include/exec/plugin-gen.h
+index c4552b5..33868dd 100644
+--- a/include/exec/plugin-gen.h
++++ b/include/exec/plugin-gen.h
+@@ -25,7 +25,7 @@ void plugin_gen_insn_start(CPUState *cpu, const struct DisasContextBase *db);
+ void plugin_gen_insn_end(void);
+ 
+ void plugin_gen_disable_mem_helpers(void);
+-void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info);
++void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info, uint32_t pos, uint32_t size);
+ 
+ #else /* !CONFIG_PLUGIN */
+ 
+@@ -48,7 +48,7 @@ static inline void plugin_gen_tb_end(CPUState *cpu, size_t num_insns)
+ static inline void plugin_gen_disable_mem_helpers(void)
+ { }
+ 
+-static inline void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info)
++static inline void plugin_gen_empty_mem_callback(TCGv_i64 addr, uint32_t info, uint32_t pos, uint32_t size)
+ { }
+ 
+ #endif /* CONFIG_PLUGIN */
 diff --git a/include/exec/translation-block.h b/include/exec/translation-block.h
 index e2b26e1..54c18c4 100644
 --- a/include/exec/translation-block.h
@@ -330,6 +783,61 @@ index c0c8320..ad8bf2c 100644
                            CPUBreakpoint **breakpoint);
  int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags);
  void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint);
+diff --git a/include/qemu/plugin.h b/include/qemu/plugin.h
+index 7fdc3a4..c86c0e0 100644
+--- a/include/qemu/plugin.h
++++ b/include/qemu/plugin.h
+@@ -197,7 +197,7 @@ qemu_plugin_vcpu_syscall(CPUState *cpu, int64_t num, uint64_t a1,
+ void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret);
+ 
+ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+-                             MemOpIdx oi, enum qemu_plugin_mem_rw rw);
++                             MemOpIdx oi, enum qemu_plugin_mem_rw rw, enum qemu_plugin_pos pos, uint32_t size);
+ 
+ void qemu_plugin_flush_cb(void);
+ 
+@@ -282,7 +282,7 @@ void qemu_plugin_vcpu_syscall_ret(CPUState *cpu, int64_t num, int64_t ret)
+ 
+ static inline void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+                                            MemOpIdx oi,
+-                                           enum qemu_plugin_mem_rw rw)
++                                           enum qemu_plugin_mem_rw rw, enum qemu_plugin_pos pos, uint32_t size)
+ { }
+ 
+ static inline void qemu_plugin_flush_cb(void)
+diff --git a/include/qemu/qemu-plugin.h b/include/qemu/qemu-plugin.h
+index 4daab6e..ed6dab9 100644
+--- a/include/qemu/qemu-plugin.h
++++ b/include/qemu/qemu-plugin.h
+@@ -242,6 +242,12 @@ enum qemu_plugin_mem_rw {
+     QEMU_PLUGIN_MEM_RW,
+ };
+ 
++enum qemu_plugin_pos {
++  QEMU_PLUGIN_BEFORE = 0,
++  QEMU_PLUGIN_AFTER,
++  QEMU_PLUGIN_UNKNOW_POS
++};
++
+ /**
+  * typedef qemu_plugin_vcpu_tb_trans_cb_t - translation callback
+  * @id: unique plugin id
+@@ -516,11 +522,14 @@ const char *qemu_plugin_hwaddr_device_name(const struct qemu_plugin_hwaddr *h);
+  * @info: an opaque handle for further queries about the memory
+  * @vaddr: the virtual address of the transaction
+  * @userdata: any user data attached to the callback
++ * @pos: before or after the mem access
++ * @pos: size of the mem access
+  */
+ typedef void (*qemu_plugin_vcpu_mem_cb_t) (unsigned int vcpu_index,
+                                            qemu_plugin_meminfo_t info,
+                                            uint64_t vaddr,
+-                                           void *userdata);
++                                           void *userdata,
++                                           enum qemu_plugin_pos pos, uint32_t size);
+ 
+ /**
+  * qemu_plugin_register_vcpu_mem_cb() - register memory access callback
 diff --git a/include/sysemu/accel-ops.h b/include/sysemu/accel-ops.h
 index ef91fc2..4bd0f7f 100644
 --- a/include/sysemu/accel-ops.h
@@ -343,6 +851,19 @@ index ef91fc2..4bd0f7f 100644
      int (*remove_breakpoint)(CPUState *cpu, int type, vaddr addr, vaddr len);
      void (*remove_all_breakpoints)(CPUState *cpu);
  };
+diff --git a/include/sysemu/replay.h b/include/sysemu/replay.h
+index 08aae58..2041fb3 100644
+--- a/include/sysemu/replay.h
++++ b/include/sysemu/replay.h
+@@ -166,7 +166,7 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
+ /*! Saves/restores number of played samples of audio out operation. */
+ void replay_audio_out(size_t *played);
+ /*! Saves/restores recorded samples of audio in operation. */
+-void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size);
++void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, uint32_t size);
+ 
+ /* VM state operations */
+ 
 diff --git a/linux-user/main.c b/linux-user/main.c
 index 0cdaf30..27370bb 100644
 --- a/linux-user/main.c
@@ -356,6 +877,133 @@ index 0cdaf30..27370bb 100644
      }
  
      return new_env;
+diff --git a/memory_ldst.c.inc b/memory_ldst.c.inc
+index 84b868f..7dd8ade 100644
+--- a/memory_ldst.c.inc
++++ b/memory_ldst.c.inc
+@@ -42,7 +42,6 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
+                                         MO_32 | devend_memop(endian), attrs);
+     } else {
+         /* RAM case */
+-        fuzz_dma_read_cb(addr, 4, mr);
+         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+         switch (endian) {
+         case DEVICE_LITTLE_ENDIAN:
+@@ -111,7 +110,6 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
+                                         MO_64 | devend_memop(endian), attrs);
+     } else {
+         /* RAM case */
+-        fuzz_dma_read_cb(addr, 8, mr);
+         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+         switch (endian) {
+         case DEVICE_LITTLE_ENDIAN:
+@@ -177,7 +175,6 @@ uint8_t glue(address_space_ldub, SUFFIX)(ARG1_DECL,
+         r = memory_region_dispatch_read(mr, addr1, &val, MO_8, attrs);
+     } else {
+         /* RAM case */
+-        fuzz_dma_read_cb(addr, 1, mr);
+         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+         val = ldub_p(ptr);
+         r = MEMTX_OK;
+@@ -215,7 +212,6 @@ static inline uint16_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
+                                         MO_16 | devend_memop(endian), attrs);
+     } else {
+         /* RAM case */
+-        fuzz_dma_read_cb(addr, 2, mr);
+         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+         switch (endian) {
+         case DEVICE_LITTLE_ENDIAN:
+diff --git a/plugins/core.c b/plugins/core.c
+index 4958828..32d4958 100644
+--- a/plugins/core.c
++++ b/plugins/core.c
+@@ -445,7 +445,7 @@ void exec_inline_op(struct qemu_plugin_dyn_cb *cb)
+ }
+ 
+ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+-                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
++                             MemOpIdx oi, enum qemu_plugin_mem_rw rw, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     GArray *arr = cpu->plugin_mem_cbs;
+     size_t i;
+@@ -463,7 +463,7 @@ void qemu_plugin_vcpu_mem_cb(CPUState *cpu, uint64_t vaddr,
+         switch (cb->type) {
+         case PLUGIN_CB_REGULAR:
+             cb->f.vcpu_mem(cpu->cpu_index, make_plugin_meminfo(oi, rw),
+-                           vaddr, cb->userp);
++                           vaddr, cb->userp, pos, size);
+             break;
+         case PLUGIN_CB_INLINE:
+             exec_inline_op(cb);
+diff --git a/replay/replay-audio.c b/replay/replay-audio.c
+index 91854f0..3fea0bd 100644
+--- a/replay/replay-audio.c
++++ b/replay/replay-audio.c
+@@ -35,7 +35,7 @@ void replay_audio_out(size_t *played)
+     }
+ }
+ 
+-void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size)
++void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, uint32_t size)
+ {
+     int pos;
+     uint64_t left, right;
+diff --git a/replay/stubs-system.c b/replay/stubs-system.c
+index 50cefdb..3c3aff3 100644
+--- a/replay/stubs-system.c
++++ b/replay/stubs-system.c
+@@ -15,7 +15,7 @@ void replay_input_sync_event(void)
+ void replay_add_blocker(const char *feature)
+ {
+ }
+-void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size)
++void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, uint32_t size)
+ {
+ }
+ void replay_audio_out(size_t *played)
+diff --git a/system/memory.c b/system/memory.c
+index 798b6c0..4bf2966 100644
+--- a/system/memory.c
++++ b/system/memory.c
+@@ -3637,18 +3637,6 @@ void memory_region_init_rom_device(MemoryRegion *mr,
+     vmstate_register_ram(mr, owner_dev);
+ }
+ 
+-/*
+- * Support system builds with CONFIG_FUZZ using a weak symbol and a stub for
+- * the fuzz_dma_read_cb callback
+- */
+-#ifdef CONFIG_FUZZ
+-void __attribute__((weak)) fuzz_dma_read_cb(size_t addr,
+-                      size_t len,
+-                      MemoryRegion *mr)
+-{
+-}
+-#endif
+-
+ static const TypeInfo memory_region_info = {
+     .parent             = TYPE_OBJECT,
+     .name               = TYPE_MEMORY_REGION,
+diff --git a/system/physmem.c b/system/physmem.c
+index 073e6c6..ad8e060 100644
+--- a/system/physmem.c
++++ b/system/physmem.c
+@@ -2752,7 +2752,6 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
+     bool release_lock = false;
+     uint8_t *buf = ptr;
+ 
+-    fuzz_dma_read_cb(addr, len, mr);
+     for (;;) {
+         if (!flatview_access_allowed(mr, attrs, addr1, l)) {
+             result |= MEMTX_ACCESS_ERROR;
+@@ -3158,7 +3157,6 @@ void *address_space_map(AddressSpace *as,
+     memory_region_ref(mr);
+     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
+                                         l, is_write, attrs);
+-    fuzz_dma_read_cb(addr, *plen, mr);
+     return qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
+ }
+ 
 diff --git a/system/vl.c b/system/vl.c
 index e18fa3c..80494e8 100644
 --- a/system/vl.c
@@ -443,6 +1091,261 @@ index 4945d1a..09467cf 100644
      }
  
      if (ctrl & TYPE6_LOAD) {
+diff --git a/tcg/tcg-op-ldst.c b/tcg/tcg-op-ldst.c
+index f11043b..c66ff2b 100644
+--- a/tcg/tcg-op-ldst.c
++++ b/tcg/tcg-op-ldst.c
+@@ -150,7 +150,7 @@ static TCGv_i64 plugin_maybe_preserve_addr(TCGTemp *addr)
+ 
+ static void
+ plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
+-                         enum qemu_plugin_mem_rw rw)
++                         enum qemu_plugin_mem_rw rw, enum qemu_plugin_pos pos, uint32_t size)
+ {
+ #ifdef CONFIG_PLUGIN
+     if (tcg_ctx->plugin_insn != NULL) {
+@@ -161,14 +161,14 @@ plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
+                 copy_addr = tcg_temp_ebb_new_i64();
+                 tcg_gen_extu_i32_i64(copy_addr, temp_tcgv_i32(orig_addr));
+             }
+-            plugin_gen_empty_mem_callback(copy_addr, info);
++            plugin_gen_empty_mem_callback(copy_addr, info, pos, size);
+             tcg_temp_free_i64(copy_addr);
+         } else {
+             if (copy_addr) {
+-                plugin_gen_empty_mem_callback(copy_addr, info);
++                plugin_gen_empty_mem_callback(copy_addr, info, pos, size);
+                 tcg_temp_free_i64(copy_addr);
+             } else {
+-                plugin_gen_empty_mem_callback(temp_tcgv_i64(orig_addr), info);
++                plugin_gen_empty_mem_callback(temp_tcgv_i64(orig_addr), info, pos, size);
+             }
+         }
+     }
+@@ -202,8 +202,9 @@ static void tcg_gen_qemu_ld_i32_int(TCGv_i32 val, TCGTemp *addr,
+     } else {
+         opc = INDEX_op_qemu_ld_a64_i32;
+     }
++    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_BEFORE, 2);
+     gen_ldst(opc, tcgv_i32_temp(val), NULL, addr, oi);
+-    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R);
++    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_AFTER, 2);
+ 
+     if ((orig_memop ^ memop) & MO_BSWAP) {
+         switch (orig_memop & MO_SIZE) {
+@@ -270,8 +271,9 @@ static void tcg_gen_qemu_st_i32_int(TCGv_i32 val, TCGTemp *addr,
+             opc = INDEX_op_qemu_st_a64_i32;
+         }
+     }
++    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_BEFORE, 2);
+     gen_ldst(opc, tcgv_i32_temp(val), NULL, addr, oi);
+-    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W);
++    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_AFTER, 2);
+ 
+     if (swap) {
+         tcg_temp_free_i32(swap);
+@@ -323,8 +325,9 @@ static void tcg_gen_qemu_ld_i64_int(TCGv_i64 val, TCGTemp *addr,
+     } else {
+         opc = INDEX_op_qemu_ld_a64_i64;
+     }
++    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_BEFORE, 3);
+     gen_ldst_i64(opc, val, addr, oi);
+-    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R);
++    plugin_gen_mem_callbacks(copy_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_AFTER, 3);
+ 
+     if ((orig_memop ^ memop) & MO_BSWAP) {
+         int flags = (orig_memop & MO_SIGN
+@@ -395,8 +398,9 @@ static void tcg_gen_qemu_st_i64_int(TCGv_i64 val, TCGTemp *addr,
+     } else {
+         opc = INDEX_op_qemu_st_a64_i64;
+     }
++    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_BEFORE, 3);
+     gen_ldst_i64(opc, val, addr, oi);
+-    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W);
++    plugin_gen_mem_callbacks(NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_AFTER, 3);
+ 
+     if (swap) {
+         tcg_temp_free_i64(swap);
+@@ -519,6 +523,8 @@ static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
+     }
+     orig_oi = make_memop_idx(memop, idx);
+ 
++    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_BEFORE, 4);
++
+     /* TODO: For now, force 32-bit hosts to use the helper. */
+     if (TCG_TARGET_HAS_qemu_ldst_i128 && TCG_TARGET_REG_BITS == 64) {
+         TCGv_i64 lo, hi;
+@@ -606,7 +612,7 @@ static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
+                            tcg_constant_i32(orig_oi));
+     }
+ 
+-    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R);
++    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_R, QEMU_PLUGIN_AFTER, 4);
+ }
+ 
+ void tcg_gen_qemu_ld_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
+@@ -636,6 +642,7 @@ static void tcg_gen_qemu_st_i128_int(TCGv_i128 val, TCGTemp *addr,
+     orig_oi = make_memop_idx(memop, idx);
+ 
+     /* TODO: For now, force 32-bit hosts to use the helper. */
++    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_BEFORE, 4);
+ 
+     if (TCG_TARGET_HAS_qemu_ldst_i128 && TCG_TARGET_REG_BITS == 64) {
+         TCGv_i64 lo, hi;
+@@ -722,7 +729,7 @@ static void tcg_gen_qemu_st_i128_int(TCGv_i128 val, TCGTemp *addr,
+                            tcg_constant_i32(orig_oi));
+     }
+ 
+-    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_W);
++    plugin_gen_mem_callbacks(ext_addr, addr, orig_oi, QEMU_PLUGIN_MEM_W, QEMU_PLUGIN_AFTER, 4);
+ }
+ 
+ void tcg_gen_qemu_st_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
+diff --git a/tcg/tcg-op.c b/tcg/tcg-op.c
+index aa6bc6f..e71cb27 100644
+--- a/tcg/tcg-op.c
++++ b/tcg/tcg-op.c
+@@ -52,7 +52,7 @@ void NI tcg_gen_op2(TCGOpcode opc, TCGArg a1, TCGArg a2)
+ 
+ void NI tcg_gen_op3(TCGOpcode opc, TCGArg a1, TCGArg a2, TCGArg a3)
+ {
+-    TCGOp *op = tcg_emit_op(opc, 3);
++    TCGOp *op = tcg_emit_op(opc, 4);
+     op->args[0] = a1;
+     op->args[1] = a2;
+     op->args[2] = a3;
+diff --git a/tests/plugin/mem.c b/tests/plugin/mem.c
+index 44e9106..acf3116 100644
+--- a/tests/plugin/mem.c
++++ b/tests/plugin/mem.c
+@@ -40,7 +40,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
+ }
+ 
+ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+-                     uint64_t vaddr, void *udata)
++                     uint64_t vaddr, void *udata, enum qemu_plugin_pos pos, uint32_t size)
+ {
+     if (do_haddr) {
+         struct qemu_plugin_hwaddr *hwaddr;
+diff --git a/tests/qtest/fuzz/generic_fuzz.c b/tests/qtest/fuzz/generic_fuzz.c
+index ec842e0..44b7bc2 100644
+--- a/tests/qtest/fuzz/generic_fuzz.c
++++ b/tests/qtest/fuzz/generic_fuzz.c
+@@ -174,114 +174,6 @@ static int fuzz_memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
+     return l;
+ }
+ 
+-/*
+- * Call-back for functions that perform DMA reads from guest memory. Confirm
+- * that the region has not already been populated since the last loop in
+- * generic_fuzz(), avoiding potential race-conditions, which we don't have
+- * a good way for reproducing right now.
+- */
+-void fuzz_dma_read_cb(size_t addr, size_t len, MemoryRegion *mr)
+-{
+-    /* Are we in the generic-fuzzer or are we using another fuzz-target? */
+-    if (!qts_global) {
+-        return;
+-    }
+-
+-    /*
+-     * Return immediately if:
+-     * - We have no DMA patterns defined
+-     * - The length of the DMA read request is zero
+-     * - The DMA read is hitting an MR other than the machine's main RAM
+-     * - The DMA request hits past the bounds of our RAM
+-     */
+-    if (dma_patterns->len == 0
+-        || len == 0
+-        || dma_bytes_written + len > MAX_TOTAL_DMA_SIZE
+-        || (mr != current_machine->ram && mr != sparse_mem_mr)) {
+-        return;
+-    }
+-
+-    /*
+-     * If we overlap with any existing dma_regions, split the range and only
+-     * populate the non-overlapping parts.
+-     */
+-    address_range region;
+-    bool double_fetch = false;
+-    for (int i = 0;
+-         i < dma_regions->len && (avoid_double_fetches || qtest_log_enabled);
+-         ++i) {
+-        region = g_array_index(dma_regions, address_range, i);
+-        if (addr < region.addr + region.size && addr + len > region.addr) {
+-            double_fetch = true;
+-            if (addr < region.addr
+-                && avoid_double_fetches) {
+-                fuzz_dma_read_cb(addr, region.addr - addr, mr);
+-            }
+-            if (addr + len > region.addr + region.size
+-                && avoid_double_fetches) {
+-                fuzz_dma_read_cb(region.addr + region.size,
+-                        addr + len - (region.addr + region.size), mr);
+-            }
+-            return;
+-        }
+-    }
+-
+-    /* Cap the length of the DMA access to something reasonable */
+-    len = MIN(len, MAX_DMA_FILL_SIZE);
+-
+-    address_range ar = {addr, len};
+-    g_array_append_val(dma_regions, ar);
+-    pattern p = g_array_index(dma_patterns, pattern, dma_pattern_index);
+-    void *buf_base = pattern_alloc(p, ar.size);
+-    void *buf = buf_base;
+-    hwaddr l, addr1;
+-    MemoryRegion *mr1;
+-    while (len > 0) {
+-        l = len;
+-        mr1 = address_space_translate(first_cpu->as,
+-                                      addr, &addr1, &l, true,
+-                                      MEMTXATTRS_UNSPECIFIED);
+-
+-        /*
+-         *  If mr1 isn't RAM, address_space_translate doesn't update l. Use
+-         *  fuzz_memory_access_size to identify the number of bytes that it
+-         *  is safe to write without accidentally writing to another
+-         *  MemoryRegion.
+-         */
+-        if (!memory_region_is_ram(mr1)) {
+-            l = fuzz_memory_access_size(mr1, l, addr1);
+-        }
+-        if (memory_region_is_ram(mr1) ||
+-            memory_region_is_romd(mr1) ||
+-            mr1 == sparse_mem_mr) {
+-            /* ROM/RAM case */
+-            if (qtest_log_enabled) {
+-                /*
+-                * With QTEST_LOG, use a normal, slow QTest memwrite. Prefix the log
+-                * that will be written by qtest.c with a DMA tag, so we can reorder
+-                * the resulting QTest trace so the DMA fills precede the last PIO/MMIO
+-                * command.
+-                */
+-                fprintf(stderr, "[DMA] ");
+-                if (double_fetch) {
+-                    fprintf(stderr, "[DOUBLE-FETCH] ");
+-                }
+-                fflush(stderr);
+-            }
+-            qtest_memwrite(qts_global, addr, buf, l);
+-            dma_bytes_written += l;
+-        }
+-        len -= l;
+-        buf += l;
+-        addr += l;
+-
+-    }
+-    g_free(buf_base);
+-
+-    /* Increment the index of the pattern for the next DMA access */
+-    dma_pattern_index = (dma_pattern_index + 1) % dma_patterns->len;
+-}
+-
+ /*
+  * Here we want to convert a fuzzer-provided [io-region-index, offset] to
+  * a physical address. To do this, we iterate over all of the matched
 -- 
 2.34.1
 
