@@ -67,7 +67,16 @@ static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
 
     unsigned int cur_el = arm_current_el(env);
 
-    /* If we exit the hypervisor */
+    /* If we exit the hypervisor... 
+     *
+     * NOTE: checking cur_el = 2, new_el = 1 should only work on hardware
+     * providing ARM VHE and hypervisor making use of VHE mode.
+     * Without ARM VHE, a hosted hypervisor would work in split mode, with a 
+     * stub that catches all traps to EL2 and redirects control flow to EL1
+     * where the hypervisor actually sits. In that case, we would need more
+     * checks to differentiate whether we are returning control to the
+     * guest OS or the host OS/hypervisor running in EL1.
+     */
     if (cur_el == 2) {
         unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
         uint32_t spsr = env->banked_spsr[spsr_idx];
