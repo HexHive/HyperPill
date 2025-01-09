@@ -458,6 +458,8 @@ void init_qemu(int argc, char **argv, char *snapshot_tag) {
 // breakpoints.c
 #define GDB_BREAKPOINT_HW        1
 
+int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void));
+
 bool __add_breakpoint(vaddr addr, int (*h)(void)) {
     return gdb_breakpoint_insert(cpu0, GDB_BREAKPOINT_HW, addr, 0x1000, h);
 }
