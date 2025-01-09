@@ -1,9 +1,15 @@
 #ifndef HYPERPILL_QEMU_API_H
 #define HYPERPILL_QEMU_API_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef uint64_t hp_address;
+typedef uint64_t hp_phy_address;
+typedef void hp_instruction;
 
 /* QEMU related functionality */
 void init_qemu(int argc, char **argv, char *snapshot_tag);
@@ -41,6 +47,9 @@ bool __add_breakpoint(uint64_t addr, int (*h)(void));
 
 // instrument.cc
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
+bool fuzz_hook_back_to_el1_kernel();
+void qemu_tb_before_execution(hp_instruction *i);
+void qemu_tb_after_execution(hp_instruction *i);
 
 // control.c
 bool __cpu0_get_fuzztrace(void);
