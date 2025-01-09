@@ -471,6 +471,7 @@ uint64_t inject_rdmsr(hp_address msr) {
 /* OPERATIONS */
 
 bool op_write() {
+	printf("OP WRITE\n");
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
 	uint8_t size;
 	uint8_t base;
