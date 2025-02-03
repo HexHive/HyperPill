@@ -114,7 +114,7 @@ ubuntu 22.04).
 [L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20240827-1852/debian-12-nocloud-amd64-daily-20240827-1852.qcow2 --no-check-certificate
 [L0] $ qemu-img resize debian-12-nocloud-amd64-daily-20240827-1852.qcow2 20G
 [L0] $ qemu/build/qemu-system-x86_64 -machine q35 -accel kvm -m 8G \
-    -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt \
+    -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt,-hle,-rtm  \
     -netdev user,id=u1,hostfwd=tcp::2222-:22 \
     -device virtio-net,netdev=u1 -smp 1 -serial stdio \
     -hda debian-12-nocloud-amd64-daily-20240827-1852.qcow2 \
