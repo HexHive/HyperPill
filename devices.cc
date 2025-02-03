@@ -27,7 +27,8 @@ Bit32u bx_devices_c::inp(Bit16u addr, unsigned len) {
 }
 void bx_devices_c::outp(Bit16u addr, Bit32u value, unsigned len) { 
     if (addr == 0x3f8) {
-        output_buf[output_index++] = (unsigned char)value;
+        output_buf[output_index % 128] = (unsigned char)value;
+        output_index++;
         return;
     }
     printf("PIO WRIT ADDR: %x %c\n", addr, value);
