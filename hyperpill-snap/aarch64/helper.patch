@@ -26,7 +26,7 @@
 +            printf("======== Hyperpill ! ========\n");
 +            vm_stop(RUN_STATE_PAUSED);
 +            printf("VM stopped. You can now take a snapshot "
-+                   "in QEMU monitor: savevm /path/to/snapshots/dir/vm\n");
++                   "in QEMU monitor: savevm dir/vm\n");
 +        }
 +    }
  }
