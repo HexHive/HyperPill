@@ -74,12 +74,15 @@ OBJS        = $(OBJS_GENERIC) \
 			  arch/x86_64/bochsapi/apic.o \
               arch/x86_64/bochsapi/dbg.o
 else ifeq ($(ARCH), aarch64)
-# python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
-include Makefile.qemu
+
+MAKEFLAGS += --no-builtin-rules
+%.a: %.fa %.fa.p
+	ar cr $@ $*.fa.p/*.o
+
 VENDOR_LIBS:= vendor/libfuzzer-ng/libFuzzer.a
 VENDOR_OBJS =
 LDFLAGS    := $(LDFLAGS) -Wl,--whole-archive vendor/lib/qemu_system_aarch64.a \
-			  -Wl,--no-whole-archive $(QEMU_LDFLAGS)
+			  -Wl,--no-whole-archive
 OBJS        = arch/aarch64/qemuapi/qemu.o \
 			  arch/aarch64/breakpoints.o \
 			  arch/aarch64/control.o \
@@ -93,7 +96,12 @@ else
 endif
 
 all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
+ifeq ($(ARCH), x86_64)
 	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o fuzz
+else ifeq ($(ARCH), aarch64)
+	. ./Makefile.qemu.env && export QEMU_LDFLAGS && \
+	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) $$QEMU_LDFLAGS -o fuzz
+endif
 
 %.o: %.cc $(DEPS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) -c -o $@ $<
@@ -151,44 +159,11 @@ else ifeq ($(ARCH), aarch64)
 	rsync -av ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
 		vendor/lib/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o
 
-	# python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
-	rsync -av ./vendor/qemu-build/libhwcore.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libhwcore.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libqom.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libqom.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libevent-loop-base.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libevent-loop-base.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/gdbstub/libgdb_system.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/gdbstub/libgdb_system.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libio.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libio.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libcrypto.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libcrypto.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libauthz.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libauthz.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libblockdev.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libblockdev.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libblock.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libblock.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libchardev.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libchardev.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libqmp.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libqmp.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libqemuutil.a ./vendor/lib/libqemuutil.fa
-	rsync -av ./vendor/qemu-build/libqemuutil.a.p/ ./vendor/lib/libqemuutil.fa.p/
-	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user-glib.a ./vendor/lib/libvhost-user-glib.fa
-	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user-glib.a.p/ ./vendor/lib/libvhost-user-glib.fa.p/
-	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user.a ./vendor/lib/libvhost-user.fa
-	rsync -av ./vendor/qemu-build/subprojects/libvhost-user/libvhost-user.a.p/ ./vendor/lib/libvhost-user.fa.p/
-	rsync -av ./vendor/qemu-build/tcg/libtcg_system.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/tcg/libtcg_system.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libmigration.fa ./vendor/lib/
-	rsync -av ./vendor/qemu-build/libmigration.fa.p ./vendor/lib/
-	rsync -av ./vendor/qemu-build/subprojects/libvduse/libvduse.a ./vendor/lib/libvduse.fa
-	rsync -av ./vendor/qemu-build/subprojects/libvduse/libvduse.a.p/ ./vendor/lib/libvduse.fa.p/
-
-	make $(OTHERS)
-	ar cr vendor/lib/qemu_system_aarch64.a $(LIBCOMMON) $(LIBQEMU_AARCH64_SOFTMMU) $(QEMU_SYSTEM_AARCH64)
+	python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
+	chmod +x Makefile.qemu.rsync && bash -x Makefile.qemu.rsync
+	. ./Makefile.qemu.env && export LIBCOMMON LIBQEMU_AARCH64_SOFTMMU QEMU_SYSTEM_AARCH64 OTHERS && \
+		make $$OTHERS && \
+		ar cr vendor/lib/qemu_system_aarch64.a $$LIBCOMMON $$LIBQEMU_AARCH64_SOFTMMU $$QEMU_SYSTEM_AARCH64
 else
     $(error Unsupported architecture: $(ARCH))
 endif

@@ -139,3 +139,8 @@ vendor/qemu-build
 /sfsite/tmp
 /sfsite/xcf
 /sfsite/.glimpse*
+
+# qemu
+Makefile.qemu.env
+Makefile.qemu.rsync
+
