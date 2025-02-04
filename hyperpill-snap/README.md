@@ -336,7 +336,7 @@ at this exact moment. This will allow us to snapshot the VM along with the
 hypervisor running inside.
 
 ```bash
-[L0] apt-get update && apt-get install -y cloud-utils xarchiver openssh-server git \
+[L0] sudo apt-get update && sudo apt-get install -y cloud-utils xarchiver openssh-server git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
 [L0] wget https://download.qemu.org/qemu-8.2.0.tar.bz2
@@ -353,7 +353,7 @@ build-essential libslirp-dev
 First, set up L0 to run L1. At the root of the project :
 
 ```bash
-[L0] sudo apt install -y qemu-system-arm # Only needed for the EFI image.
+[L0] sudo apt-get install -y qemu-system-arm # Only needed for the EFI image.
 [L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
 [L0] mv debian-12-nocloud-arm64.qcow2 disk.qcow2
 [L0] qemu-img resize disk.qcow2 30G
