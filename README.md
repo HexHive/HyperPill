@@ -94,3 +94,26 @@ python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/
 ```
 
 For any bus errors, unlink the shm in /dev/shm or expand the memory.
+
+To collect source-based coverage,
+
+First, config the QEMU to run L2 VM and compile.
+
+```
+CC=clang CXX=clang++ \
+../configure --target-list=x86_64-softmmu --enable-slirp \
+--extra-cflags="-fprofile-instr-generate -fcoverage-mapping"
+ninja
+```
+
+Second, set LINK_OBJ_BASE and run `KVM=1 $PROJECT_ROOT/scripts/run_hyperpill2.sh`.
+
+How to calculate LINK_OBJ_BASE? Suppose we have the symbolization range of qemu-system-x86_64 below,
+
+```
+Symbolization Range: 55bc471e6660 - ... file: ...qemu-system-x86_64 ....text sh_addr: 975660
+```
+
+LINK_OBJ_BASE is hex(0x55bc471e6660-0x975660), which is 0x55bc46871000.
+
+To be continued ...
