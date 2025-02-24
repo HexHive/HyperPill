@@ -106,7 +106,15 @@ CC=clang CXX=clang++ \
 ninja
 ```
 
-Second, set LINK_OBJ_BASE and run `KVM=1 $PROJECT_ROOT/scripts/run_hyperpill2.sh`.
+Second, when L2 is running, use gdb to load all unmapped pages into memory. Then retake the snapshot.
+
+```
+[L1] $ gdb --pid $(pgrep -f "qemu")
+[L1] $ (gdb) call (int)mlockall(3)
+[L1] $ (gdb) detach
+```
+
+Third, set LINK_OBJ_BASE and run `KVM=1 NSLOTS=1 $PROJECT_ROOT/scripts/run_hyperpill2.sh`. Here NSLOTS is needed otherwise clang profraw file will not be generated. 
 
 How to calculate LINK_OBJ_BASE? Suppose we have the symbolization range of qemu-system-x86_64 below,
 
@@ -116,4 +124,16 @@ Symbolization Range: 55bc471e6660 - ... file: ...qemu-system-x86_64 ....text sh_
 
 LINK_OBJ_BASE is hex(0x55bc471e6660-0x975660), which is 0x55bc46871000.
 
-To be continued ...
+After at least 300s, there will be clang profraw files under the fuzz working directory. For example: 
+```
+[L0] $ ls *profraw
+172037-1740394346.profraw
+```
+
+Finally, collect coverage results within L1
+```
+[L0] $ scp -P 2222 172037-1740394346.profraw root@localhost:/tmp/
+[L0] $ ssh -p2222 root@localhost llvm-profdata-14 merge -output=/tmp/default.profdata /tmp/172037-1740394346.profraw
+[L0] $ ssh -p2222 root@localhost llvm-cov-14 show --format=html /root/qemu-8.0.0/build/qemu-system-x86_64 -instr-profile=/tmp/default.profdata -output-dir=/tmp/cov
+[L0] $ scp -r -P 2222 root@localhost:/tmp/cov ./
+```
