@@ -839,6 +839,12 @@ bx_phy_address BX_CPU_C::translate_linear_long_mode(bx_address laddr, Bit32u &lp
       page_fault(ERROR_PROTECTION, laddr, user, rw);
   }
 
+  // SMAP protections are disabled if EFLAGS.AC=1
+  if (BX_CPU_THIS_PTR cr4.get_SMAP() && ! BX_CPU_THIS_PTR get_AC() && rw != BX_EXECUTE && ! user) {
+    if (combined_access & BX_COMBINED_ACCESS_USER)
+      page_fault(ERROR_PROTECTION, laddr, user, rw);
+  }
+
   if (BX_CPU_THIS_PTR cr4.get_PGE())
     combined_access |= (entry[leaf] & BX_COMBINED_GLOBAL_PAGE);
 
