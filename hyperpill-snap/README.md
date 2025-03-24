@@ -288,7 +288,7 @@ image, install ubuntu, and restart the ubuntu
 #include <stdlib.h>
 
 int main() {
-    size_t size = 0x100000; // 4G
+    size_t size = 0x100000; // 1MB
     int fd = open("/dev/random", O_RDONLY);
     int i =0;
     void *bloat = -1;
