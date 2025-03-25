@@ -107,7 +107,7 @@ ninja
 ```
 
 Second, when L2 is running, use gdb to load all unmapped pages into memory. Then
-retake the snapshot.
+retake the snapshot and reinfer the symbol map.
 
 ```
 [L1] $ gdb --pid $(pgrep -f "qemu")
@@ -128,7 +128,11 @@ Symbolization Range: 55bc471e6660 - ... file: ...qemu-system-x86_64 ....text sh_
 
 LINK_OBJ_BASE is hex(0x55bc471e6660-0x975660), which is 0x55bc46871000.
 
-After at least 300s, there will be clang profraw files under the fuzz working directory. For example: 
+Or run `$PROJECT_ROOT/scripts/cal_link_obj_base.sh`.
+
+After at least 300s, there will be clang profraw files under the fuzz working
+directory. For example:
+
 ```
 [L0] $ ls *profraw
 172037-1740394346.profraw
