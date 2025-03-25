@@ -95,7 +95,7 @@ python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/
 
 For any bus errors, unlink the shm in /dev/shm or expand the memory.
 
-To collect source-based coverage,
+## Collecting source-based coverage
 
 First, config the QEMU to run L2 VM and compile.
 
@@ -106,7 +106,8 @@ CC=clang CXX=clang++ \
 ninja
 ```
 
-Second, when L2 is running, use gdb to load all unmapped pages into memory. Then retake the snapshot.
+Second, when L2 is running, use gdb to load all unmapped pages into memory. Then
+retake the snapshot.
 
 ```
 [L1] $ gdb --pid $(pgrep -f "qemu")
@@ -114,9 +115,12 @@ Second, when L2 is running, use gdb to load all unmapped pages into memory. Then
 [L1] $ (gdb) detach
 ```
 
-Third, set LINK_OBJ_BASE and run `KVM=1 NSLOTS=1 $PROJECT_ROOT/scripts/run_hyperpill2.sh`. Here NSLOTS is needed otherwise clang profraw file will not be generated. 
+Third, set LINK_OBJ_BASE and run `KVM=1 NSLOTS=1
+$PROJECT_ROOT/scripts/run_hyperpill2.sh`. Here NSLOTS is needed otherwise clang
+profraw file will not be generated.
 
-How to calculate LINK_OBJ_BASE? Suppose we have the symbolization range of qemu-system-x86_64 below,
+How to calculate LINK_OBJ_BASE? Suppose we have the symbolization range of
+qemu-system-x86_64 below,
 
 ```
 Symbolization Range: 55bc471e6660 - ... file: ...qemu-system-x86_64 ....text sh_addr: 975660
@@ -133,7 +137,7 @@ After at least 300s, there will be clang profraw files under the fuzz working di
 Finally, collect coverage results within L1
 ```
 [L0] $ scp -P 2222 172037-1740394346.profraw root@localhost:/tmp/
-[L0] $ ssh -p2222 root@localhost llvm-profdata-14 merge -output=/tmp/default.profdata /tmp/172037-1740394346.profraw
-[L0] $ ssh -p2222 root@localhost llvm-cov-14 show --format=html /root/qemu-8.0.0/build/qemu-system-x86_64 -instr-profile=/tmp/default.profdata -output-dir=/tmp/cov
+[L0] $ ssh -p 2222 root@localhost llvm-profdata-14 merge -output=/tmp/default.profdata /tmp/172037-1740394346.profraw
+[L0] $ ssh -p 2222 root@localhost llvm-cov-14 show --format=html /root/qemu-8.0.0/build/qemu-system-x86_64 -instr-profile=/tmp/default.profdata -output-dir=/tmp/cov
 [L0] $ scp -r -P 2222 root@localhost:/tmp/cov ./
 ```
