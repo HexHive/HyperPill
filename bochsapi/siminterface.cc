@@ -191,11 +191,7 @@ void icp_init_params() {
     bools["cpuid.fsgsbase"] = sim_new_param_bool("fsgsbase", true);
     bools["cpuid.pcid"] = sim_new_param_bool("pcid", true);
     bools["cpuid.smep"] = sim_new_param_bool("smep", true);
-    if (getenv("NOCOV")) {
-        bools["cpuid.smap"] = sim_new_param_bool("smap", true);
-    } else {
-        bools["cpuid.smap"] = sim_new_param_bool("smap", false);
-    }
+    bools["cpuid.smap"] = sim_new_param_bool("smap", true);
 
     bools["cpuid.mwait"] = sim_new_param_bool("mwait", false);
     bools["cpuid.movbe"] = sim_new_param_bool("movbe", false);
