@@ -191,6 +191,9 @@ void icp_init_regs(const char* filename) {
     BX_CPU(id)->cr2 = GETREG64(CR2);
     BX_CPU(id)->cr3 = GETREG64(CR3);
     BX_CPU(id)->cr4.set32(GETREG32(CR4));
+    if (!getenv("NOCOV")) {
+        BX_CPU(id)->cr4.set_SMAP(false);
+    }
     
     BX_CPU(id)->xcr0.set32(0b11100111);
 
