@@ -13,5 +13,12 @@ static void test_mmio_write(uint64_t addr, size_t size, uint64_t data) {
 	start_cpu();
 }
 
+static void test_clock_step() {
+	printf("[INJECT CLOCK STEP]\n");
+	if (!op_clock_step()) {
+		printf("inject clock step error/n");
+	}
+}
+
 #define HP_TESTS
 #endif /* HP_TESTS */

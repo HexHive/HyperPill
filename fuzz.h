@@ -101,6 +101,7 @@ void fuzz_inject_mmio_write(uint64_t addr, uint64_t val);
 void fuzz_inject_pio_read(uint64_t addr, uint64_t val);
 void fuzz_inject_vmcall(uint64_t rcx, uint64_t r8, const void* xmm0, const void* xmm3 );
 
+extern int in_clock_step;
 bool op_clock_step();
 
 void fuzz_hook_memory_access(bx_address phy, unsigned len, 

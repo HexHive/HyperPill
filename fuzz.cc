@@ -13,8 +13,7 @@ enum cmds {
 	OP_OUT,
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
-	OP_VMCALL,
-	OP_CLOCK_STEP,
+	OP_VMCALL
 };
 
 static bool log_ops = false;
@@ -758,6 +757,16 @@ bool op_vmcall() {
 }
 
 bool op_clock_step() {
+	in_clock_step = true;
+
+	uint64_t addr = mmio_regions.begin()->first;
+	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
+        in_clock_step = false;
+        return false;
+	}
+    start_cpu();
+    in_clock_step = false;
+    return true;
 }
 
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue;

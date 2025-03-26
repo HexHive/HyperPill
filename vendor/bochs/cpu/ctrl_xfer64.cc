@@ -102,9 +102,6 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::RETfar64_Iw(bxInstruction_c *i)
   BX_NEXT_TRACE(i);
 }
 
-
-extern bool fuzzing;
-__attribute__((weak)) bool fuzzing;
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_Jq(bxInstruction_c *i)
 {
   Bit64u new_RIP = RIP + (Bit32s) i->Id();
@@ -142,30 +139,6 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_EqR(bxInstruction_c *i)
 #endif
 
   Bit64u new_RIP = BX_READ_64BIT_REG(i->dst());
-  if (new_RIP == 0x5555575cace0){ // ohci
-      return;
-  }
-  if (new_RIP == 0x5555575b0890){ // uhci
-      return;
-  }
-  if(new_RIP == 0x67d3f0)
-  {
-      uint64_t phy_addr;
-      size_t len = 0x1000-(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx&0xFFF);
-      bool valid = BX_CPU(0)->dbg_xlate_linear2phy(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx, &phy_addr);
-      if (valid){
-          uint8_t* logbuf = (uint8_t*)malloc(len);
-          BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, len, logbuf);
-          if(!strstr((char*)logbuf, "WARNING,"))
-            printf("LOG: %s\n", logbuf);
-      } else {
-        printf("LOG (Message read failed)\n");
-      }
-      /* for(int i=0; i<=BX_GENERAL_REGISTERS; i++){ */
-      /*     printf("REG%d = %lx\n",i, BX_CPU(id)->gen_reg[i].rrx ); */
-      /* } */
-      return;
-  }
 
   RSP_SPECULATIVE;
 
