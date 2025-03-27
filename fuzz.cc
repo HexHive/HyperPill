@@ -757,6 +757,10 @@ bool op_vmcall() {
 }
 
 bool op_clock_step() {
+	if (!getenv("END_WITH_CLOCKSTEP")) {
+		printf("END_WITH_CLOCKSTEP is not set.\n");
+		return false;
+	}
 	in_clock_step = true;
 
 	uint64_t addr = mmio_regions.begin()->first;
