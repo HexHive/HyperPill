@@ -17,6 +17,7 @@ uint64_t clock_step_rip[5];
 // hacky, fixme
 uint64_t host_time = 0;
 uint64_t guest_time = 0;
+uint64_t ret_of_qemu_clock_get_ns = 0;
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -167,15 +168,8 @@ void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
 
 void fuzz_instr_after_execution(bxInstruction_c *i) {
 	if (clock_step_rip[CLOCK_STEP_GET_NS] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx) {
-		if (guest_time) {
-			struct timespec ts;
-			clock_gettime(CLOCK_MONOTONIC, &ts);
-			guest_time += (ts.tv_sec * 1000000000LL + ts.tv_nsec - host_time);
-			// BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, guest_time);
-		} else {
-			guest_time = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
-		}
-		printf("guest_time=0x%lx\n", guest_time);
+		ret_of_qemu_clock_get_ns = BX_CPU(id)->pop_64();
+		BX_CPU(id)->push_64(ret_of_qemu_clock_get_ns);
 	}
 	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
 		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
@@ -184,10 +178,10 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 		// clock_step_rip[CLOCK_STEP_NONE] must be in userspace to bypass SMEP
 		uint64_t anchor;
 		static int64_t deadline, current;
-		printf("clock-step\n");
+		// printf("clock-step\n");
 		if (in_clock_step == CLOCK_STEP_GET_DEADLINE) {
 			anchor = BX_CPU(id)->pop_64() - 5;
-			printf("Get anchor %lx\n", anchor);
+			// printf("Get anchor %lx\n", anchor);
 			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
 			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
 			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
@@ -198,15 +192,8 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 			anchor = BX_CPU(id)->pop_64() - 5;
 			deadline = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
 			printf("get_deadline_ns()=0x%lx\n", deadline);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
-			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_NS];
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_NS];
-			BX_CPU(id)->push_64(anchor);
-			BX_CPU(id)->invalidate_prefetch_q();
 			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_WARP) {
-			anchor = BX_CPU(id)->pop_64() - 5;
-			current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
+			current = guest_time; // BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
 			printf("get_current()=0x%lx\n", current);
 			if (hack_qtest_allowed) {
 				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
@@ -221,13 +208,29 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 			BX_CPU(id)->invalidate_prefetch_q();
 			in_clock_step++;
 		} else if (in_clock_step == CLOCK_STEP_DONE) {
-			// TODO
 			printf("done!!!!");
+			if (hack_qtest_allowed) {
+				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
+				bool __qtest_allowed = 0;
+				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
+			}
 		}
 	}
 }
 
 void fuzz_instr_before_execution(bxInstruction_c *i) {
+	if (ret_of_qemu_clock_get_ns == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx) {
+		if (guest_time) {
+			struct timespec ts;
+			clock_gettime(CLOCK_MONOTONIC, &ts);
+			guest_time += (ts.tv_sec * 1000000000LL + ts.tv_nsec - host_time);
+			BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, guest_time);
+		} else {
+			guest_time = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
+		}
+		printf("guest_time=0x%lx\n", guest_time);
+	}
+
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);
 	if (!fuzzing && !fuzzenum)
