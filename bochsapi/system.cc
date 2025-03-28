@@ -1,43 +1,19 @@
 #include "bochs.h"
 #include "pc_system.h"
+#include "iodev/iodev.h"
+#include "gui/gui.h"
 
-bx_pc_system_c::bx_pc_system_c() {
-    a20_mask =  BX_CONST64(0xffffffffffffffff);
-    kill_bochs_request = 0;
-    currCountdown = 1;
-}
+bool bx_user_quit;
 
-int bx_pc_system_c::register_timer(void *this_ptr, bx_timer_handler_t,
-    Bit32u useconds, bool continuous, bool active, const char *id)
-{
-    assert(false);
-    return 0;
-}
-
-int bx_pc_system_c::register_timer_ticks(void* this_ptr,
-    bx_timer_handler_t funct, Bit64u ticks, bool continuous, bool active,
-    const char *id)
-{
-    return 0; // timer id
-}
-
-void bx_pc_system_c::activate_timer_ticks(unsigned int index,
-    Bit64u instructions, bool continuous)
-{
-    return;
-    assert(false);
-}
-
-void bx_pc_system_c::deactivate_timer(unsigned int timer_index) { return; assert(false); }
-
-int bx_pc_system_c::Reset(unsigned int) { assert(false); return 0; }
-
-bool bx_pc_system_c::get_enable_a20(void) { assert(false); return true; }
-
-void bx_pc_system_c::countdownEvent(void)
-{
-    bx_pc_system.currCountdown = 1;
-}
-void bx_pc_system_c::invlpg(bx_address addr) { assert(false); }
+#if BX_ENABLE_STATISTICS
+void print_statistics_tree(bx_param_c *node, int level) {}
+#endif
 
 bx_pc_system_c bx_pc_system;
+
+void bx_init_pc_system() {
+    bx_pc_system.initialize(95000000);
+    bx_pc_system.register_state();
+    bx_pc_system.Reset(BX_RESET_HARDWARE);
+    bx_pc_system.start_timers();
+}

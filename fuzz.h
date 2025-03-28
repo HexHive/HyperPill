@@ -94,6 +94,7 @@ void icp_init_regs(const char* filename);
 void icp_init_shadow_vmcs_layout(const char* filename);
 void icp_init_vmcs_layout(const char* filename);
 void icp_set_vmcs(uint64_t vmcs);
+void bx_init_pc_system();
 
 void clear_seen_dma();
 void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void* data);
