@@ -228,6 +228,7 @@ void fuzz_instr_before_execution(bxInstruction_c *i) {
 		} else {
 			guest_time = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
 		}
+		ret_of_qemu_clock_get_ns = 0;
 		printf("guest_time=0x%lx\n", guest_time);
 	}
 
