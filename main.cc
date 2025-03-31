@@ -6,7 +6,7 @@
 
 int in_clock_step = CLOCK_STEP_NONE;
 bool hack_qtest_allowed = false;
-uint64_t clock_step_rip[5] = {0};
+uint64_t clock_step_rip[6] = {0};
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -200,8 +200,17 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 			BX_CPU(id)->push_64(anchor);
 			BX_CPU(id)->invalidate_prefetch_q();
 			in_clock_step++;
+		} else if (in_clock_step == CLOCK_STEP_FLUSH) {
+			anchor = BX_CPU(id)->pop_64() - 5;
+			printf("flush!!!\n");
+			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, NULL);
+			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_FLUSH];
+			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_FLUSH];
+			BX_CPU(id)->push_64(anchor);
+			BX_CPU(id)->invalidate_prefetch_q();
+			in_clock_step++;
 		} else if (in_clock_step == CLOCK_STEP_DONE) {
-			printf("done!!!!");
+			printf("done!!!!\n");
 			if (hack_qtest_allowed) {
 				uint64_t qtest_allowed = sym_to_addr("qemu", "qtest_allowed");
 				bool __qtest_allowed = 0;
@@ -422,7 +431,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
 		if (getenv("END_WITH_CLOCK_STEP")) {
-			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu", "kvm_arch_post_run");
+			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu", "address_space_rw");
 			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr("qemu", "qemu_clock_deadline_ns_all");
 			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr("qemu", "qemu_clock_get_ns");
 			// since qemu-v9.1.0-rc0
@@ -431,6 +440,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu", "qtest_clock_warp");
 				hack_qtest_allowed = true;
 			}
+			clock_step_rip[CLOCK_STEP_FLUSH] = sym_to_addr("qemu", "qtest_flushes");
 			clock_step_rip[CLOCK_STEP_DONE] = 0;
 			if (clock_step_rip[CLOCK_STEP_NONE] == 0) {
 				in_clock_step = -1; // invalid
