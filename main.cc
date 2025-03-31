@@ -4,16 +4,9 @@
 #include <cstdint>
 #include "conveyor.h"
 
-int in_clock_step;
+int in_clock_step = CLOCK_STEP_NONE;
 bool hack_qtest_allowed = false;
-enum {
-	CLOCK_STEP_NONE,
-	CLOCK_STEP_GET_DEADLINE,
-	CLOCK_STEP_GET_NS,
-	CLOCK_STEP_WARP,
-	CLOCK_STEP_DONE
-};
-uint64_t clock_step_rip[5];
+uint64_t clock_step_rip[5] = {0};
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -196,7 +189,7 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
  			current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
 			printf("get_current()=0x%lx\n", current);
 			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
+				uint64_t qtest_allowed = sym_to_addr("qemu", "qtest_allowed");
 				bool __qtest_allowed = 1;
 				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
 			}
@@ -210,10 +203,11 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 		} else if (in_clock_step == CLOCK_STEP_DONE) {
 			printf("done!!!!");
 			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
+				uint64_t qtest_allowed = sym_to_addr("qemu", "qtest_allowed");
 				bool __qtest_allowed = 0;
 				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
 			}
+			in_clock_step = CLOCK_STEP_NONE;
 		}
 	}
 }
@@ -427,22 +421,20 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* For symbol - > addr (for breakpoints)*/
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
-		if (getenv("END_WITH_CLOCKSTEP")) {
-			clock_step_rip[CLOCK_STEP_NONE] = \
-				sym_to_addr("qemu-system", "kvm_arch_post_run");
-			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = \
-				sym_to_addr("qemu-system", "qemu_clock_deadline_ns_all");
-			clock_step_rip[CLOCK_STEP_GET_NS] = \
-				sym_to_addr("qemu-system", "qemu_clock_get_ns");
+		if (getenv("END_WITH_CLOCK_STEP")) {
+			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu", "kvm_arch_post_run");
+			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr("qemu", "qemu_clock_deadline_ns_all");
+			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr("qemu", "qemu_clock_get_ns");
 			// since qemu-v9.1.0-rc0
-			clock_step_rip[CLOCK_STEP_WARP] = \
-				sym_to_addr("qemu-system", "qemu_clock_advance_virtual_time");
+			clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu", "qemu_clock_advance_virtual_time");
 			if (!clock_step_rip[CLOCK_STEP_WARP]) {
-				clock_step_rip[CLOCK_STEP_WARP] = \
-					sym_to_addr("qemu-system", "qtest_clock_warp");
+				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu", "qtest_clock_warp");
 				hack_qtest_allowed = true;
 			}
-			clock_step_rip[CLOCK_STEP_DONE] = NULL;
+			clock_step_rip[CLOCK_STEP_DONE] = 0;
+			if (clock_step_rip[CLOCK_STEP_NONE] == 0) {
+				in_clock_step = -1; // invalid
+			}
 		}
 	}
 
