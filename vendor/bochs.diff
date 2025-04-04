@@ -1,0 +1,1014 @@
+diff '--color=auto' -aur bochs/bochs.h /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/bochs.h
+--- bochs/bochs.h	2025-04-04 13:09:59.163176348 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/bochs.h	2024-08-27 13:48:02.723577866 +0200
+@@ -271,7 +271,7 @@
+ // defines for GDB stub
+ void bx_gdbstub_init(void);
+ void bx_gdbstub_break(void);
+-int bx_gdbstub_check(unsigned int eip);
++int bx_gdbstub_check(Bit64u eip);
+ #define GDBSTUB_STOP_NO_REASON   (0xac0)
+ 
+ #if BX_SUPPORT_SMP
+diff '--color=auto' -aur bochs/configure /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/configure
+--- bochs/configure	2025-04-04 13:09:59.168176406 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/configure	2024-08-27 13:48:02.735578033 +0200
+@@ -4868,13 +4868,13 @@
+   CFLAGS=$ac_save_CFLAGS
+ elif test $ac_cv_prog_cc_g = yes; then
+   if test "$GCC" = yes; then
+-    CFLAGS="-g -O2"
++    CFLAGS="-g -O0"
+   else
+     CFLAGS="-g"
+   fi
+ else
+   if test "$GCC" = yes; then
+-    CFLAGS="-O2"
++    CFLAGS="-O0"
+   else
+     CFLAGS=
+   fi
+@@ -5289,13 +5289,13 @@
+   CXXFLAGS=$ac_save_CXXFLAGS
+ elif test $ac_cv_prog_cxx_g = yes; then
+   if test "$GXX" = yes; then
+-    CXXFLAGS="-g -O2"
++    CXXFLAGS="-g -O0"
+   else
+     CXXFLAGS="-g"
+   fi
+ else
+   if test "$GXX" = yes; then
+-    CXXFLAGS="-O2"
++    CXXFLAGS="-O0"
+   else
+     CXXFLAGS=
+   fi
+diff '--color=auto' -aur bochs/cpu/arith16.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith16.cc
+--- bochs/cpu/arith16.cc	2025-04-04 13:09:59.169176418 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith16.cc	2024-08-27 13:48:02.735578033 +0200
+@@ -247,6 +247,7 @@
+   Bit32u op1_16 = read_virtual_word(i->seg(), eaddr);
+   Bit32u op2_16 = BX_READ_16BIT_REG(i->src());
+   Bit32u diff_16 = op1_16 - op2_16;
++  fuzz_hook_cmp(op1_16, op2_16, sizeof(op1_16));
+ 
+   SET_FLAGS_OSZAPC_SUB_16(op1_16, op2_16, diff_16);
+ 
+@@ -258,6 +259,7 @@
+   Bit32u op1_16 = BX_READ_16BIT_REG(i->dst());
+   Bit32u op2_16 = BX_READ_16BIT_REG(i->src());
+   Bit32u diff_16 = op1_16 - op2_16;
++  fuzz_hook_cmp(op1_16, op2_16, sizeof(op1_16));
+ 
+   SET_FLAGS_OSZAPC_SUB_16(op1_16, op2_16, diff_16);
+ 
+@@ -271,6 +273,7 @@
+   Bit32u op1_16 = BX_READ_16BIT_REG(i->dst());
+   Bit32u op2_16 = read_virtual_word(i->seg(), eaddr);
+   Bit32u diff_16 = op1_16 - op2_16;
++  fuzz_hook_cmp(op1_16, op2_16, sizeof(op1_16));
+ 
+   SET_FLAGS_OSZAPC_SUB_16(op1_16, op2_16, diff_16);
+ 
+@@ -436,6 +439,7 @@
+   Bit32u op1_16 = read_virtual_word(i->seg(), eaddr);
+   Bit32u op2_16 = i->Iw();
+   Bit32u diff_16 = op1_16 - op2_16;
++  fuzz_hook_cmp(op1_16, op2_16, sizeof(op1_16));
+ 
+   SET_FLAGS_OSZAPC_SUB_16(op1_16, op2_16, diff_16);
+ 
+@@ -447,6 +451,7 @@
+   Bit32u op1_16 = BX_READ_16BIT_REG(i->dst());
+   Bit32u op2_16 = i->Iw();
+   Bit32u diff_16 = op1_16 - op2_16;
++  fuzz_hook_cmp(op1_16, op2_16, sizeof(op1_16));
+ 
+   SET_FLAGS_OSZAPC_SUB_16(op1_16, op2_16, diff_16);
+ 
+diff '--color=auto' -aur bochs/cpu/arith32.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith32.cc
+--- bochs/cpu/arith32.cc	2025-04-04 13:09:59.169176418 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith32.cc	2024-08-27 13:48:02.735578033 +0200
+@@ -265,6 +265,7 @@
+   op1_32 = read_virtual_dword(i->seg(), eaddr);
+   op2_32 = BX_READ_32BIT_REG(i->src());
+   diff_32 = op1_32 - op2_32;
++  fuzz_hook_cmp(op1_32, op2_32, sizeof(op1_32));
+ 
+   SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32);
+ 
+@@ -278,6 +279,7 @@
+   op1_32 = BX_READ_32BIT_REG(i->dst());
+   op2_32 = BX_READ_32BIT_REG(i->src());
+   diff_32 = op1_32 - op2_32;
++  fuzz_hook_cmp(op1_32, op2_32, sizeof(op1_32));
+ 
+   SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32);
+ 
+@@ -293,6 +295,7 @@
+   op1_32 = BX_READ_32BIT_REG(i->dst());
+   op2_32 = read_virtual_dword(i->seg(), eaddr);
+   diff_32 = op1_32 - op2_32;
++  fuzz_hook_cmp(op1_32, op2_32, sizeof(op1_32));
+ 
+   SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32);
+ 
+@@ -468,6 +471,7 @@
+   op1_32 = read_virtual_dword(i->seg(), eaddr);
+   op2_32 = i->Id();
+   diff_32 = op1_32 - op2_32;
++  fuzz_hook_cmp(op1_32, op2_32, sizeof(op1_32));
+ 
+   SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32);
+ 
+@@ -481,6 +485,7 @@
+   op1_32 = BX_READ_32BIT_REG(i->dst());
+   op2_32 = i->Id();
+   diff_32 = op1_32 - op2_32;
++  fuzz_hook_cmp(op1_32, op2_32, sizeof(op1_32));
+ 
+   SET_FLAGS_OSZAPC_SUB_32(op1_32, op2_32, diff_32);
+ 
+diff '--color=auto' -aur bochs/cpu/arith64.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith64.cc
+--- bochs/cpu/arith64.cc	2025-04-04 13:09:59.169176418 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith64.cc	2024-08-27 13:48:02.735578033 +0200
+@@ -260,6 +260,7 @@
+   op1_64 = read_linear_qword(i->seg(), get_laddr64(i->seg(), eaddr));
+   op2_64 = BX_READ_64BIT_REG(i->src());
+   diff_64 = op1_64 - op2_64;
++  fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64));
+ 
+   SET_FLAGS_OSZAPC_SUB_64(op1_64, op2_64, diff_64);
+ 
+@@ -273,6 +274,7 @@
+   op1_64 = BX_READ_64BIT_REG(i->dst());
+   op2_64 = BX_READ_64BIT_REG(i->src());
+   diff_64 = op1_64 - op2_64;
++  fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64));
+ 
+   SET_FLAGS_OSZAPC_SUB_64(op1_64, op2_64, diff_64);
+ 
+@@ -288,6 +290,7 @@
+   op1_64 = BX_READ_64BIT_REG(i->dst());
+   op2_64 = read_linear_qword(i->seg(), get_laddr64(i->seg(), eaddr));
+   diff_64 = op1_64 - op2_64;
++  fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64));
+ 
+   SET_FLAGS_OSZAPC_SUB_64(op1_64, op2_64, diff_64);
+ 
+@@ -459,6 +462,8 @@
+   BX_NEXT_INSTR(i);
+ }
+ 
++__attribute__((weak)) void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){}
++
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::CMP_EqIdM(bxInstruction_c *i)
+ {
+   Bit64u op1_64, op2_64, diff_64;
+@@ -468,6 +473,7 @@
+   op1_64 = read_linear_qword(i->seg(), get_laddr64(i->seg(), eaddr));
+   op2_64 = (Bit32s) i->Id();
+   diff_64 = op1_64 - op2_64;
++  fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64));
+ 
+   SET_FLAGS_OSZAPC_SUB_64(op1_64, op2_64, diff_64);
+ 
+@@ -481,6 +487,7 @@
+   op1_64 = BX_READ_64BIT_REG(i->dst());
+   op2_64 = (Bit32s) i->Id();
+   diff_64 = op1_64 - op2_64;
++  fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64));
+ 
+   SET_FLAGS_OSZAPC_SUB_64(op1_64, op2_64, diff_64);
+ 
+@@ -578,6 +585,7 @@
+ {
+   Bit64u op1_64 = BX_READ_64BIT_REG(i->dst());
+   Bit64u diff_64 = RAX - op1_64;
++  /* fuzz_hook_cmp(op1_64, op2_64, sizeof(op1_64)); */
+   SET_FLAGS_OSZAPC_SUB_64(RAX, op1_64, diff_64);
+ 
+   if (diff_64 == 0) {  // if accumulator == dest
+diff '--color=auto' -aur bochs/cpu/arith8.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith8.cc
+--- bochs/cpu/arith8.cc	2025-04-04 13:09:59.169176418 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/arith8.cc	2024-08-27 13:48:02.735578033 +0200
+@@ -229,6 +229,8 @@
+   Bit32u op1_8 = read_virtual_byte(i->seg(), eaddr);
+   Bit32u op2_8 = BX_READ_8BIT_REGx(i->src(), i->extend8bitL());
+   Bit32u diff_8 = op1_8 - op2_8;
++  
++  fuzz_hook_cmp(op1_8, op2_8, sizeof(op1_8));
+ 
+   SET_FLAGS_OSZAPC_SUB_8(op1_8, op2_8, diff_8);
+ 
+@@ -241,6 +243,7 @@
+   Bit32u op2_8 = BX_READ_8BIT_REGx(i->src(), i->extend8bitL());
+   Bit32u diff_8 = op1_8 - op2_8;
+ 
++  fuzz_hook_cmp(op1_8, op2_8, sizeof(op1_8));
+   SET_FLAGS_OSZAPC_SUB_8(op1_8, op2_8, diff_8);
+ 
+   BX_NEXT_INSTR(i);
+@@ -254,6 +257,7 @@
+   Bit32u op2_8 = read_virtual_byte(i->seg(), eaddr);
+   Bit32u diff_8 = op1_8 - op2_8;
+ 
++  fuzz_hook_cmp(op1_8, op2_8, sizeof(op1_8));
+   SET_FLAGS_OSZAPC_SUB_8(op1_8, op2_8, diff_8);
+ 
+   BX_NEXT_INSTR(i);
+@@ -399,6 +403,7 @@
+   Bit32u op2_8 = i->Ib();
+   Bit32u diff_8 = op1_8 - op2_8;
+ 
++  fuzz_hook_cmp(op1_8, op2_8, sizeof(op1_8));
+   SET_FLAGS_OSZAPC_SUB_8(op1_8, op2_8, diff_8);
+ 
+   BX_NEXT_INSTR(i);
+@@ -409,6 +414,7 @@
+   Bit32u op1_8 = BX_READ_8BIT_REGx(i->dst(), i->extend8bitL());
+   Bit32u op2_8 = i->Ib();
+   Bit32u diff_8 = op1_8 - op2_8;
++fuzz_hook_cmp(op1_8, op2_8, sizeof(op1_8));
+ 
+   SET_FLAGS_OSZAPC_SUB_8(op1_8, op2_8, diff_8);
+ 
+diff '--color=auto' -aur bochs/cpu/cpu.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.cc
+--- bochs/cpu/cpu.cc	2025-04-04 13:09:59.174176476 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.cc	2025-02-10 13:48:42.926328258 +0100
+@@ -116,12 +116,19 @@
+     bxInstruction_c *last = i + (entry->tlen);
+ 
+     for(;;) {
+-
++        if(BX_CPU_THIS_PTR fuzz_executing_input == false)
++            return;
+ #if BX_DEBUGGER
+       if (BX_CPU_THIS_PTR trace)
+         debug_disasm_instruction(BX_CPU_THIS_PTR prev_rip);
+ #endif
++      if (BX_CPU_THIS_PTR fuzztrace)
++          debug_disasm_instruction(BX_CPU_THIS_PTR prev_rip);
+ 
++      if (i->getIaOpcode() == 0) {
++        printf("Failed to decode instructions !\n");
++        assert(0);
++      }
+       // want to allow changing of the instruction inside instrumentation callback
+       BX_INSTR_BEFORE_EXECUTION(BX_CPU_ID, i);
+       RIP += i->ilen();
+@@ -219,7 +226,7 @@
+   INC_ICACHE_STAT(iCacheLookups);
+ 
+   bx_phy_address pAddr = BX_CPU_THIS_PTR pAddrFetchPage + eipBiased;
+-  bxICacheEntry_c *entry = BX_CPU_THIS_PTR iCache.find_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
++  bxICacheEntry_c *entry = BX_CPU_THIS_PTR iCache->find_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
+ 
+   if (entry == NULL)
+   {
+@@ -775,7 +782,7 @@
+ 
+ #if BX_GDBSTUB
+   if (bx_dbg.gdbstub_enabled) {
+-    unsigned reason = bx_gdbstub_check(EIP);
++    unsigned reason = bx_gdbstub_check(RIP);
+     if (reason != GDBSTUB_STOP_NO_REASON) return(1);
+   }
+ #endif
+diff '--color=auto' -aur bochs/cpu/cpudb/amd/turion64_tyler.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/amd/turion64_tyler.cc
+--- bochs/cpu/cpudb/amd/turion64_tyler.cc	2025-04-04 14:08:27.941488375 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/amd/turion64_tyler.cc	2025-04-04 13:59:35.328137851 +0200
+@@ -72,7 +72,7 @@
+ 
+ void turion64_tyler_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
+ {
+-  static const char* brand_string = "AMD Turion(tm) 64 X2 Mobile Technology TL-60\0\0\0";
++  static const char* brand_string = "AMD Turion(tm) 64 X2 Mobile Technology TL-60";
+ 
+   switch(function) {
+   case 0x80000000:
+diff '--color=auto' -aur bochs/cpu/cpudb/intel/corei7_icelake-u.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/corei7_icelake-u.cc
+--- bochs/cpu/cpudb/intel/corei7_icelake-u.cc	2025-04-04 14:08:27.941488375 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/corei7_icelake-u.cc	2025-04-04 14:00:04.322568782 +0200
+@@ -134,7 +134,7 @@
+ 
+ void corei7_icelake_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
+ {
+-  static const char* brand_string = "QuadCore Intel Core i7-1065G7, 1300 MHz\0\0\0\0\0\0\0\0";
++  static const char* brand_string = "QuadCore Intel Core i7-1065G7, 1300 MHz\0\0\0\0\0\0\0";
+ 
+   static bool cpuid_limit_winnt = SIM->get_param_bool(BXPN_CPUID_LIMIT_WINNT)->get();
+   if (cpuid_limit_winnt)
+diff '--color=auto' -aur bochs/cpu/cpudb/intel/tigerlake.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/tigerlake.cc
+--- bochs/cpu/cpudb/intel/tigerlake.cc	2025-04-04 14:08:27.941488375 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/tigerlake.cc	2025-04-04 14:00:15.852738832 +0200
+@@ -138,7 +138,7 @@
+ 
+ void tigerlake_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
+ {
+-  static const char* brand_string = "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz\0";
++  static const char* brand_string = "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz";
+ 
+   static bool cpuid_limit_winnt = SIM->get_param_bool(BXPN_CPUID_LIMIT_WINNT)->get();
+   if (cpuid_limit_winnt)
+diff '--color=auto' -aur bochs/cpu/cpu.h /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.h
+--- bochs/cpu/cpu.h	2025-04-04 13:09:59.175176487 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.h	2024-08-27 13:48:02.743578144 +0200
+@@ -23,7 +23,7 @@
+ #define BX_CPU_H
+ 
+ #include <setjmp.h>
+-
++#include <cstdint>
+ #include "bx_debug/debug.h"
+ 
+ #include "decoder/decoder.h"
+@@ -449,12 +449,12 @@
+ 
+ // notify internal debugger/instrumentation about memory access
+ #define BX_NOTIFY_LIN_MEMORY_ACCESS(laddr, paddr, size, memtype, rw, dataptr) {              \
+-  BX_INSTR_LIN_ACCESS(BX_CPU_ID, (laddr), (paddr), (size), (memtype), (rw));                 \
++  BX_INSTR_LIN_ACCESS(BX_CPU_ID, (laddr), (paddr), (size), (memtype), (rw), (dataptr));                 \
+   BX_DBG_LIN_MEMORY_ACCESS(BX_CPU_ID, (laddr), (paddr), (size), (memtype), (rw), (dataptr)); \
+ }
+ 
+ #define BX_NOTIFY_PHY_MEMORY_ACCESS(paddr, size, memtype, rw, why, dataptr) {              \
+-  BX_INSTR_PHY_ACCESS(BX_CPU_ID, (paddr), (size), (memtype), (rw));                        \
++  BX_INSTR_PHY_ACCESS(BX_CPU_ID, (paddr), (size), (memtype), (rw), (dataptr));                        \
+   BX_DBG_PHY_MEMORY_ACCESS(BX_CPU_ID, (paddr), (size), (memtype), (rw), (why), (dataptr)); \
+ }
+ 
+@@ -1160,6 +1160,9 @@
+   // statistics
+   bx_cpu_statistics *stats;
+ 
++  bool fuzztrace;
++  bool fuzzdebug_gdb;
++  bool fuzz_executing_input;
+ #if BX_DEBUGGER
+   bx_phy_address watchpoint;
+   Bit8u break_point;
+@@ -1212,7 +1215,7 @@
+   // An instruction cache.  Each entry should be exactly 32 bytes, and
+   // this structure should be aligned on a 32-byte boundary to be friendly
+   // with the host cache lines.
+-  bxICache_c iCache BX_CPP_AlignN(32);
++  bxICache_c *iCache;
+   Bit32u fetchModeMask;
+ 
+   struct {
+@@ -4336,7 +4339,7 @@
+ #if BX_DEBUGGER || BX_GDBSTUB
+   BX_SMF bool  dbg_instruction_epilog(void);
+ #endif
+-  BX_SMF bool  dbg_xlate_linear2phy(bx_address linear, bx_phy_address *phy, bx_address *lpf_mask = 0, bool verbose = 0, bool nested_walk = 0);
++  BX_SMF bool  dbg_xlate_linear2phy(bx_address linear, bx_phy_address *phy, bx_address *lpf_mask = 0, bool verbose = 0, bool nested_walk = 0, bool exec =0);
+ #if BX_SUPPORT_VMX >= 2
+   BX_SMF bool dbg_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, bool verbose = 0);
+ #endif
+@@ -5723,4 +5726,6 @@
+ 
+ #endif
+ 
++
++void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
+ #endif  // #ifndef BX_CPU_H
+diff '--color=auto' -aur bochs/cpu/ctrl_xfer64.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/ctrl_xfer64.cc
+--- bochs/cpu/ctrl_xfer64.cc	2025-04-04 13:09:59.179176533 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/ctrl_xfer64.cc	2025-04-01 11:28:10.214448620 +0200
+@@ -22,6 +22,7 @@
+ #define NEED_CPU_REG_SHORTCUTS 1
+ #include "bochs.h"
+ #include "cpu.h"
++#include "memory/memory-bochs.h"
+ #define LOG_THIS BX_CPU_THIS_PTR
+ 
+ #if BX_SUPPORT_X86_64
+@@ -110,7 +111,6 @@
+ #endif
+ 
+   RSP_SPECULATIVE;
+-
+   /* push 64 bit EA of next instruction */
+   push_64(RIP);
+ #if BX_SUPPORT_CET
+@@ -253,7 +253,7 @@
+ 
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNB_Jq(bxInstruction_c *i)
+ {
+-  if (! get_CF()) {
++  if (! get_CF() || BX_CPU(0)->prev_rip == 0x55555822a234) { // qtest_enabled
+     branch_near64(i);
+     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
+     BX_LINK_TRACE(i);
+@@ -277,7 +277,7 @@
+ 
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNZ_Jq(bxInstruction_c *i)
+ {
+-  if (! get_ZF()) {
++  if (! get_ZF() ||  BX_CPU(0)->prev_rip == 0x55555822a37b) {
+     branch_near64(i);
+     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
+     BX_LINK_TRACE(i);
+diff '--color=auto' -aur bochs/cpu/debugstuff.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/debugstuff.cc
+--- bochs/cpu/debugstuff.cc	2025-04-04 13:09:59.180176545 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/debugstuff.cc	2024-08-27 13:48:02.743578144 +0200
+@@ -30,6 +30,7 @@
+ 
+ void BX_CPU_C::debug_disasm_instruction(bx_address offset)
+ {
++
+ #if BX_DEBUGGER
+   bx_dbg_disassemble_current(BX_CPU_ID, 1); // only one cpu, print time stamp
+ #else
+@@ -62,14 +63,17 @@
+         char_buf[i++] = letters[(instr_buf[j] >> 0) & 0xf];
+       }
+       char_buf[i] = 0;
+-      BX_INFO(("0x" FMT_ADDRX ">> %s", offset, char_buf));
++      if(BX_CPU_THIS_PTR in_vmx_guest)
++          printf("[VMCS %016lx] 0x" FMT_ADDRX ">> %s\n", BX_CPU_THIS_PTR vmcsptr, offset, char_buf);
++      else
++          printf("0x" FMT_ADDRX ">> %s\n", offset, char_buf);
+     }
+     else {
+-      BX_INFO(("0x" FMT_ADDRX ": (instruction unavailable) page split instruction", offset));
++      printf("0x" FMT_ADDRX ": (instruction unavailable) page split instruction\n", offset);
+     }
+   }
+   else {
+-    BX_INFO(("0x" FMT_ADDRX ": (instruction unavailable) page not present", offset));
++    printf("0x" FMT_ADDRX ": (instruction unavailable) page not present\n", offset);
+   }
+ #endif  // #if BX_DEBUGGER
+ }
+diff '--color=auto' -aur bochs/cpu/event.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/event.cc
+--- bochs/cpu/event.cc	2025-04-04 13:09:59.183176579 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/event.cc	2024-08-27 13:48:02.747578200 +0200
+@@ -27,6 +27,11 @@
+ 
+ #include "iodev/iodev.h"
+ 
++void fuzz_end_input();
++
++__attribute__((weak))  void fuzz_end_input(){
++}
++
+ bool BX_CPU_C::handleWaitForEvent(void)
+ {
+   if (BX_CPU_THIS_PTR activity_state == BX_ACTIVITY_STATE_WAIT_FOR_SIPI) {
+@@ -99,6 +104,8 @@
+       return 1; // Return to caller of cpu_loop.
+     }
+ 
++    fuzz_end_input();
++    return 0;
+     BX_TICKN(10); // when in HLT run time faster for single CPU
+   }
+ 
+diff '--color=auto' -aur bochs/cpu/exception.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/exception.cc
+--- bochs/cpu/exception.cc	2025-04-04 13:09:59.183176579 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/exception.cc	2024-08-27 13:48:02.747578200 +0200
+@@ -893,6 +893,11 @@
+   /* 31 */ { BX_ET_BENIGN,       BX_EXCEPTION_CLASS_FAULT, 0 }
+ };
+ 
++void fuzz_hook_exception(unsigned vector, unsigned error_code);
++
++__attribute__((weak)) void fuzz_hook_exception(unsigned vector, unsigned error_code) {
++}
++
+ // vector:     0..255: vector in IDT
+ // error_code: if exception generates and error, push this error code
+ void BX_CPU_C::exception(unsigned vector, Bit16u error_code)
+@@ -925,7 +930,7 @@
+   bx_dbg_exception(BX_CPU_ID, vector, error_code);
+ #endif
+ 
+-  BX_DEBUG(("exception(0x%02x): error_code=%04x", vector, error_code));
++  fuzz_hook_exception(vector, error_code);
+ 
+ #if BX_SUPPORT_VMX
+   VMexit_Event(BX_HARDWARE_EXCEPTION, vector, error_code, push_error);
+diff '--color=auto' -aur bochs/cpu/icache.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/icache.cc
+--- bochs/cpu/icache.cc	2025-04-04 13:09:59.185176603 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/icache.cc	2024-08-27 13:48:02.747578200 +0200
+@@ -43,7 +43,7 @@
+ void flushICaches(void)
+ {
+   for (unsigned i=0; i<BX_SMP_PROCESSORS; i++) {
+-    BX_CPU(i)->iCache.flushICacheEntries();
++    BX_CPU(i)->iCache->flushICacheEntries();
+     BX_CPU(i)->async_event |= BX_ASYNC_EVENT_STOP_TRACE;
+   }
+ 
+@@ -56,7 +56,7 @@
+ 
+   for (unsigned i=0; i<BX_SMP_PROCESSORS; i++) {
+     BX_CPU(i)->async_event |= BX_ASYNC_EVENT_STOP_TRACE;
+-    BX_CPU(i)->iCache.handleSMC(pAddr, mask);
++    BX_CPU(i)->iCache->handleSMC(pAddr, mask);
+   }
+ }
+ 
+@@ -78,9 +78,9 @@
+ 
+ bxICacheEntry_c* BX_CPU_C::serveICacheMiss(Bit32u eipBiased, bx_phy_address pAddr)
+ {
+-  bxICacheEntry_c *entry = BX_CPU_THIS_PTR iCache.get_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
++  bxICacheEntry_c *entry = BX_CPU_THIS_PTR iCache->get_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
+ 
+-  BX_CPU_THIS_PTR iCache.alloc_trace(entry);
++  BX_CPU_THIS_PTR iCache->alloc_trace(entry);
+ 
+   // Cache miss. We weren't so lucky, but let's be optimistic - try to build
+   // trace from incoming instruction bytes stream !
+@@ -142,7 +142,7 @@
+       genDummyICacheEntry(++i);
+ #endif
+ 
+-      BX_CPU_THIS_PTR iCache.commit_page_split_trace(BX_CPU_THIS_PTR pAddrFetchPage, entry);
++      BX_CPU_THIS_PTR iCache->commit_page_split_trace(BX_CPU_THIS_PTR pAddrFetchPage, entry);
+       return entry;
+     }
+ 
+@@ -175,7 +175,7 @@
+       if (mergeTraces(entry, i, pAddr)) {
+           entry->traceMask |= traceMask;
+           pageWriteStampTable.markICacheMask(pAddr, entry->traceMask);
+-          BX_CPU_THIS_PTR iCache.commit_trace(entry->tlen);
++          BX_CPU_THIS_PTR iCache->commit_trace(entry->tlen);
+           return entry;
+       }
+     }
+@@ -192,14 +192,14 @@
+   genDummyICacheEntry(i);
+ #endif
+ 
+-  BX_CPU_THIS_PTR iCache.commit_trace(entry->tlen);
++  BX_CPU_THIS_PTR iCache->commit_trace(entry->tlen);
+ 
+   return entry;
+ }
+ 
+ bool BX_CPU_C::mergeTraces(bxICacheEntry_c *entry, bxInstruction_c *i, bx_phy_address pAddr)
+ {
+-  bxICacheEntry_c *e = BX_CPU_THIS_PTR iCache.find_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
++  bxICacheEntry_c *e = BX_CPU_THIS_PTR iCache->find_entry(pAddr, BX_CPU_THIS_PTR fetchModeMask);
+ 
+   if (e != NULL)
+   {
+diff '--color=auto' -aur bochs/cpu/init.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/init.cc
+--- bochs/cpu/init.cc	2025-04-04 13:09:59.186176614 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/init.cc	2024-12-22 21:00:56.715518078 +0100
+@@ -31,6 +31,8 @@
+ 
+ #include <stdlib.h>
+ 
++bxICache_c iC BX_CPP_AlignN(32);;
++
+ BX_CPU_C::BX_CPU_C(unsigned id): bx_cpuid(id)
+ #if BX_CPU_LEVEL >= 4
+    , cpuid(NULL)
+@@ -54,6 +56,8 @@
+   if (BX_SUPPORT_FPU)
+     ia_extensions_bitmask[0] |= (1 << BX_ISA_X87);
+ 
++  iCache = &iC;
++
+ #if BX_SUPPORT_VMX
+   vmx_extensions_bitmask = 0;
+ #endif
+@@ -679,6 +683,7 @@
+ 
+ BX_CPU_C::~BX_CPU_C()
+ {
++ return;
+ #if BX_CPU_LEVEL >= 4
+   delete cpuid;
+ #endif
+diff '--color=auto' -aur bochs/cpu/iret.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/iret.cc
+--- bochs/cpu/iret.cc	2025-04-04 13:09:59.186176614 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/iret.cc	2024-08-27 13:48:02.747578200 +0200
+@@ -411,6 +411,7 @@
+     BX_ERROR(("iret64: return CS selector null"));
+     exception(BX_GP_EXCEPTION, 0);
+   }
++  
+ 
+   // selector index must be within descriptor table limits,
+   // else #GP(return selector)
+diff '--color=auto' -aur bochs/cpu/msr.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/msr.cc
+--- bochs/cpu/msr.cc	2025-04-04 13:09:59.187176626 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/msr.cc	2024-08-27 13:48:02.751578255 +0200
+@@ -464,10 +464,11 @@
+ #endif
+     {
+       // failed to find the MSR, could #GP or ignore it silently
+-      BX_ERROR(("RDMSR: Unknown register %#x", index));
+ 
+-      if (! BX_CPU_THIS_PTR ignore_bad_msrs)
++      if (! BX_CPU_THIS_PTR ignore_bad_msrs) {
++        BX_ERROR(("RDMSR: Unknown register %#x", index));
+         return 0; // will result in #GP fault due to unknown MSR
++        }
+     }
+   }
+ 
+diff '--color=auto' -aur bochs/cpu/paging.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/paging.cc
+--- bochs/cpu/paging.cc	2025-04-04 13:09:59.187176626 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/paging.cc	2025-03-24 16:41:42.804584483 +0100
+@@ -398,7 +398,7 @@
+ #endif
+ 
+   // break all links bewteen traces
+-  BX_CPU_THIS_PTR iCache.breakLinks();
++  BX_CPU_THIS_PTR iCache->breakLinks();
+ }
+ 
+ #if BX_CPU_LEVEL >= 6
+@@ -419,7 +419,7 @@
+ #endif
+ 
+   // break all links bewteen traces
+-  BX_CPU_THIS_PTR iCache.breakLinks();
++  BX_CPU_THIS_PTR iCache->breakLinks();
+ }
+ #endif
+ 
+@@ -439,7 +439,7 @@
+ #endif
+ 
+   // break all links bewteen traces
+-  BX_CPU_THIS_PTR iCache.breakLinks();
++  BX_CPU_THIS_PTR iCache->breakLinks();
+ }
+ 
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::INVLPG(bxInstruction_c* i)
+@@ -521,6 +521,8 @@
+ #if BX_SUPPORT_X86_64
+   BX_DEBUG(("page fault for address %08x%08x @ %08x%08x",
+              GET32H(laddr), GET32L(laddr), GET32H(RIP), GET32L(RIP)));
++  /* printf("page fault for address %08x%08x @ %08x%08x accesstype: %x \n", */
++  /*            GET32H(laddr), GET32L(laddr), GET32H(RIP), GET32L(RIP), rw); */
+ #else
+   BX_DEBUG(("page fault for address %08x @ %08x", laddr, EIP));
+ #endif
+@@ -2236,36 +2238,36 @@
+     (entry & 0x01) ? "P" : "p");
+ }
+ 
++#endif
+ #if BX_SUPPORT_VMX >= 2
+ void dbg_print_ept_paging_pte(int level, Bit64u entry, bool mbe)
+ {
+-  dbg_printf("EPT %4s: 0x%08x%08x", bx_paging_level[level], GET32H(entry), GET32L(entry));
++  printf("EPT %4s: 0x%08x%08x", bx_paging_level[level], GET32H(entry), GET32L(entry));
+ 
+   if (level != BX_LEVEL_PTE && (entry & 0x80))
+-    dbg_printf(" PS");
++    printf(" PS");
+   else
+-    dbg_printf("   ");
++    printf("   ");
+ 
+   if (mbe)
+-    dbg_printf(" %s", (entry & 0x400) ? "XU" : "xu");
++    printf(" %s", (entry & 0x400) ? "XU" : "xu");
+ 
+-  dbg_printf(" %s %s %s",
++  printf(" %s %s %s",
+     (entry & 0x04) ? "X" : "x",
+     (entry & 0x02) ? "W" : "w",
+     (entry & 0x01) ? "R" : "r");
+ 
+   if (level == BX_LEVEL_PTE || (entry & 0x80)) {
+-    dbg_printf(" %s %s\n",
++    printf(" %s %s\n",
+       (entry & 0x40) ? "IGNORE_PAT" : "ignore_pat",
+       get_memtype_name(BxMemtype((entry >> 3) & 0x7)));
+   }
+   else {
+-    dbg_printf("\n");
++    printf("\n");
+   }
+ }
+ #endif
+ 
+-#endif // BX_DEBUGGER
+ 
+ #if BX_SUPPORT_VMX >= 2
+ bool BX_CPU_C::dbg_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, bool verbose)
+@@ -2315,15 +2317,15 @@
+ bool BX_CPU_C::dbg_translate_guest_physical_npt(bx_phy_address guest_paddr, bx_phy_address *phy, bool verbose)
+ {
+   // Nested page table walk works in the same manner as the standard page walk.
+-  return dbg_xlate_linear2phy(guest_paddr, phy, NULL, verbose, true);
++  return dbg_xlate_linear2phy(guest_paddr, phy, NULL, verbose, true, false);
+ }
+ #endif
+ 
+-bool BX_CPU_C::dbg_xlate_linear2phy(bx_address laddr, bx_phy_address *phy, bx_address *lpf_mask, bool verbose, bool nested_walk)
++bool BX_CPU_C::dbg_xlate_linear2phy(bx_address laddr, bx_phy_address *phy, bx_address *lpf_mask, bool verbose, bool nested_walk, bool exec)
+ {
+   bx_phy_address paddress;
+   bx_address offset_mask = 0xfff;
+-
++  uint64_t last_pte;
+ #if BX_SUPPORT_X86_64
+   if (! long_mode()) laddr &= 0xffffffff;
+ #endif
+@@ -2374,6 +2376,7 @@
+         }
+ #endif
+         BX_MEM(0)->readPhysicalPage(BX_CPU_THIS, pt_address, 8, &pte);
++        last_pte = pte;
+ #if BX_DEBUGGER
+         if (verbose)
+           dbg_print_paging_pte(level, pte);
+@@ -2418,6 +2421,7 @@
+         }
+ #endif
+         BX_MEM(0)->readPhysicalPage(BX_CPU_THIS, pt_address, 4, &pte);
++        last_pte = pte;
+ #if BX_DEBUGGER
+         if (verbose)
+           dbg_print_paging_pte(level, pte);
+@@ -2457,6 +2461,8 @@
+   if (lpf_mask)
+     *lpf_mask = offset_mask;
+   *phy = A20ADDR(paddress);
++  if(exec && last_pte >> 63)
++      return false;
+   return 1;
+ 
+ page_fault:
+@@ -2612,8 +2618,8 @@
+ #if BX_SUPPORT_MEMTYPE
+     BX_CPU_THIS_PTR address_xlation.memtype1  = tlbEntry->get_memtype();
+ #endif
+-    access_read_physical(BX_CPU_THIS_PTR address_xlation.paddress1, len, data);
+     BX_NOTIFY_LIN_MEMORY_ACCESS(laddr, BX_CPU_THIS_PTR address_xlation.paddress1, len, tlbEntry->get_memtype(), xlate_rw, (Bit8u*) data);
++    access_read_physical(BX_CPU_THIS_PTR address_xlation.paddress1, len, data);
+ 
+ #if BX_X86_DEBUGGER
+     hwbreakpoint_match(laddr, len, xlate_rw);
+diff '--color=auto' -aur bochs/cpu/proc_ctrl.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/proc_ctrl.cc
+--- bochs/cpu/proc_ctrl.cc	2025-04-04 13:09:59.187176626 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/proc_ctrl.cc	2025-04-01 11:28:10.215448633 +0200
+@@ -612,7 +612,7 @@
+ Bit64u BX_CPU_C::get_TSC(void)
+ {
+   Bit64u tsc = bx_pc_system.time_ticks() + BX_CPU_THIS_PTR tsc_adjust;
+-  return tsc;
++  return 0x441168e0000 + tsc * 100;
+ }
+ 
+ #if BX_SUPPORT_VMX || BX_SUPPORT_SVM
+diff '--color=auto' -aur bochs/cpu/vmcs.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmcs.cc
+--- bochs/cpu/vmcs.cc	2025-04-04 13:09:59.191176672 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmcs.cc	2024-08-27 13:48:02.751578255 +0200
+@@ -107,6 +107,11 @@
+   return true;
+ }
+ 
++unsigned fuzz_get_vmcs_field_offset(Bit32u encoding);
++
++__attribute__((weak)) unsigned fuzz_get_vmcs_field_offset(Bit32u encoding) {
++    return -1;
++}
+ unsigned VMCS_Mapping::vmcs_field_offset(Bit32u encoding) const
+ {
+   if (is_reserved(encoding)) {
+@@ -118,6 +123,10 @@
+     return 0xffffffff;
+   }
+ 
++  unsigned fuzz = fuzz_get_vmcs_field_offset(encoding);
++  if (fuzz)
++      return fuzz;
++
+   unsigned field = VMCS_FIELD(encoding);
+   if (field >= VMX_HIGHEST_VMCS_ENCODING)
+     return 0xffffffff;
+diff '--color=auto' -aur bochs/cpu/vmx.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmx.cc
+--- bochs/cpu/vmx.cc	2025-04-04 13:09:59.192176683 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmx.cc	2024-08-27 13:48:02.751578255 +0200
+@@ -213,7 +213,6 @@
+   }
+ 
+   BX_NOTIFY_PHY_MEMORY_ACCESS(pAddr, 4, MEMTYPE(BX_CPU_THIS_PTR vmcs_memtype), BX_READ, BX_VMCS_ACCESS, (Bit8u*)(&field));
+-
+   return field;
+ }
+ 
+@@ -1870,7 +1869,7 @@
+       }
+       revision &= ~BX_VMCS_SHADOW_BIT_MASK;
+     }
+-    if (revision != BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()) {
++    if (0 && revision != BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()) {
+       *qualification = (Bit64u) VMENTER_ERR_GUEST_STATE_LINK_POINTER;
+       BX_ERROR(("VMFAIL: VMCS link pointer incorrect revision ID %d != %d", revision, BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()));
+       return VMX_VMEXIT_VMENTRY_FAILURE_GUEST_STATE;
+@@ -2699,6 +2698,7 @@
+ 
+ void BX_CPU_C::VMexit(Bit32u reason, Bit64u qualification)
+ {
++  BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_PACK);
+   VMCS_CACHE *vm = &BX_CPU_THIS_PTR vmcs;
+ 
+   if (!BX_CPU_THIS_PTR in_vmx || !BX_CPU_THIS_PTR in_vmx_guest) {
+@@ -2991,8 +2991,16 @@
+   BX_NEXT_TRACE(i);
+ }
+ 
++bool fuzz_hook_vmlaunch();
++__attribute__((weak)) bool fuzz_hook_vmlaunch() {
++    return true;
++}
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::VMLAUNCH(bxInstruction_c *i)
+ {
++    if(fuzz_hook_vmlaunch()) {
++        BX_NEXT_TRACE(i);
++        return;
++    }
+ #if BX_SUPPORT_VMX
+   if (! BX_CPU_THIS_PTR in_vmx || ! protected_mode() || BX_CPU_THIS_PTR cpu_mode == BX_MODE_LONG_COMPAT)
+     exception(BX_UD_EXCEPTION, 0);
+@@ -3174,6 +3182,12 @@
+   BX_NEXT_TRACE(i);
+ }
+ 
++bool fuzz_hook_vmptrld(Bit64u vmcs);
++
++__attribute__((weak)) bool fuzz_hook_vmptrld(Bit64u vmcs) {
++    return false;
++}
++
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::VMPTRLD(bxInstruction_c *i)
+ {
+ #if BX_SUPPORT_VMX
+@@ -3207,7 +3221,7 @@
+     if (BX_SUPPORT_VMX_EXTENSION(BX_VMX_VMCS_SHADOWING))
+       revision &= ~BX_VMCS_SHADOW_BIT_MASK; // allowed to be shadow VMCS
+ 
+-    if (revision != BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()) {
++    if (0 && revision != BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()) {
+        BX_ERROR(("VMPTRLD: not expected (%d != %d) VMCS revision id !", revision, BX_CPU_THIS_PTR vmcs_map->get_vmcs_revision_id()));
+        VMfail(VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
+     }
+@@ -3216,6 +3230,7 @@
+        VMsucceed();
+     }
+   }
++  fuzz_hook_vmptrld(pAddr);
+ #endif
+ 
+   BX_NEXT_INSTR(i);
+@@ -3366,6 +3381,19 @@
+ 
+ #endif
+ 
++bool fuzz_hook_vmread(bxInstruction_c *i);
++
++__attribute__((weak)) bool fuzz_hook_vmread(bxInstruction_c *i) {
++    return false;
++}
++
++bool fuzz_hook_vmwrite(bxInstruction_c *i);
++
++__attribute__((weak)) bool fuzz_hook_vmwrite(bxInstruction_c *i) {
++    return false;
++}
++
++
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::VMREAD_EdGd(bxInstruction_c *i)
+ {
+ #if BX_SUPPORT_VMX
+@@ -3426,6 +3454,7 @@
+ 
+ #if BX_SUPPORT_X86_64
+ 
++
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::VMREAD_EqGq(bxInstruction_c *i)
+ {
+ #if BX_SUPPORT_VMX
+diff '--color=auto' -aur bochs/cpu/vmx.h /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmx.h
+--- bochs/cpu/vmx.h	2025-04-04 13:09:59.192176683 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/vmx.h	2024-08-27 13:48:02.751578255 +0200
+@@ -495,7 +495,8 @@
+ 
+ enum VMCS_Access_Rights_Format {
+    VMCS_AR_ROTATE,
+-   VMCS_AR_PACK		// Intel Skylake packs AR into 16 bit form
++   VMCS_AR_PACK,		// Intel Skylake packs AR into 16 bit form
++   VMCS_AR_OTHER,
+ };
+ 
+ #define VMCS_LAUNCH_STATE_FIELD_ENCODING         (0xfffffffe)
+diff '--color=auto' -aur bochs/cpu/xsave.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/xsave.cc
+--- bochs/cpu/xsave.cc	2025-04-04 13:09:59.192176683 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/xsave.cc	2024-08-27 13:48:02.751578255 +0200
+@@ -232,6 +232,9 @@
+ /* 0F AE /5 */
+ void BX_CPP_AttrRegparmN(1) BX_CPU_C::XRSTOR(bxInstruction_c *i)
+ {
++  BX_NEXT_INSTR(i);
++  return;
++
+ #if BX_CPU_LEVEL >= 6
+   BX_CPU_THIS_PTR prepareXSAVE();
+ 
+@@ -312,6 +315,7 @@
+     }
+   }
+   else {
++      printf("%lx %lx %lx\n", xcr0, xcomp_bv, XSAVEC_COMPACTION_ENABLED);
+     if ((~xcr0 & xcomp_bv & ~XSAVEC_COMPACTION_ENABLED) != 0) {
+       BX_ERROR(("%s: Invalid xcomp_bv state", i->getIaOpcodeNameShort()));
+       exception(BX_GP_EXCEPTION, 0);
+diff '--color=auto' -aur bochs/gdbstub.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/gdbstub.cc
+--- bochs/gdbstub.cc	2025-04-04 13:09:59.194176707 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/gdbstub.cc	2024-08-27 13:48:02.755578311 +0200
+@@ -257,8 +257,10 @@
+   bx_enter_gdbstub = 1;
+ }
+ 
+-int bx_gdbstub_check(unsigned int eip)
++int bx_gdbstub_check(Bit64u eip)
+ {
++  if(!BX_CPU(0)->fuzzdebug_gdb)
++      return 0;
+   unsigned int i;
+   unsigned char ch;
+   int r;
+diff '--color=auto' -aur bochs/instrument/stubs/instrument.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/instrument/stubs/instrument.cc
+--- bochs/instrument/stubs/instrument.cc	2025-04-04 13:09:59.201176787 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/instrument/stubs/instrument.cc	2024-08-27 13:48:02.759578367 +0200
+@@ -21,6 +21,7 @@
+ 
+ 
+ #include "bochs.h"
++#include "cpu/cpu.h"
+ 
+ #if BX_INSTRUMENTATION
+ 
+@@ -60,8 +61,8 @@
+ void bx_instr_inp2(Bit16u addr, unsigned len, unsigned val) {}
+ void bx_instr_outp(Bit16u addr, unsigned len, unsigned val) {}
+ 
+-void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy, unsigned len, unsigned memtype, unsigned rw) {}
+-void bx_instr_phy_access(unsigned cpu,                 bx_address phy, unsigned len, unsigned memtype, unsigned rw) {}
++void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy, unsigned len, unsigned memtype, unsigned rw, void* data) {}
++void bx_instr_phy_access(unsigned cpu,                 bx_address phy, unsigned len, unsigned memtype, unsigned rw, void* data) {}
+ 
+ void bx_instr_wrmsr(unsigned cpu, unsigned addr, Bit64u value) {}
+ 
+diff '--color=auto' -aur bochs/instrument/stubs/instrument.h /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/instrument/stubs/instrument.h
+--- bochs/instrument/stubs/instrument.h	2025-04-04 13:09:59.201176787 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/instrument/stubs/instrument.h	2024-08-27 13:48:02.759578367 +0200
+@@ -64,8 +64,8 @@
+ void bx_instr_inp2(Bit16u addr, unsigned len, unsigned val);
+ void bx_instr_outp(Bit16u addr, unsigned len, unsigned val);
+ 
+-void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy, unsigned len, unsigned memtype, unsigned rw);
+-void bx_instr_phy_access(unsigned cpu, bx_address phy, unsigned len, unsigned memtype, unsigned rw);
++void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy, unsigned len, unsigned memtype, unsigned rw, void* data);
++void bx_instr_phy_access(unsigned cpu, bx_address phy, unsigned len, unsigned memtype, unsigned rw, void* data);
+ 
+ void bx_instr_wrmsr(unsigned cpu, unsigned addr, Bit64u value);
+ 
+@@ -119,10 +119,10 @@
+ #define BX_INSTR_REPEAT_ITERATION(cpu_id, i)  bx_instr_repeat_iteration(cpu_id, i)
+ 
+ /* linear memory access */
+-#define BX_INSTR_LIN_ACCESS(cpu_id, lin, phy, len, memtype, rw)  bx_instr_lin_access(cpu_id, lin, phy, len, memtype, rw)
++#define BX_INSTR_LIN_ACCESS(cpu_id, lin, phy, len, memtype, rw, data)  bx_instr_lin_access(cpu_id, lin, phy, len, memtype, rw, data)
+ 
+ /* physical memory access */
+-#define BX_INSTR_PHY_ACCESS(cpu_id, phy, len, memtype, rw)  bx_instr_phy_access(cpu_id, phy, len, memtype, rw)
++#define BX_INSTR_PHY_ACCESS(cpu_id, phy, len, memtype, rw, data)  bx_instr_phy_access(cpu_id, phy, len, memtype, rw, data)
+ 
+ /* feedback from device units */
+ #define BX_INSTR_INP(addr, len)               bx_instr_inp(addr, len)
+diff '--color=auto' -aur bochs/pc_system.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/pc_system.cc
+--- bochs/pc_system.cc	2025-04-04 13:09:59.217176972 +0200
++++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/pc_system.cc	2025-04-01 11:28:10.215448633 +0200
+@@ -213,10 +213,10 @@
+   // delete all registered timers (exception: null timer and APIC timer)
+   numTimers = 1 + BX_SUPPORT_APIC;
+   bx_devices.exit();
+-  if (bx_gui) {
+-    bx_gui->cleanup();
+-    bx_gui->exit();
+-  }
++  // if (bx_gui) {
++  //   bx_gui->cleanup();
++  //   bx_gui->exit();
++  // }
+ }
+ 
+ void bx_pc_system_c::register_state(void)
