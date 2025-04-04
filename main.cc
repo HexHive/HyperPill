@@ -202,17 +202,22 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 		} else if (in_clock_step == CLOCK_STEP_DONE) {
 			// avoid expected reentrancy
 			callsite = BX_CPU(id)->pop_64() - 5;
+			// printf("Get callsite %lx\n", callsite);
 			if (callsite != anchor) {
 				// printf("unexpected reentrancy\n");
 				BX_CPU(id)->push_64(callsite + 5);
 				return;
 			}
-			// printf("done!!!!\n");
 			if (hack_qtest_allowed) {
 				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
 				bool __qtest_allowed = 0;
 				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
 			}
+			BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, 0);
+			BX_CPU(id)->prev_rip = callsite + 5;
+			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = callsite + 5;
+			BX_CPU(id)->invalidate_prefetch_q();
+			// printf("done!!!!\n");
 			in_clock_step = CLOCK_STEP_NONE;
 		}
 	}

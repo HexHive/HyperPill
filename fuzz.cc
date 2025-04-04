@@ -766,6 +766,10 @@ bool op_clock_step() {
 		return false;
 	}
 	in_clock_step = CLOCK_STEP_GET_DEADLINE;
+	uint32_t step;
+	if (ic_ingest32(&step, 0, -1)) {
+		return false;
+	}
 
 	uint64_t addr = mmio_regions.begin()->first;
 	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
