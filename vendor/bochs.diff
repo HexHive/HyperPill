@@ -339,43 +339,6 @@ diff '--color=auto' -aur bochs/cpu/cpu.h /home/liuqiang/projects/project-hyperso
 +
 +void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
  #endif  // #ifndef BX_CPU_H
-diff '--color=auto' -aur bochs/cpu/ctrl_xfer64.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/ctrl_xfer64.cc
---- bochs/cpu/ctrl_xfer64.cc	2025-04-04 13:09:59.179176533 +0200
-+++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/ctrl_xfer64.cc	2025-04-01 11:28:10.214448620 +0200
-@@ -22,6 +22,7 @@
- #define NEED_CPU_REG_SHORTCUTS 1
- #include "bochs.h"
- #include "cpu.h"
-+#include "memory/memory-bochs.h"
- #define LOG_THIS BX_CPU_THIS_PTR
- 
- #if BX_SUPPORT_X86_64
-@@ -110,7 +111,6 @@
- #endif
- 
-   RSP_SPECULATIVE;
--
-   /* push 64 bit EA of next instruction */
-   push_64(RIP);
- #if BX_SUPPORT_CET
-@@ -253,7 +253,7 @@
- 
- void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNB_Jq(bxInstruction_c *i)
- {
--  if (! get_CF()) {
-+  if (! get_CF() || BX_CPU(0)->prev_rip == 0x55555822a234) { // qtest_enabled
-     branch_near64(i);
-     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
-     BX_LINK_TRACE(i);
-@@ -277,7 +277,7 @@
- 
- void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNZ_Jq(bxInstruction_c *i)
- {
--  if (! get_ZF()) {
-+  if (! get_ZF() ||  BX_CPU(0)->prev_rip == 0x55555822a37b) {
-     branch_near64(i);
-     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
-     BX_LINK_TRACE(i);
 diff '--color=auto' -aur bochs/cpu/debugstuff.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/debugstuff.cc
 --- bochs/cpu/debugstuff.cc	2025-04-04 13:09:59.180176545 +0200
 +++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/debugstuff.cc	2024-08-27 13:48:02.743578144 +0200

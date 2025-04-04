@@ -22,7 +22,6 @@
 #define NEED_CPU_REG_SHORTCUTS 1
 #include "bochs.h"
 #include "cpu.h"
-#include "memory/memory-bochs.h"
 #define LOG_THIS BX_CPU_THIS_PTR
 
 #if BX_SUPPORT_X86_64
@@ -111,6 +110,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_Jq(bxInstruction_c *i)
 #endif
 
   RSP_SPECULATIVE;
+
   /* push 64 bit EA of next instruction */
   push_64(RIP);
 #if BX_SUPPORT_CET
@@ -253,7 +253,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JB_Jq(bxInstruction_c *i)
 
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNB_Jq(bxInstruction_c *i)
 {
-  if (! get_CF() || BX_CPU(0)->prev_rip == 0x55555822a234) { // qtest_enabled
+  if (! get_CF()) {
     branch_near64(i);
     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
     BX_LINK_TRACE(i);
@@ -277,7 +277,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JZ_Jq(bxInstruction_c *i)
 
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNZ_Jq(bxInstruction_c *i)
 {
-  if (! get_ZF() ||  BX_CPU(0)->prev_rip == 0x55555822a37b) {
+  if (! get_ZF()) {
     branch_near64(i);
     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
     BX_LINK_TRACE(i);
