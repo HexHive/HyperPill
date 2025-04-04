@@ -13,8 +13,8 @@ enum cmds {
 	OP_OUT,
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
+	OP_VMCALL,
 	OP_CLOCK_STEP,
-	OP_VMCALL
 };
 
 static bool log_ops = false;
