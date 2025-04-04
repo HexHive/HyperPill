@@ -277,42 +277,6 @@ diff '--color=auto' -aur bochs/cpu/cpu.cc /home/liuqiang/projects/project-hypers
      if (reason != GDBSTUB_STOP_NO_REASON) return(1);
    }
  #endif
-diff '--color=auto' -aur bochs/cpu/cpudb/amd/turion64_tyler.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/amd/turion64_tyler.cc
---- bochs/cpu/cpudb/amd/turion64_tyler.cc	2025-04-04 14:08:27.941488375 +0200
-+++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/amd/turion64_tyler.cc	2025-04-04 13:59:35.328137851 +0200
-@@ -72,7 +72,7 @@
- 
- void turion64_tyler_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
- {
--  static const char* brand_string = "AMD Turion(tm) 64 X2 Mobile Technology TL-60\0\0\0";
-+  static const char* brand_string = "AMD Turion(tm) 64 X2 Mobile Technology TL-60";
- 
-   switch(function) {
-   case 0x80000000:
-diff '--color=auto' -aur bochs/cpu/cpudb/intel/corei7_icelake-u.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/corei7_icelake-u.cc
---- bochs/cpu/cpudb/intel/corei7_icelake-u.cc	2025-04-04 14:08:27.941488375 +0200
-+++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/corei7_icelake-u.cc	2025-04-04 14:00:04.322568782 +0200
-@@ -134,7 +134,7 @@
- 
- void corei7_icelake_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
- {
--  static const char* brand_string = "QuadCore Intel Core i7-1065G7, 1300 MHz\0\0\0\0\0\0\0\0";
-+  static const char* brand_string = "QuadCore Intel Core i7-1065G7, 1300 MHz\0\0\0\0\0\0\0";
- 
-   static bool cpuid_limit_winnt = SIM->get_param_bool(BXPN_CPUID_LIMIT_WINNT)->get();
-   if (cpuid_limit_winnt)
-diff '--color=auto' -aur bochs/cpu/cpudb/intel/tigerlake.cc /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/tigerlake.cc
---- bochs/cpu/cpudb/intel/tigerlake.cc	2025-04-04 14:08:27.941488375 +0200
-+++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpudb/intel/tigerlake.cc	2025-04-04 14:00:15.852738832 +0200
-@@ -138,7 +138,7 @@
- 
- void tigerlake_t::get_cpuid_leaf(Bit32u function, Bit32u subfunction, cpuid_function_t *leaf) const
- {
--  static const char* brand_string = "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz\0";
-+  static const char* brand_string = "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz";
- 
-   static bool cpuid_limit_winnt = SIM->get_param_bool(BXPN_CPUID_LIMIT_WINNT)->get();
-   if (cpuid_limit_winnt)
 diff '--color=auto' -aur bochs/cpu/cpu.h /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.h
 --- bochs/cpu/cpu.h	2025-04-04 13:09:59.175176487 +0200
 +++ /home/liuqiang/projects/project-hypersok/hyperpill/HyperPill/vendor/bochs/cpu/cpu.h	2024-08-27 13:48:02.743578144 +0200
