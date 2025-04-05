@@ -130,8 +130,7 @@ void fuzz_hook_exception(unsigned vector, unsigned error_code) {
 }
 
 void fuzz_hook_hlt() {
-	printf("hlt hit\n");
-	fuzz_emu_stop_unhealthy();
+	fuzz_emu_stop_crash("hlt\n");
 	return;
 }
 
