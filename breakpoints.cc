@@ -109,27 +109,15 @@ void apply_breakpoints_linux() {
             i->modRMForm.Iw[1] = 0;
             BX_CPU(id)->async_event = 1;
             });
-    add_breakpoint(sym_to_addr("vmm", "_bt"), [](bxInstruction_c *i) {
-            fuzz_emu_stop_crash("vmm: _bt");
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::DescribeThread"), [](bxInstruction_c *i) {
+            fuzz_emu_stop_crash("ASAN describe thread");
             });
-    add_breakpoint(sym_to_addr("vmm", "_bt"), [](bxInstruction_c *i) {
-            fuzz_emu_stop_crash("vmm: _bt");
-            });
-    add_breakpoint(sym_to_addr("vmm", "prepare_to_die_finalize"), [](bxInstruction_c *i) {
-            fuzz_emu_stop_crash("vmm: prepare_to_die_finalize");
-            });
-    add_breakpoint(sym_to_addr("vmm", "__asan::DescribeThread"), [](bxInstruction_c *i) {
-            fuzz_emu_stop_crash("asan describe thread");
-            });
-    add_breakpoint(0x6efda0, [](bxInstruction_c *i) {
-            dump_regs();
-            });
-    add_breakpoint(sym_to_addr("vmm", "__asan::ReportGenericError"), [](bxInstruction_c *i) {
-            printf("ASAN GENERIC ERROR\n");
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::ReportGenericError"), [](bxInstruction_c *i) {
+            printf("ASAN generic error\n");
             fuzz_stacktrace();
             });
-    add_breakpoint(sym_to_addr("vmm", "__asan::AsanOnDeadlySignal"), [](bxInstruction_c *i) {
-            printf("ASAN Deadly Signal\n");
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::AsanOnDeadlySignal"), [](bxInstruction_c *i) {
+            printf("ASAN deadly signal\n");
             fuzz_stacktrace();
             });
     add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
@@ -160,6 +148,10 @@ void apply_breakpoints_linux() {
             i->modRMForm.Iw[1] = 0;
             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
             BX_CPU(id)->async_event = 1;
+    });
+    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
+            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
+            print_stacktrace();
     });
 }
 
