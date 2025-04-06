@@ -1,0 +1,2076 @@
+Common subdirectories: fuzzer/afl and /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/afl
+diff '--color=auto' -au fuzzer/build.sh /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/build.sh
+--- fuzzer/build.sh	2025-04-06 11:42:56.122498509 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/build.sh	2025-03-23 14:05:57.385468892 +0100
+@@ -2,7 +2,7 @@
+ LIBFUZZER_SRC_DIR=$(dirname $0)
+ CXX="${CXX:-clang}"
+ for f in $LIBFUZZER_SRC_DIR/*.cpp; do
+-  $CXX -g -O2 -fno-omit-frame-pointer -std=c++11 $f -c &
++  $CXX -g -O2 -fno-omit-frame-pointer -std=c++11 -fPIE $f -c &
+ done
+ wait
+ rm -f libFuzzer.a
+diff '--color=auto' -au fuzzer/CMakeLists.txt /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/CMakeLists.txt
+--- fuzzer/CMakeLists.txt	2025-04-06 11:38:59.415608234 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/CMakeLists.txt	2025-03-23 14:05:57.381468982 +0100
+@@ -66,7 +66,6 @@
+   append_list_if(COMPILER_RT_HAS_NOSTDINCXX_FLAG -nostdinc++ LIBFUZZER_CFLAGS)
+ elseif(TARGET cxx-headers OR HAVE_LIBCXX)
+   # libFuzzer uses C++ standard library headers.
+-  list(APPEND LIBFUZZER_CFLAGS ${COMPILER_RT_CXX_CFLAGS})
+   set(LIBFUZZER_DEPS cxx-headers)
+ endif()
+ 
+@@ -139,15 +138,15 @@
+    COMPILER_RT_LIBCXX_PATH AND
+    COMPILER_RT_LIBCXXABI_PATH)
+   macro(partially_link_libcxx name dir arch)
+-    get_target_flags_for_arch(${arch} target_cflags)
+-    if(CMAKE_CXX_COMPILER_ID MATCHES Clang)
+-      get_compiler_rt_target(${arch} target)
+-      set(target_cflags --target=${target} ${target_cflags})
++    if(${arch} MATCHES "i386")
++      set(EMULATION_ARGUMENT "-m" "elf_i386")
++    else()
++      set(EMULATION_ARGUMENT "")
+     endif()
+     set(cxx_${arch}_merge_dir "${CMAKE_CURRENT_BINARY_DIR}/cxx_${arch}_merge.dir")
+     file(MAKE_DIRECTORY ${cxx_${arch}_merge_dir})
+     add_custom_command(TARGET clang_rt.${name}-${arch} POST_BUILD
+-      COMMAND ${CMAKE_CXX_COMPILER} ${target_cflags} -Wl,--whole-archive "$<TARGET_LINKER_FILE:clang_rt.${name}-${arch}>" -Wl,--no-whole-archive ${dir}/lib/libc++.a -r -o ${name}.o
++      COMMAND ${CMAKE_LINKER} ${EMULATION_ARGUMENT} --whole-archive "$<TARGET_LINKER_FILE:clang_rt.${name}-${arch}>" --no-whole-archive ${dir}/lib/libc++.a -r -o ${name}.o
+       COMMAND ${CMAKE_OBJCOPY} --localize-hidden ${name}.o
+       COMMAND ${CMAKE_COMMAND} -E remove "$<TARGET_LINKER_FILE:clang_rt.${name}-${arch}>"
+       COMMAND ${CMAKE_AR} qcs "$<TARGET_LINKER_FILE:clang_rt.${name}-${arch}>" ${name}.o
+Common subdirectories: fuzzer/dataflow and /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/dataflow
+diff '--color=auto' -au fuzzer/FuzzerCorpus.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerCorpus.h
+--- fuzzer/FuzzerCorpus.h	2025-04-06 11:47:03.874335696 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerCorpus.h	2025-03-23 14:05:57.382468960 +0100
+@@ -15,15 +15,58 @@
+ #include "FuzzerDefs.h"
+ #include "FuzzerIO.h"
+ #include "FuzzerRandom.h"
++#include "FuzzerUtil.h"
+ #include "FuzzerSHA1.h"
+ #include "FuzzerTracePC.h"
++#include "FuzzerInternal.h"
+ #include <algorithm>
+ #include <chrono>
+ #include <numeric>
+ #include <random>
+ #include <unordered_set>
++#include <map>
+ 
+ namespace fuzzer {
++  
++template <typename T, typename Pred = std::less<T>>
++    struct ptr_compare : Pred
++{
++    ptr_compare(Pred const & p = Pred()) : Pred(p) { }
++
++    bool operator()(T const p1, T const p2) const
++    {
++        return Pred::operator()(p1, p2);
++    }
++};
++
++struct Syscall {
++    InputInfo* II; // What input contains me?
++    uint64_t id;
++    size_t start;
++    size_t len;
++    uint32_t runtime;
++    bool success;
++    uint32_t n_copy_from_user;
++    bool const operator<(const Syscall &b) const {
++        return (this->len < b.len);
++    }
++};
++
++struct Op {
++  InputInfo* II;
++  uint8_t op;
++  uint32_t start;
++  uint32_t len;
++  uint32_t dma_start;
++  uint32_t dma_len;
++};
++
++struct HotPos {
++    uint8_t size;
++    uint16_t pos;
++    uint64_t hint;
++    uint64_t pc;
++};
+ 
+ struct InputInfo {
+   Unit U;  // The actual input data.
+@@ -47,6 +90,10 @@
+   double SumIncidence = 0.0;
+   std::vector<std::pair<uint32_t, uint16_t>> FeatureFreqs;
+ 
++  std::vector<struct HotPos> HotSpots;
++  std::vector<std::shared_ptr<Syscall>> InputSyscalls;
++  std::vector<Op> InputOps;
++
+   // Delete feature Idx and its frequency from FeatureFreqs.
+   bool DeleteFeatureFreq(uint32_t Idx) {
+     if (FeatureFreqs.empty())
+@@ -72,7 +119,9 @@
+   // average execution time of inputs. The faster an input executes, the more
+   // energy gets assigned to the input.
+   void UpdateEnergy(size_t GlobalNumberOfFeatures, bool ScalePerExecTime,
+-                    std::chrono::microseconds AverageUnitExecutionTime) {
++                    std::chrono::microseconds AverageUnitExecutionTime,
++  std::unordered_map<uint64_t, std::multiset<std::shared_ptr<Syscall>, ptr_compare<std::shared_ptr<Syscall>>>> SyscallCorpus,
++  std::unordered_map<uint64_t, std::tuple<uint64_t, uint64_t>> SyscallSuccesses) {
+     Energy = 0.0;
+     SumIncidence = 0.0;
+ 
+@@ -97,11 +146,28 @@
+     if (SumIncidence != 0)
+       Energy = Energy / SumIncidence + log(SumIncidence);
+ 
++
++    // If the input has non-successful syscalls, scale the energy by the length of the syscall
++    /* uint64_t BarrierSyscallCoef = 25; */
++    /* for (auto sc: InputSyscalls) { */
++    /*     if(SyscallSuccesses.find(sc->id) != SyscallSuccesses.end()) { */
++    /*         if(std::get<0>(SyscallSuccesses[sc->id]) == 0) { */
++    /*             auto &SimilarSCs = SyscallCorpus[sc->id]; */
++    /*             auto it = SimilarSCs.find(sc); */
++    /*             assert(it != SimilarSCs.end()); */
++    /*             size_t dist = std::distance(SimilarSCs.begin(), it); */
++    /*             BarrierSyscallCoef = 100 + 100 * (1.0 - (float)dist/(float)SimilarSCs.size()); */
++    /*             break; */
++    /*         } */
++    /*     } */
++    /* } */
++
++    /* Energy *= BarrierSyscallCoef; */
+     if (ScalePerExecTime) {
+       // Scaling to favor inputs with lower execution time.
+       uint32_t PerfScore = 100;
+       if (TimeOfUnit.count() > AverageUnitExecutionTime.count() * 10)
+-        PerfScore = 10;
++        PerfScore = 1;
+       else if (TimeOfUnit.count() > AverageUnitExecutionTime.count() * 4)
+         PerfScore = 25;
+       else if (TimeOfUnit.count() > AverageUnitExecutionTime.count() * 2)
+@@ -206,11 +272,126 @@
+ 
+   bool empty() const { return Inputs.empty(); }
+   const Unit &operator[] (size_t Idx) const { return Inputs[Idx]->U; }
++
++  std::map<std::tuple<uintptr_t, uint64_t>, size_t> hinted_pcs;
++  std::map<uintptr_t, size_t> cmp_pc_counts;
++
++  std::shared_ptr<Syscall>  FindSimilarSyscall(const std::shared_ptr<Syscall> &sc, Random &Rand) {
++      // Requested to mutate an unsimilar system-call
++      if(SyscallCorpus.find(sc->id) == SyscallCorpus.end()) {
++          return nullptr;
++      }
++      auto &SimilarSCs = SyscallCorpus[sc->id];
++      if(SimilarSCs.size() < 2)
++          return nullptr;
++      auto it = SimilarSCs.find(sc);
++      assert(it != SimilarSCs.end());
++      size_t center = std::distance(SimilarSCs.begin(), it);
++      int multiplier = 0;
++      size_t range;
++      auto ret_iter = SimilarSCs.begin();
++      for(int i = 0; i<10; i++){
++          ret_iter = SimilarSCs.begin();
++          if(Rand(2) || center == 0) {
++              multiplier = 1;
++              range = SimilarSCs.size() - center - 1;
++          } else {
++              multiplier = -1;
++              range = center;
++          }
++          if(range == 0)
++              continue;
++          int choice = center + multiplier * (range - biased_rand(range, 5, Rand));
++          std::advance(ret_iter, choice);
++          if(*ret_iter && sc->n_copy_from_user == (*ret_iter)->n_copy_from_user)
++              break;
++      }
++      return *ret_iter;
++  }
++  uintptr_t AddHotCmps(InputInfo *II, const Unit &U){
++      std::set<uint64_t> hints;
++      for(int i=0; i < TPC.cmplog_size; i++){
++          auto &cmp = TPC.cmplog[i];
++          //Printf("Doing: %lx %lx vs %lx\n", i, cmp.val1, cmp.val2);
++          uint64_t found_val, hint_val;
++          uint16_t found_pos;
++          uint8_t val_size = cmp.size;
++          int count = 0;
++          if(cmp_pc_counts[cmp.pc] > 50)
++              continue;
++          for (int reversed=0 ; reversed<2 && (!count); reversed++) {
++              uint64_t Arg1 = cmp.val1, Arg2 = cmp.val2;
++
++              // try to reverse the arguments as well
++              // TODO: This doesn't seem to work
++              if(reversed){
++                  Arg1 = Bswap(Arg1) >> (64 - val_size*8);
++                  Arg2 = Bswap(Arg2) >> (64 - val_size*8);
++              }
++
++              // Check of argument could fit into a smaller datatype
++              if ((Arg1 | Arg2) <= UINT8_MAX) {
++                  val_size = 1;
++              }
++              else if ((Arg1 | Arg2) <= UINT16_MAX)
++                  val_size = 2;
++              else if ((Arg1 | Arg2) <= UINT32_MAX)
++                  val_size = 4;
++            if(val_size < 4)
++                continue;
++              // Scan the inputs for the arguments
++              for(int j = 0; j < 2; j++) {
++                  uint64_t val = j == 0 ? Arg1 : Arg2;
++                  uint64_t otherval = j == 0 ? Arg2 : Arg1;
++
++                  if(__builtin_popcountll(val) < 2){
++                      continue;
++                  }
++                  std::vector<uint8_t> pattern = {};
++                  for (int jj = 0; jj < val_size ; jj++) {
++                      pattern.push_back((val >> (8*jj)) & 0xFF);
++                  }
++                  auto search = hinted_pcs.find(std::make_tuple(cmp.pc, otherval));
++                  if(search != hinted_pcs.end() && search->second <= U.size())
++                      continue;
++                  if(hints.find(otherval) != hints.end())
++                      continue;
++                  auto start = U.begin();
++                  while ((start = std::search(start, U.end(),
++                                  pattern.begin(), pattern.end())) != U.end()) {
++                      count +=1;
++                      found_pos = std::distance(U.begin(), start);
++                      found_val = j == 0 ? Arg1: Arg2;
++                      hint_val = j == 0 ? Arg2: Arg1;
++                      printf("%lx Found %lx at %lx Size is %lx\n", count, found_val, found_pos, val_size);
++                      if(count > 1)
++                          break;
++                      start++;
++                  }
++              }
++              if(count == 1){
++                  if(II){
++                      II->HotSpots.push_back({val_size, found_pos, hint_val, cmp.pc});
++                      Printf("Hotspot Pos %d\tHint: %lx (vs %lx)\tPC: %lx\n",
++                              found_pos, hint_val, found_val, cmp.pc);
++                      cmp_pc_counts[cmp.pc]++;
++                      hinted_pcs[std::make_tuple(cmp.pc, hint_val)] = U.size();
++                      hints.insert(hint_val);
++                  } else {
++                      return cmp.pc ^ found_val;
++                  }
++              }
++          }
++      }
++      return 0;
++  }
++
+   InputInfo *AddToCorpus(const Unit &U, size_t NumFeatures, bool MayDeleteFile,
+                          bool HasFocusFunction, bool NeverReduce,
+                          std::chrono::microseconds TimeOfUnit,
+                          const std::vector<uint32_t> &FeatureSet,
+-                         const DataFlowTrace &DFT, const InputInfo *BaseII) {
++                         const DataFlowTrace &DFT, const InputInfo *BaseII,
++                         struct syscall_log* sc_log, struct op_log* op_log) {
+     assert(!U.empty());
+     if (FeatureDebug)
+       Printf("ADD_TO_CORPUS %zd NF %zd\n", Inputs.size(), NumFeatures);
+@@ -233,6 +414,11 @@
+     ComputeSHA1(U.data(), U.size(), II.Sha1);
+     auto Sha1Str = Sha1ToString(II.Sha1);
+     Hashes.insert(Sha1Str);
++
++    AddHotCmps(&II, U);
++    UpdateOpLog(&II, op_log);
++
++
+     if (HasFocusFunction)
+       if (auto V = DFT.Get(Sha1Str))
+         II.DataFlowTraceForFocusFunction = *V;
+@@ -284,13 +470,95 @@
+     }
+   }
+ 
++  void UpdateSyscallLog(InputInfo *II, struct syscall_log* log) {
++      II->InputSyscalls.clear();
++      if(!log)
++          return;
++      for(int i=0; i<log->len; i++){
++          auto elt = std::make_shared<Syscall>(Syscall {
++                  II,
++                  log->data[i].id,
++                  log->data[i].start,
++                  log->data[i].len,
++                  log->data[i].runtime,
++                  log->data[i].success == 1,
++                  log->data[i].n_copy_from_user,
++                  });
++          II->InputSyscalls.push_back(elt);
++          SyscallCorpus[elt->id].insert(elt);
++      }
++      int i =0;
++      for (auto &sc: II->InputSyscalls) {
++          Printf("SC[%d] {id: %lx (%d in corpus), pos: %d - %d, time: %d, success: %lx, cfus: %d}\n",
++                  i++,
++                  sc->id,
++                  SyscallCorpus[sc->id].size(),
++                  sc->start,
++                  sc->start + sc->len,
++                  sc->runtime,
++                  sc->success == 1,
++                  sc->n_copy_from_user
++                );
++      }
++      //std::set<Syscall> s(II->InputSyscalls.begin(), II->InputSyscalls.end());
++      for (auto &sc: II->InputSyscalls) {
++          if(SyscallSuccesses.find(sc->id) == SyscallSuccesses.end()){
++              SyscallSuccesses[sc->id] = std::make_tuple(0, 0);
++          }
++          if(sc->success && std::get<0>(SyscallSuccesses[sc->id]) == 0) {
++              for (auto &sc: SyscallCorpus[sc->id]) {
++                  sc->II->NeedsEnergyUpdate = true;
++              }
++          }
++          std::get<0>(SyscallSuccesses[sc->id]) += sc->success;
++          std::get<1>(SyscallSuccesses[sc->id]) += 1;
++      }
++  }
++  
++  void UpdateOpLog(InputInfo* II, struct op_log* log) {
++      II->InputOps.clear();
++      if(!log)
++          return;
++
++      for (int i = 0; i < log->len; ++i) {
++          II->InputOps.push_back(Op {
++              II, log->data[i].op, log->data[i].start, log->data[i].len, log->data[i].dma_start, log->data[i].dma_len
++          });
++      }
++      
++      int i = 0;
++      for (auto& op: II->InputOps) {
++          Printf("  OPLOG[%d] {op: %lx, pos: %u - %u, dma: %u - %u}\n",
++                  i++,
++                  op.op,
++                  op.start,
++                  op.start + op.len,
++                  op.dma_start,
++                  op.dma_start + op.dma_len
++                );
++      }
++  }
++
+   void Replace(InputInfo *II, const Unit &U,
+-               std::chrono::microseconds TimeOfUnit) {
++               std::chrono::microseconds TimeOfUnit,
++               struct syscall_log* sc_log, struct op_log* op_log) {
+     assert(II->U.size() > U.size());
+     Hashes.erase(Sha1ToString(II->Sha1));
+     DeleteFile(*II);
+     ComputeSHA1(U.data(), U.size(), II->Sha1);
+     Hashes.insert(Sha1ToString(II->Sha1));
++
++    
++    // Remove Syscall pointers from helper lists
++    for (auto sc: II->InputSyscalls) {
++        if(SyscallCorpus.find(sc->id) != SyscallCorpus.end()) {
++            SyscallCorpus[sc->id].erase(sc);
++        }
++    }
++    II->InputSyscalls.clear();
++    UpdateSyscallLog(II, sc_log);
++    UpdateOpLog(II, op_log);
++
+     II->U = U;
+     II->Reduced = true;
+     II->TimeOfUnit = TimeOfUnit;
+@@ -352,11 +620,20 @@
+   void DeleteInput(size_t Idx) {
+     InputInfo &II = *Inputs[Idx];
+     DeleteFile(II);
++      
++    // Remove Syscall pointers from helper lists
++    for (auto sc: II.InputSyscalls) {
++        if(SyscallCorpus.find(sc->id) != SyscallCorpus.end()) {
++            SyscallCorpus[sc->id].erase(sc);
++        }
++    }
++    II.InputSyscalls.clear();
++    
+     Unit().swap(II.U);
+     II.Energy = 0.0;
+     II.NeedsEnergyUpdate = false;
+     DistributionNeedsUpdate = true;
+-    if (FeatureDebug)
++    if(FeatureDebug)
+       Printf("EVICTED %zd\n", Idx);
+   }
+ 
+@@ -520,7 +797,7 @@
+         if (II->NeedsEnergyUpdate && II->Energy != 0.0) {
+           II->NeedsEnergyUpdate = false;
+           II->UpdateEnergy(RareFeatures.size(), Entropic.ScalePerExecTime,
+-                           AverageUnitExecutionTime);
++                           AverageUnitExecutionTime, SyscallCorpus, SyscallSuccesses);
+         }
+       }
+ 
+@@ -583,6 +860,12 @@
+   std::vector<uint32_t> RareFeatures;
+ 
+   std::string OutputCorpus;
++
++public:
++
++  std::unordered_map<uint64_t, std::multiset<std::shared_ptr<Syscall>, ptr_compare<std::shared_ptr<Syscall>>>> SyscallCorpus;
++  // 0: Number of Syscall Successes. 1: Total Number of Syscalls
++  std::unordered_map<uint64_t, std::tuple<uint64_t, uint64_t>> SyscallSuccesses;
+ };
+ 
+ }  // namespace fuzzer
+diff '--color=auto' -au fuzzer/FuzzerDriver.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerDriver.cpp
+--- fuzzer/FuzzerDriver.cpp	2025-04-06 11:47:03.875335691 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerDriver.cpp	2025-03-23 14:05:57.382468960 +0100
+@@ -328,6 +328,21 @@
+   } else {
+     F->TryDetectingAMemoryLeak(U.data(), U.size(), true);
+   }
++  if (F->SyscallLog) {
++      Printf("SyscalLLog: %lx\n", F->SyscallLog->len);
++      for(int i = 0 ; i < F->SyscallLog->len; i++) {
++          Printf("SC[%d] {id: %lx, pos: %d - %d, time: %d, success: %lx, cfus: %d}\n",
++                  i,
++                  F->SyscallLog->data[i].id,
++                  F->SyscallLog->data[i].start,
++                  F->SyscallLog->data[i].start + F->SyscallLog->data[i].len,
++                  F->SyscallLog->data[i].runtime,
++                  F->SyscallLog->data[i].success == 1,
++                  F->SyscallLog->data[i].n_copy_from_user
++                );
++      }
++      Printf("\n");
++  }
+   return 0;
+ }
+ 
+@@ -548,7 +563,7 @@
+     // Get coverage for the testcase without modifications.
+     F->ExecuteCallback(C.data(), C.size());
+     InitialFeatures.clear();
+-    TPC.CollectFeatures([&](size_t Feature) {
++    TPC.CollectFeatures([&](size_t Feature, bool value_profile) {
+       InitialFeatures.push_back(Feature);
+     });
+ 
+@@ -574,7 +589,7 @@
+       // Get coverage for testcase with masked occurrences of dictionary unit.
+       F->ExecuteCallback(Data.data(), Data.size());
+       ModifiedFeatures.clear();
+-      TPC.CollectFeatures([&](size_t Feature) {
++      TPC.CollectFeatures([&](size_t Feature, bool value_profile) {
+         ModifiedFeatures.push_back(Feature);
+       });
+ 
+@@ -911,6 +926,10 @@
+   auto CorporaFiles = ReadCorpora(*Inputs, ParseSeedInuts(Flags.seed_inputs));
+   F->Loop(CorporaFiles);
+ 
++  for (auto &sc: Corpus->SyscallCorpus) {
++      Printf("Syscall %lx: %lx samples\n", sc.first, sc.second.size());
++  }
++
+   if (Flags.verbosity)
+     Printf("Done %zd runs in %zd second(s)\n", F->getTotalNumberOfRuns(),
+            F->secondsSinceProcessStartUp());
+diff '--color=auto' -au fuzzer/FuzzerInternal.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerInternal.h
+--- fuzzer/FuzzerInternal.h	2025-04-06 11:47:03.875335691 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerInternal.h	2025-03-23 14:05:57.383468937 +0100
+@@ -29,6 +29,34 @@
+ 
+ using namespace std::chrono;
+ 
++
++typedef struct __attribute__((packed)){
++    uint64_t id;
++    uint16_t start;
++    uint16_t len;
++    uint32_t runtime;
++    uint32_t success;
++    uint32_t n_copy_from_user; // Number of copy_from_user patterns
++} log_entry;
++
++struct syscall_log{
++    size_t len;
++    log_entry data[];
++};
++
++typedef struct __attribute__((packed)){
++    uint8_t op;
++    uint32_t start;
++    uint32_t len;
++    uint32_t dma_start;
++    uint32_t dma_len;
++} op_log_entry;
++
++struct op_log{
++    size_t len;
++    op_log_entry data[];
++};
++
+ class Fuzzer {
+ public:
+ 
+@@ -65,10 +93,7 @@
+   static void StaticFileSizeExceedCallback();
+   static void StaticGracefulExitCallback();
+ 
+-  // Executes the target callback on {Data, Size} once.
+-  // Returns false if the input was rejected by the target (target returned -1),
+-  // and true otherwise.
+-  bool ExecuteCallback(const uint8_t *Data, size_t Size);
++  void ExecuteCallback(const uint8_t *Data, size_t Size);
+   bool RunOne(const uint8_t *Data, size_t Size, bool MayDeleteFile = false,
+               InputInfo *II = nullptr, bool ForceAddToCorpus = false,
+               bool *FoundUniqFeatures = nullptr);
+@@ -91,9 +116,16 @@
+ 
+   void HandleMalloc(size_t Size);
+   static void MaybeExitGracefully();
+-  static int InterruptExitCode();
+   std::string WriteToOutputCorpus(const Unit &U);
+ 
++  void OverwriteUnitData(uint8_t *data, size_t size);
++  void SetSyscallLog(struct syscall_log *log);
++  struct syscall_log *SyscallLog = nullptr;
++  void SetOpLog(struct op_log *log);
++  struct op_log *OpLog = nullptr;
++  
++  InputCorpus &Corpus;
++
+ private:
+   void AlarmCallback();
+   void CrashCallback();
+@@ -117,6 +149,11 @@
+   void AllocateCurrentUnitData();
+   uint8_t *CurrentUnitData = nullptr;
+   std::atomic<size_t> CurrentUnitSize;
++
++  std::atomic<size_t> ModifiedCurrentUnitSize;
++  uint8_t *ModifiedCurrentUnitData = nullptr;
++  
++
+   uint8_t BaseSha1[kSHA1NumBytes];  // Checksum of the base unit.
+ 
+   bool GracefulExitRequested = false;
+@@ -132,7 +169,6 @@
+   system_clock::time_point LastAllocatorPurgeAttemptTime = system_clock::now();
+ 
+   UserCallback CB;
+-  InputCorpus &Corpus;
+   MutationDispatcher &MD;
+   FuzzingOptions Options;
+   DataFlowTrace DFT;
+diff '--color=auto' -au fuzzer/FuzzerLoop.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerLoop.cpp
+--- fuzzer/FuzzerLoop.cpp	2025-04-06 11:47:03.875335691 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerLoop.cpp	2025-03-23 14:05:57.383468937 +0100
+@@ -20,6 +20,9 @@
+ #include <memory>
+ #include <mutex>
+ #include <set>
++#include <map>
++#include <unistd.h>
++#include <x86intrin.h>
+ 
+ #if defined(__has_include)
+ #if __has_include(<sanitizer / lsan_interface.h>)
+@@ -36,6 +39,8 @@
+ #endif
+ 
+ namespace fuzzer {
++std::map <uintptr_t, int> cmplog_counts;
++
+ static const size_t kMaxUnitSizeToPrint = 256;
+ 
+ thread_local bool Fuzzer::IsMyThread;
+@@ -43,7 +48,7 @@
+ bool RunningUserCallback = false;
+ 
+ // Only one Fuzzer per process.
+-static Fuzzer *F;
++Fuzzer *F;
+ 
+ // Leak detection is expensive, so we first check if there were more mallocs
+ // than frees (using the sanitizer malloc hooks) and only then try to call lsan.
+@@ -158,6 +163,8 @@
+   AllocateCurrentUnitData();
+   CurrentUnitSize = 0;
+   memset(BaseSha1, 0, sizeof(BaseSha1));
++
++  OpLog = (struct op_log*) malloc(4096);
+ }
+ 
+ Fuzzer::~Fuzzer() {}
+@@ -166,6 +173,7 @@
+   if (CurrentUnitData || MaxInputLen == 0)
+     return;
+   CurrentUnitData = new uint8_t[MaxInputLen];
++  ModifiedCurrentUnitData = new uint8_t[MaxInputLen]; 
+ }
+ 
+ void Fuzzer::StaticDeathCallback() {
+@@ -262,11 +270,6 @@
+   _Exit(0);
+ }
+ 
+-int Fuzzer::InterruptExitCode() {
+-  assert(F);
+-  return F->Options.InterruptExitCode;
+-}
+-
+ void Fuzzer::InterruptCallback() {
+   Printf("==%lu== libFuzzer: run interrupted; exiting\n", GetPid());
+   PrintFinalStats();
+@@ -420,6 +423,8 @@
+     return;
+   std::vector<Unit> AdditionalCorpus;
+   std::vector<std::string> AdditionalCorpusPaths;
++  uint64_t TscBefore, TscAfterLs, TscAfterExec;
++  TscBefore = __rdtsc();
+   ReadDirToVectorOfUnits(
+       Options.OutputCorpus.c_str(), &AdditionalCorpus,
+       &EpochOfLastReadOfOutputCorpus, MaxSize,
+@@ -428,6 +433,7 @@
+   if (Options.Verbosity >= 2)
+     Printf("Reload: read %zd new units.\n", AdditionalCorpus.size());
+   bool Reloaded = false;
++  TscAfterLs = __rdtsc();
+   for (size_t i = 0; i != AdditionalCorpus.size(); ++i) {
+     auto &U = AdditionalCorpus[i];
+     if (U.size() > MaxSize)
+@@ -441,8 +447,10 @@
+       }
+     }
+   }
+-  if (Reloaded)
++  TscAfterExec = __rdtsc();
++  if (Reloaded){
+     PrintStats("RELOAD");
++  }
+ }
+ 
+ void Fuzzer::PrintPulseAndReportSlowInput(const uint8_t *Data, size_t Size) {
+@@ -516,15 +524,35 @@
+   // Largest input length should be INT_MAX.
+   assert(Size < std::numeric_limits<uint32_t>::max());
+ 
+-  if(!ExecuteCallback(Data, Size)) return false;
++  ModifiedCurrentUnitSize = 0;
++
++  ExecuteCallback(Data, Size);
++
++  if(ModifiedCurrentUnitSize) {
++      Data = ModifiedCurrentUnitData;
++      Size = ModifiedCurrentUnitSize;
++  } else {
++      return false;
++  }
++  if(!Data || !Size)
++      return false;
++
+   auto TimeOfUnit = duration_cast<microseconds>(UnitStopTime - UnitStartTime);
+ 
+   UniqFeatureSetTmp.clear();
+   size_t FoundUniqFeaturesOfII = 0;
+   size_t NumUpdatesBefore = Corpus.NumFeatureUpdates();
+-  TPC.CollectFeatures([&](uint32_t Feature) {
+-    if (Corpus.AddFeature(Feature, static_cast<uint32_t>(Size), Options.Shrink))
++
++  int new_value = 0;
++  int new_cov = 0;
++  TPC.CollectFeatures([&](uint32_t Feature, bool VP) {
++    if (Corpus.AddFeature(Feature, static_cast<uint32_t>(Size), Options.Shrink)){
+       UniqFeatureSetTmp.push_back(Feature);
++      if(VP)
++        new_value = 1;
++      else
++        new_cov = 1;
++    }
+     if (Options.Entropic)
+       Corpus.UpdateFeatureFrequency(II, Feature);
+     if (Options.ReduceInputs && II && !II->NeverReduce)
+@@ -532,6 +560,16 @@
+                              II->UniqFeatureSet.end(), Feature))
+         FoundUniqFeaturesOfII++;
+   });
++
++
++  uintptr_t uniq_cmp_pc = Corpus.AddHotCmps(NULL, {Data, Data + Size});
++  if(uniq_cmp_pc){
++    if (Corpus.AddFeature(uniq_cmp_pc ^ 0xF2A3EDF, static_cast<uint32_t>(Size), false))
++      UniqFeatureSetTmp.push_back(uniq_cmp_pc ^ 0xF2A3EDF);
++    if (Options.Entropic)
++      Corpus.UpdateFeatureFrequency(II, uniq_cmp_pc ^ 0xF2A3EDF);
++  }
++
+   if (FoundUniqFeatures)
+     *FoundUniqFeatures = FoundUniqFeaturesOfII;
+   PrintPulseAndReportSlowInput(Data, Size);
+@@ -541,11 +579,20 @@
+     auto NewII =
+         Corpus.AddToCorpus({Data, Data + Size}, NumNewFeatures, MayDeleteFile,
+                            TPC.ObservedFocusFunction(), ForceAddToCorpus,
+-                           TimeOfUnit, UniqFeatureSetTmp, DFT, II);
++                           TimeOfUnit, UniqFeatureSetTmp, DFT, II, SyscallLog, OpLog);
++    if((new_value || new_cov)
++            && MD.MutationSequenceSize() == 1
++            && MD.LastChangedIdx) {
++        if(II)
++            II->HotSpots.push_back({1, MD.LastChangedIdx, 0, 0});
++        NewII->HotSpots.push_back({1, MD.LastChangedIdx, 0, 0});
++        Printf("Found Probable Hotspot at %d\n", MD.LastChangedIdx);
++    }
+     WriteFeatureSetToFile(Options.FeaturesDir, Sha1ToString(NewII->Sha1),
+                           NewII->UniqFeatureSet);
+     WriteEdgeToMutationGraphFile(Options.MutationGraphFile, NewII, II,
+                                  MD.MutationSequence());
++    //Printf("Add Input New Cov: %d New Value: %d Uniq_CMP_PC %d\n", new_cov, new_value, uniq_cmp_pc);
+     return true;
+   }
+   if (II && FoundUniqFeaturesOfII &&
+@@ -553,9 +600,10 @@
+       FoundUniqFeaturesOfII == II->UniqFeatureSet.size() &&
+       II->U.size() > Size) {
+     auto OldFeaturesFile = Sha1ToString(II->Sha1);
+-    Corpus.Replace(II, {Data, Data + Size}, TimeOfUnit);
++    Corpus.Replace(II, {Data, Data + Size}, TimeOfUnit, SyscallLog, OpLog);
+     RenameFeatureSetFile(Options.FeaturesDir, OldFeaturesFile,
+                          Sha1ToString(II->Sha1));
++    //Printf("Add Input New Cov: %d New Value: %d Uniq_CMP_PC %d\n", new_cov, new_value, uniq_cmp_pc);
+     return true;
+   }
+   return false;
+@@ -591,8 +639,9 @@
+ 
+ // This method is not inlined because it would cause a test to fail where it
+ // is part of the stack unwinding. See D97975 for details.
+-ATTRIBUTE_NOINLINE bool Fuzzer::ExecuteCallback(const uint8_t *Data,
++ATTRIBUTE_NOINLINE void Fuzzer::ExecuteCallback(const uint8_t *Data,
+                                                 size_t Size) {
++  TPC.ClearCmpLog();
+   TPC.RecordInitialStack();
+   TotalNumberOfRuns++;
+   assert(InFuzzingThread());
+@@ -607,24 +656,26 @@
+   if (CurrentUnitData && CurrentUnitData != Data)
+     memcpy(CurrentUnitData, Data, Size);
+   CurrentUnitSize = Size;
+-  int CBRes = 0;
+   {
+     ScopedEnableMsanInterceptorChecks S;
+     AllocTracer.Start(Options.TraceMalloc);
+     UnitStartTime = system_clock::now();
+     TPC.ResetMaps();
+     RunningUserCallback = true;
+-    CBRes = CB(DataCopy, Size);
++    int Res = CB(DataCopy, Size);
+     RunningUserCallback = false;
+     UnitStopTime = system_clock::now();
+-    assert(CBRes == 0 || CBRes == -1);
++    if(Res != 0)
++        TPC.ResetMaps();
++
++    (void)Res;
++    /* assert(Res == 0); */
+     HasMoreMallocsThanFrees = AllocTracer.Stop();
+   }
+   if (!LooseMemeq(DataCopy, Data, Size))
+     CrashOnOverwrittenData();
+   CurrentUnitSize = 0;
+   delete[] DataCopy;
+-  return CBRes == 0;
+ }
+ 
+ std::string Fuzzer::WriteToOutputCorpus(const Unit &U) {
+@@ -740,6 +791,8 @@
+       Min(MaxMutationLen, Max(U.size(), TmpMaxMutationLen));
+   assert(CurrentMaxMutationLen > 0);
+ 
++  MD.SetBaseII(&II); // set 'OurBaseII' to point to 'II'
++
+   for (int i = 0; i < Options.MutateDepth; i++) {
+     if (TotalNumberOfRuns >= Options.MaxNumberOfRuns)
+       break;
+@@ -765,8 +818,13 @@
+     TryDetectingAMemoryLeak(CurrentUnitData, Size,
+                             /*DuringInitialCorpusExecution*/ false);
+     if (NewCov) {
+-      ReportNewCoverage(&II, {CurrentUnitData, CurrentUnitData + Size});
+-      break;  // We will mutate this input more in the next rounds.
++        if(ModifiedCurrentUnitSize){
++            ReportNewCoverage(&II, {ModifiedCurrentUnitData, ModifiedCurrentUnitData + ModifiedCurrentUnitSize});
++        }
++        else {
++            ReportNewCoverage(&II, {CurrentUnitData, CurrentUnitData + Size});
++        }
++        break;  // We will mutate this input more in the next rounds.
+     }
+     if (Options.ReduceDepth && !FoundUniqFeatures)
+       break;
+@@ -849,16 +907,9 @@
+   }
+ 
+   if (Corpus.empty() && Options.MaxNumberOfRuns) {
+-    Printf("WARNING: no interesting inputs were found so far. "
+-           "Is the code instrumented for coverage?\n"
+-           "This may also happen if the target rejected all inputs we tried so "
+-           "far\n");
+-    // The remaining logic requires that the corpus is not empty,
+-    // so we add one fake input to the in-memory corpus.
+-    Corpus.AddToCorpus({'\n'}, /*NumFeatures=*/1, /*MayDeleteFile=*/true,
+-                       /*HasFocusFunction=*/false, /*NeverReduce=*/false,
+-                       /*TimeOfUnit=*/duration_cast<microseconds>(0s), {0}, DFT,
+-                       /*BaseII*/ nullptr);
++    Printf("ERROR: no interesting inputs were found. "
++           "Is the code instrumented for coverage? Exiting.\n");
++    exit(1);
+   }
+ }
+ 
+@@ -931,6 +982,31 @@
+   }
+ }
+ 
++void Fuzzer::OverwriteUnitData(uint8_t *data, size_t size) {
++    if(size > MaxInputLen)
++        size = MaxInputLen;
++    if(data){
++        memcpy(ModifiedCurrentUnitData, data, size);
++    }
++    ModifiedCurrentUnitSize = size;
++}
++
++void Fuzzer::SetSyscallLog(struct syscall_log *log) {
++    if(sizeof(size_t) + log->len * sizeof(log_entry) > 4096 ) {
++        SyscallLog->len = 0;
++        return;
++    }
++    memcpy(SyscallLog, log, sizeof(size_t) + log->len * sizeof(log_entry));
++}
++
++void Fuzzer::SetOpLog(struct op_log *log) {
++    if(sizeof(size_t) + log->len * sizeof(op_log_entry) > 4096 ) {
++        OpLog->len = 0;
++        return;
++    }
++    memcpy(OpLog, log, sizeof(size_t) + log->len * sizeof(op_log_entry));
++}
++
+ } // namespace fuzzer
+ 
+ extern "C" {
+@@ -941,4 +1017,22 @@
+   return fuzzer::F->GetMD().DefaultMutate(Data, Size, MaxSize);
+ }
+ 
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL                   
++void __fuzzer_set_output(uint8_t *data, size_t size) {      
++    fuzzer::F->OverwriteUnitData(data, size);
++}
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL                   
++void __fuzzer_set_syscall_log(void *log) {      
++    fuzzer::F->SetSyscallLog((struct fuzzer::syscall_log*)log);
++}
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL                   
++void __fuzzer_set_op_log(void *log) {      
++    fuzzer::F->SetOpLog((struct fuzzer::op_log*)log);
++}
++
+ } // extern "C"
+diff '--color=auto' -au fuzzer/FuzzerMerge.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMerge.cpp
+--- fuzzer/FuzzerMerge.cpp	2025-04-06 11:47:03.875335691 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMerge.cpp	2025-03-23 14:05:57.383468937 +0100
+@@ -238,9 +238,9 @@
+     // * Then, all other files, smallest first.
+     std::set<size_t> Features;
+     if (IsSetCoverMerge)
+-      TPC.CollectFeatures([&](size_t Feature) { Features.insert(Feature); });
++      TPC.CollectFeatures([&](size_t Feature, bool value_profile) { Features.insert(Feature); });
+     else
+-      TPC.CollectFeatures([&](size_t Feature) {
++      TPC.CollectFeatures([&](size_t Feature, bool value_profile) {
+         if (AllFeatures.insert(Feature).second)
+           Features.insert(Feature);
+       });
+diff '--color=auto' -au fuzzer/FuzzerMutate.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMutate.cpp
+--- fuzzer/FuzzerMutate.cpp	2025-04-06 11:47:03.876335686 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMutate.cpp	2025-03-23 14:05:57.384468914 +0100
+@@ -1,4 +1,3 @@
+-//===- FuzzerMutate.cpp - Mutate a test input -----------------------------===//
+ //
+ // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ // See https://llvm.org/LICENSE.txt for license information.
+@@ -14,9 +13,12 @@
+ #include "FuzzerMutate.h"
+ #include "FuzzerOptions.h"
+ #include "FuzzerTracePC.h"
++#include "FuzzerCorpus.h"
++#include "FuzzerInternal.h"
+ 
+ namespace fuzzer {
+ 
++extern Fuzzer *F;
+ const size_t Dictionary::kMaxDictSize;
+ static const size_t kMaxMutationsToPrint = 10;
+ 
+@@ -30,6 +32,14 @@
+   DefaultMutators.insert(
+       DefaultMutators.begin(),
+       {
++          // Erase System-call - Ez
++          // Insert System-call
++          // Remove System-call bytes - Ez
++          // Mutate System-Call CFU Bytes -Ez
++          // Mutate System-Call Argument Bytes -Ez
++          // Crossover Inputs (Combine system-calls)
++          // Crossover Inputs (Combine two CFU Parts)
++          // Hotspot Hints
+           {&MutationDispatcher::Mutate_EraseBytes, "EraseBytes"},
+           {&MutationDispatcher::Mutate_InsertByte, "InsertByte"},
+           {&MutationDispatcher::Mutate_InsertRepeatedBytes,
+@@ -45,10 +55,44 @@
+            "ManualDict"},
+           {&MutationDispatcher::Mutate_AddWordFromPersistentAutoDictionary,
+            "PersAutoDict"},
++
++           {&MutationDispatcher::Mutate_ReplaceHotspotHint,
++           "ReplaceHotspot"},
++           /* {&MutationDispatcher::Mutate_ChangeByteAroundHotspot, */
++           /* "FlipHotspotBits"}, */
++      });
++  DestructiveMutators.insert(
++      DestructiveMutators.begin(),
++      {
++          /* {&MutationDispatcher::Mutate_RemoveSystemCall, "RemoveSystemCall"}, */
++          /* {&MutationDispatcher::Mutate_InsertSystemCall, "InsertSystemCall"}, */
++          /* {&MutationDispatcher::Mutate_InsertSystemCallBytes, "InsertSystemCallBytes"}, */
++          /* {&MutationDispatcher::Mutate_RemoveSystemCallBytes, "RemoveSystemCallBytes"}, */
++          /* {&MutationDispatcher::Mutate_EraseBytes, "EraseBytes"}, */
++          {&MutationDispatcher::Mutate_RemoveOp, "RemoveOp"},
++          {&MutationDispatcher::Mutate_InsertOp, "InsertOp"},
++          {&MutationDispatcher::Mutate_InsertOpBytes, "InsertOpBytes"},
++          {&MutationDispatcher::Mutate_RemoveOpBytes, "RemoveOpBytes"},
++          {&MutationDispatcher::Mutate_EraseBytes, "EraseBytes"},
+       });
+-  if(Options.UseCmp)
++  VmcsMutators.insert(
++      VmcsMutators.begin(),
++      {
++           {&MutationDispatcher::Mutate_ReplaceHotspotHint,
++           "ReplaceHotspot"},
++          {&MutationDispatcher::Mutate_MutateOpBytes, "MutateOp"},
++          // {&MutationDispatcher::Mutate_CrossOverOps, "CrossOverOp"},
++          /* {&MutationDispatcher::Mutate_CrossOver, "CrossOver"}, */
++           {&MutationDispatcher::Mutate_ChangeByteAroundHotspot,
++           "FlipHotspotBits"},
++      });
++  
++  if(Options.UseCmp) {
+     DefaultMutators.push_back(
+         {&MutationDispatcher::Mutate_AddWordFromTORC, "CMP"});
++    DestructiveMutators.push_back(
++        {&MutationDispatcher::Mutate_AddWordFromTORC, "CMP"});
++  }
+ 
+   if (EF->LLVMFuzzerCustomMutator)
+     Mutators.push_back({&MutationDispatcher::Mutate_Custom, "Custom"});
+@@ -77,6 +121,217 @@
+                                      Rand.Rand<unsigned int>());
+ }
+ 
++/* =============== Fuzzer Mutation =================== */
++//#ifdef FUZZMUT
++#define SEPARATOR "FUZZ"
++bool op_log_tainted = false;
++
++size_t MutationDispatcher::Mutate_RemoveSystemCall(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputSyscalls.size()) {
++        return 0;
++    }
++    int n_syscalls = OurBaseII->InputSyscalls.size();
++    if(n_syscalls < 2)
++        return 0;
++    int remove = Rand(n_syscalls);
++
++    size_t Idx = OurBaseII->InputSyscalls[remove]->start;
++    size_t N = OurBaseII->InputSyscalls[remove]->len;
++
++    if(Size < Idx + N)
++        return 0;
++    memmove(Data + Idx, Data + Idx + N, Size - Idx - N);
++
++    return Size - N;
++}
++
++size_t MutationDispatcher::Mutate_InsertSystemCall(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    size_t Idx;
++    size_t N = MaxSize - Size;
++    if(N < 5)
++        return 0;
++    if(OurBaseII && OurBaseII->InputSyscalls.size()) {
++        int n_syscalls = OurBaseII->InputSyscalls.size();
++        int insert = biased_rand(n_syscalls+1, 5, Rand);
++        // If 0, insert the syscall before everything else
++        if(insert == 0) {
++            Idx = 0;
++        } else {
++            insert--;
++            Idx = OurBaseII->InputSyscalls[insert]->start + OurBaseII->InputSyscalls[insert]->len;
++        }
++
++    } else {
++        Idx = Rand(Size);
++    }
++    //printf("Insert: idx %lx n %lx Size %lx maxsize %lx\n", Idx, N, Size, MaxSize);
++    if(Size < Idx+N)
++        return 0;
++    memmove(Data + Idx + N, Data + Idx, Size - Idx);
++    if(Idx) {
++        memcpy(Data + Idx, SEPARATOR, 4);
++    } else {
++        memcpy(Data + N - 4, SEPARATOR, 4);
++    }
++
++    uint8_t Byte = Rand(256);
++    size_t i = Idx ? 4 : 0;
++    for (; i < N; i++)
++        Data[Idx + i] = Rand(256);
++
++    size_t NewSize = Size + N;
++    return NewSize;
++}
++
++size_t MutationDispatcher::Mutate_RemoveSystemCallBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputSyscalls.size()) {
++        return 0;
++    }
++    int n_syscalls = OurBaseII->InputSyscalls.size();
++    int sc = biased_rand(n_syscalls, 5, Rand);
++
++    size_t Idx = OurBaseII->InputSyscalls[sc]->start 
++        + biased_rand(OurBaseII->InputSyscalls[sc]->len, 3, Rand);
++    size_t N = biased_rand(OurBaseII->InputSyscalls[sc]->len - 
++                                (Idx - OurBaseII->InputSyscalls[sc]->start),
++                           5, Rand);
++    
++    if(Size < Idx + N)
++        return 0;
++    
++    memmove(Data + Idx, Data + Idx + N, Size - Idx - N);
++
++    return Size - N;
++}
++
++size_t MutationDispatcher::Mutate_InsertSystemCallBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputSyscalls.size()) {
++        return 0;
++    }
++    int n_syscalls = OurBaseII->InputSyscalls.size();
++    int sc = biased_rand(n_syscalls, 5, Rand);
++    
++    size_t Idx = OurBaseII->InputSyscalls[sc]->start 
++        + biased_rand(OurBaseII->InputSyscalls[sc]->len, 3, Rand);
++    size_t N = Rand(MaxSize-Size);
++    
++    if(MaxSize < Idx + N)
++        return 0;
++    
++    if(Size <= Idx)
++        return 0;
++    
++    memmove(Data + Idx + N, Data + Idx, Size - Idx);
++
++    for(int i =0; i< N; i++){
++        Data[Idx + N] = Rand(256);
++    }
++    return Size + N;
++}
++size_t MutationDispatcher::Mutate_MutateSystemCallBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputSyscalls.size()) {
++        return 0;
++    }
++    // Pick a system call (towards the end)
++    int n_syscalls = OurBaseII->InputSyscalls.size();
++    int sc_idx = biased_rand(n_syscalls, 5, Rand);
++
++    auto sc = OurBaseII->InputSyscalls[sc_idx];
++
++    size_t BeginMutate = sc->start;
++    size_t MutateLen = sc->len;
++
++    /* Printf("n_syscalls: %ld sc_idx: %ld MaxSize: %ld BeginMutate: %ld MutateLen:\n", n_syscalls, sc_idx, MaxSize, BeginMutate, MutateLen); */
++    if(MaxSize < BeginMutate + MutateLen)
++        return 0;
++    // Look for a separator and only fuzz after it (avoid messing with syscall
++    // arguments too much).
++    if((Rand()%5) < 4 && MutateLen > 1)  {
++        uint8_t *found = (uint8_t*) memmem(Data + BeginMutate + 1, MutateLen, SEPARATOR, 4);
++        if(found) {
++            MutateLen -= (found - Data) - BeginMutate;
++            BeginMutate = found - Data;
++            // If we have enough space, advance past the separator
++            if(MutateLen > 4){
++                MutateLen-=4;
++                BeginMutate+=4;
++            }
++        }
++    }
++    /* Printf("Mutating: %ld MutateLen:\n", BeginMutate, MutateLen); */
++    int iters = Rand(3)+1;
++    for(int i=0; i<iters; i++) {
++        switch (Rand()%4){
++            case 0:
++                Mutate_ShuffleBytes(Data + BeginMutate, MutateLen, MutateLen);
++                break;
++            case 1:
++                Mutate_ChangeByte(Data + BeginMutate, MutateLen, MutateLen);
++                break;
++            case 2:
++                Mutate_ChangeBit(Data + BeginMutate, MutateLen,  MutateLen);
++                break;
++            case 3:
++                Mutate_ChangeBinaryInteger(Data + BeginMutate, MutateLen, MutateLen);
++                break;
++        }
++    }
++    return Size;
++} 
++size_t MutationDispatcher::Mutate_CrossOverInputs(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    return Size;
++}
++
++// Does not change the size of the input
++size_t MutationDispatcher::Mutate_CrossOverSyscalls(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputSyscalls.size()) {
++        return 0;
++    }
++    int n_syscalls = OurBaseII->InputSyscalls.size();
++    int sc_idx = biased_rand(n_syscalls, 5, Rand);
++
++    auto sc = OurBaseII->InputSyscalls[sc_idx];
++    auto xc = F->Corpus.FindSimilarSyscall(sc, Rand);
++    if(!xc)
++        return 0;
++    
++    if(!xc->II || !xc->II->U.data())
++        return 0;
++
++    // Weigh the cross-over to the later part of the system-call
++    if(Rand(2)) {
++        size_t ToBeg = sc->start + biased_rand(sc->len, 2, Rand);
++        size_t CopySize = Rand(sc->len + (sc->start-ToBeg)) + 1;
++        size_t FromBeg;
++        if(Rand(2) && ToBeg - sc->start < xc->len) {
++            FromBeg = ToBeg - sc->start + xc->start;
++        } else {
++            FromBeg = Rand(biased_rand(xc->len, 2, Rand));
++        }
++        CopySize = std::min(CopySize, xc->len - (FromBeg-xc->start));
++        /* Printf("FromBeg: %ld FromSC: %d %d FromLen: %d CopySize: %d\n", FromBeg, xc->start, xc->len, xc->II->U.size(), CopySize); */
++        if(MaxSize < ToBeg + CopySize || FromBeg + CopySize > xc->II->U.size())
++            return 0;
++        memcpy(Data + ToBeg, xc->II->U.data() + FromBeg, CopySize);
++    } else { // Random Crossover (from built-in libfuzzer mutations)
++        if(sc->start + sc->len > MaxSize || xc->start + xc->len > xc->II->U.size())
++            return 0;
++        CopyPartOf(xc->II->U.data() + xc->start,
++                xc->len,
++                Data + sc->start,
++                sc->len);
++    }
++    return Size;
++}
++//#endif // FUZMUT
++
+ size_t MutationDispatcher::Mutate_CustomCrossOver(uint8_t *Data, size_t Size,
+                                                   size_t MaxSize) {
+   if (Size == 0)
+@@ -162,6 +417,7 @@
+                                              size_t MaxSize) {
+   if (Size > MaxSize) return 0;
+   size_t Idx = Rand(Size);
++  LastChangedIdx = Idx;
+   Data[Idx] = RandCh(Rand);
+   return Size;
+ }
+@@ -170,10 +426,51 @@
+                                             size_t MaxSize) {
+   if (Size > MaxSize) return 0;
+   size_t Idx = Rand(Size);
++  LastChangedIdx = Idx;
+   Data[Idx] ^= 1 << Rand(8);
+   return Size;
+ }
+ 
++
++size_t MutationDispatcher::Mutate_ReplaceHotspotHint(uint8_t *Data, size_t Size,
++                                            size_t MaxSize) {
++    if(OurBaseII->HotSpots.size() == 0) {
++        return 0;
++    }
++    //printf("Hotspot &II = %p %lx\n", OurBaseII, OurBaseII->HotSpots.size());
++    auto *II = OurBaseII;
++    size_t i = Rand(II->HotSpots.size());
++    auto &h = II->HotSpots[i];
++
++    if(h.pos + h.size > Size || h.hint == 0)
++        return 0;
++    //if(h.size > 4)
++        //printf("Replacing %lx at %lx\n", h.size, h.pos);
++    memcpy(Data + h.pos, &h.hint, h.size);
++    return Size;
++}
++
++size_t MutationDispatcher::Mutate_ChangeByteAroundHotspot(uint8_t *Data, size_t Size,
++                                            size_t MaxSize) {
++
++    if(!OurBaseII || !OurBaseII->HotSpots.size()) {
++        return 0;
++    }
++    size_t i = Rand(OurBaseII->HotSpots.size());
++    auto &h = OurBaseII->HotSpots[i];
++
++    size_t pos = (h.pos + Rand(h.size));
++    size_t offset = (4-(biased_rand(5, 5, Rand))) *(Rand(3)-1);
++    if((int)offset + int(pos) > 0) {
++        pos += offset;
++    }
++    if(pos >= Size)
++        return 0;
++    Data[pos] = Rand(256);
++
++    return Size;
++}
++
+ size_t MutationDispatcher::Mutate_AddWordFromManualDictionary(uint8_t *Data,
+                                                               size_t Size,
+                                                               size_t MaxSize) {
+@@ -470,6 +767,8 @@
+ void MutationDispatcher::StartMutationSequence() {
+   CurrentMutatorSequence.clear();
+   CurrentDictionaryEntrySequence.clear();
++  LastChangedIdx = 0;
++  op_log_tainted = 0;
+ }
+ 
+ // Copy successful dictionary entries to PersistentAutoDictionary.
+@@ -528,8 +827,55 @@
+   return MS;
+ }
+ 
++int MutationDispatcher::MutationSequenceSize() {
++  return CurrentMutatorSequence.size();
++}
++
++void MutationDispatcher::TestSyscallMutateImpl(uint8_t *Data, size_t Size,
++                                      size_t MaxSize) {
++    printf("--- start test ---\n");
++    uint8_t* DataCopy = (uint8_t*)malloc(Size);
++    uint8_t* DataCopy2 = (uint8_t*)malloc(Size+100);
++    Printf("Original Data:");
++    for(int i =0; i<Size; i++) {
++        if(i%16 ==0)
++            Printf("\nDD: ");
++        Printf("%02x ", Data[i]);
++    }
++    Printf("\n");
++    for (auto& e : OurBaseII->InputSyscalls)
++    {
++        Printf("StatsSC Id %ld Start %ld Length %ld N_Cfu: %ld\n", e->id,
++                e->start, e->len, e->n_copy_from_user);
++    }
++    memcpy(DataCopy, Data, Size);
++    int i =0;
++    while(i++ < 5000) {
++        CurrentMutatorSequence.clear();
++        memcpy(DataCopy2, DataCopy, Size);
++        // size_t newsize = SyscallMutateImpl(DataCopy2, Size, Size+100);
++        size_t newsize = VmcsMutateImpl(DataCopy2, Size, Size+100);
++        Printf("Mutated Data:");
++        PrintMutationSequence();
++        for(int i =0; i<newsize; i++) {
++            if(i%16 ==0)
++                Printf("\nDD: ");
++            Printf("%02x ", DataCopy2[i]);
++        }
++        Printf("\n");
++        
++    }
++    exit(0);
++}
++
+ size_t MutationDispatcher::Mutate(uint8_t *Data, size_t Size, size_t MaxSize) {
+-  return MutateImpl(Data, Size, MaxSize, Mutators);
++    static void *UseVmcsMutators = getenv("MUTATE_VMCS");
++    if (UseVmcsMutators) {
++		    // TestSyscallMutateImpl(Data, Size, MaxSize);
++        return VmcsMutateImpl(Data, Size, MaxSize);
++    }else {
++        return MutateImpl(Data, Size, MaxSize, Mutators);
++    }
+ }
+ 
+ size_t MutationDispatcher::DefaultMutate(uint8_t *Data, size_t Size,
+@@ -537,6 +883,7 @@
+   return MutateImpl(Data, Size, MaxSize, DefaultMutators);
+ }
+ 
++//RemoveOp-InsertOpBytes-malloc
+ // Mutates Data in place, returns new size.
+ size_t MutationDispatcher::MutateImpl(uint8_t *Data, size_t Size,
+                                       size_t MaxSize,
+@@ -593,4 +940,236 @@
+       {W, std::numeric_limits<size_t>::max()});
+ }
+ 
++/* =============== VMCS Fuzzer Mutation =================== */
++/* TODO: fix minor systematic bug in mutations that modify input length
++ * MutateAndTestOne() takes a seed, then mutates and runs it until new coverage is obtained
++ * where AddToCorpus() is called, and InputInfo->InputOps metadata is updated.
++ * If the mutations do not find new coverage, the metadata is not updated
++ * although the ops' lengths and indexes are being changed by the mutations.
++ *
++ * Potential Solutions: 
++ * 1. Call UpdateOpLog() every mutation, but this requires re-parsing the entire input
++ * 2. Hardcode logic to fix the indexes and lens for each mutation
++ *    (subtract from current op_idx's len, and subtract from subsequent op_idx's start_idx and dma_start)
++ * 3. Ignore this, as it may potentially be only a minor issue overall
++ */
++size_t MutationDispatcher::Mutate_RemoveOp(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputOps.size()) {
++        return 0;
++    }
++    int n_ops = OurBaseII->InputOps.size();
++    if(n_ops < 2)
++        return 0;
++    int remove = Rand(n_ops);
++
++    size_t Idx = OurBaseII->InputOps[remove].start;
++    size_t N = OurBaseII->InputOps[remove].len;
++
++    if(Size < Idx + N)
++        return 0;
++    memmove(Data + Idx, Data + Idx + N, Size - Idx - N);
++
++    return Size - N;
++}
++
++size_t MutationDispatcher::Mutate_InsertOp(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    size_t Idx;
++    size_t N = MaxSize - Size;
++    if(N < 5)
++        return 0;
++    if(OurBaseII && OurBaseII->InputOps.size()) {
++        int n_ops = OurBaseII->InputOps.size();
++        int insert = biased_rand(n_ops + 1, 5, Rand);
++        // If 0, insert the syscall before everything else
++        if(insert == 0) {
++            Idx = 0;
++        } else {
++            insert--;
++            Idx = OurBaseII->InputOps[insert].start + OurBaseII->InputOps[insert].len;
++        }
++    } else {
++        Idx = Rand(Size);
++    }
++    if(MaxSize < Idx+N)
++        return 0;
++    memmove(Data + Idx + N, Data + Idx, Size - Idx);
++
++    uint8_t Byte = Rand(256);
++    size_t i = Idx ? 4 : 0;
++    for (; i < N; i++) {
++        Data[Idx + i] = Rand(256);
++    }
++
++    if(Idx) {
++        memcpy(Data + Idx, SEPARATOR, 4);
++    } else {
++        memcpy(Data + N - 4, SEPARATOR, 4);
++    }
++
++    size_t NewSize = Size + N;
++    return NewSize;
++}
++
++size_t MutationDispatcher::Mutate_RemoveOpBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputOps.size()) {
++        return 0;
++    }
++    int n_ops = OurBaseII->InputOps.size();
++    int op_idx = biased_rand(n_ops, 5, Rand); // favour removing from the last op
++
++    size_t op_len = OurBaseII->InputOps[op_idx].len;
++    if (OurBaseII->InputOps[op_idx].dma_start)
++        op_len = OurBaseII->InputOps[op_idx].dma_start - OurBaseII->InputOps[op_idx].start;
++    size_t Idx_offset = biased_rand(op_len, 3, Rand);
++    if (Idx_offset && Idx_offset == op_len - 1) 
++        Idx_offset--; // we won't be able to remove any bytes if the last index is chosen
++    size_t Idx = OurBaseII->InputOps[op_idx].start + Idx_offset;
++    // don't bias the number of bytes removed
++    size_t N = biased_rand(op_len - (Idx - OurBaseII->InputOps[op_idx].start), 1, Rand);
++    if (N == 0) N++; // if N == 0, this mutation does not do anything
++    
++    if(Size < Idx + N)
++        return 0;
++    
++    memmove(Data + Idx, Data + Idx + N, Size - Idx - N);
++
++    return Size - N;
++}
++
++size_t MutationDispatcher::Mutate_InsertOpBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    if(!OurBaseII || !OurBaseII->InputOps.size()) {
++        return 0;
++    }
++    if (MaxSize <= Size)
++        return 0;
++    int n_ops = OurBaseII->InputOps.size();
++    int op_idx = biased_rand(n_ops, 5, Rand);
++    
++    size_t Idx_offset = biased_rand(OurBaseII->InputOps[op_idx].len, 3, Rand);
++    size_t Idx = OurBaseII->InputOps[op_idx].start 
++        + Rand(OurBaseII->InputOps[op_idx].len);
++    size_t N = Rand(MaxSize-Size);
++    if (N == 0) N++; // if N == 0, this mutation does nothing
++    
++    if(MaxSize < Idx + N)
++        return 0;
++    
++    if(Size <= Idx)
++        return 0;
++    
++    memmove(Data + Idx + N, Data + Idx, Size - Idx);
++
++    for(int i =0; i< N; i++){
++        Data[Idx + i] = Rand(256);
++    }
++    return Size + N;
++}
++
++size_t MutationDispatcher::Mutate_MutateOpBytes(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    enum { OP_IN, OP_OUT, OP_READ, OP_WRITE, OP_VMCALL };
++    if(!OurBaseII || !OurBaseII->InputOps.size()) {
++        return 0;
++    }
++    // Pick an op (towards the end)
++    int n_ops = OurBaseII->InputOps.size();
++    int op_idx = biased_rand(n_ops, 5, Rand);
++
++    auto op = OurBaseII->InputOps[op_idx];
++
++    size_t BeginMutate = op.start;
++    size_t MutateLen = op.len;
++    uint8_t opType = op.op;
++
++    if(MaxSize < BeginMutate + MutateLen)
++        return 0;
++
++    switch (opType % 5) {
++      case OP_IN:
++      case OP_OUT:
++      case OP_READ:
++      case OP_WRITE:
++          if (op.dma_start) // mutate the op and the dma section separately
++              MutateLen = op.dma_start - op.start;
++          break;
++      case OP_VMCALL:
++          if (MutateLen > 5) {
++            // do not mutate the op and 4 byte VMCALL bitmap
++            BeginMutate += 5;
++            MutateLen -= 5;
++          }
++          break;
++    }
++
++    // if there is DMA section, mutate it separately from the OP
++    for (int dma = 0; dma < (op.dma_start ? 2 : 1); dma++) {
++        int iters = Rand(3) + 1;
++        int start = dma ? op.dma_start : BeginMutate;
++        int len = dma ? op.dma_len : MutateLen;
++        for (int i = 0; i < iters; i++) {
++            switch (Rand() % 4) {
++            case 0:
++                Mutate_ShuffleBytes(Data + start, len, len);
++                break;
++            case 1:
++                Mutate_ChangeByte(Data + start, len, len);
++                break;
++            case 2:
++                Mutate_ChangeBit(Data + start, len, len);
++                break;
++            case 3:
++                Mutate_ChangeBinaryInteger(Data + start, len, len);
++                break;
++            }
++        }
++    }
++    return Size;
++}
++
++// Does not change the size of the input
++size_t MutationDispatcher::Mutate_CrossOverOps(uint8_t *Data, size_t Size,
++                                                  size_t MaxSize) {
++    return 0; // TODO: consider whether to implement corpus of ops, or any custom crossover
++}
++
++size_t MutationDispatcher::VmcsMutateImpl(uint8_t *Data, size_t Size,
++                                      size_t MaxSize) {
++    assert(MaxSize > 0);
++    // Some mutations may fail (e.g. can't insert more bytes if Size == MaxSize),
++    // in which case they will return 0.
++    // Try several times before returning un-mutated data.
++    //
++    if(op_log_tainted == 0 && Rand(3) > 0) {
++        for (int Iter = 0; Iter < 100; Iter++) {
++            auto M = VmcsMutators[Rand(VmcsMutators.size())];
++            uint8_t old_data[4096];
++            size_t old_size = Size;
++            memcpy(old_data, Data, old_size);
++
++            size_t NewSize = (this->*(M.Fn))(Data, Size, MaxSize);
++            if (NewSize && NewSize <= MaxSize) {
++                CurrentMutatorSequence.push_back(M);
++                return NewSize;
++            }
++        }
++    }
++    for (int Iter = 0; Iter < 100; Iter++) {
++        auto M = DestructiveMutators[Rand(DestructiveMutators.size())];
++        size_t NewSize = (this->*(M.Fn))(Data, Size, MaxSize);
++        if (NewSize && NewSize <= MaxSize) {
++            op_log_tainted = 1;
++            CurrentMutatorSequence.push_back(M);
++            return NewSize;
++        }
++    }
++
++
++    *Data = ' ';
++    return 1;   // Fallback, should not happen frequently.
++}
++
+ }  // namespace fuzzer
+diff '--color=auto' -au fuzzer/FuzzerMutate.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMutate.h
+--- fuzzer/FuzzerMutate.h	2025-04-06 11:36:34.834284754 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerMutate.h	2025-03-23 14:05:57.384468914 +0100
+@@ -15,6 +15,7 @@
+ #include "FuzzerDictionary.h"
+ #include "FuzzerOptions.h"
+ #include "FuzzerRandom.h"
++#include "FuzzerCorpus.h"
+ 
+ namespace fuzzer {
+ 
+@@ -29,6 +30,7 @@
+   void PrintMutationSequence(bool Verbose = true);
+   /// Return the current sequence of mutations.
+   std::string MutationSequence();
++  int MutationSequenceSize();
+   /// Indicate that the current sequence of mutations was successful.
+   void RecordSuccessfulMutationSequence();
+   /// Mutates data by invoking user-provided mutator.
+@@ -50,6 +52,37 @@
+   /// Mutates data by copying/inserting a part of data into a different place.
+   size_t Mutate_CopyPart(uint8_t *Data, size_t Size, size_t MaxSize);
+ 
++
++  // CMP Hotspot Mutations
++  size_t Mutate_ReplaceHotspotHint(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_ChangeByteAroundHotspot(uint8_t *Data, size_t Size, size_t MaxSize);
++
++  size_t Mutate_Test(uint8_t *Data, size_t Size, size_t MaxSize);
++
++  /* ================ SYSCALL MUTATIONS =============== */
++
++  /// Remove a System Call from the Input
++  size_t Mutate_RemoveSystemCall(uint8_t *Data, size_t Size, size_t MaxSize);
++  
++  ///  Insert a System Call into the Input
++  size_t Mutate_InsertSystemCall(uint8_t *Data, size_t Size, size_t MaxSize);
++  
++  ///  Remove Bytes from a System-Call
++  size_t Mutate_RemoveSystemCallBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++  
++  ///  Insert  System Call Bytes
++  size_t Mutate_InsertSystemCallBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++  
++  ///  Mutates System Call using simple bit/byte mutations
++  size_t Mutate_MutateSystemCallBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++
++  /// Take two full inputs and concatenate them (do not repeat the common initial 
++  /// system-calls).
++  size_t Mutate_CrossOverInputs(uint8_t *Data, size_t Size, size_t MaxSize);
++  
++  /// Crossover a syscall with another syscall of the same type
++  size_t Mutate_CrossOverSyscalls(uint8_t *Data, size_t Size, size_t MaxSize);
++
+   /// Mutates data by adding a word from the manual dictionary.
+   size_t Mutate_AddWordFromManualDictionary(uint8_t *Data, size_t Size,
+                                             size_t MaxSize);
+@@ -87,14 +120,27 @@
+   size_t CrossOver(const uint8_t *Data1, size_t Size1, const uint8_t *Data2,
+                    size_t Size2, uint8_t *Out, size_t MaxOutSize);
+ 
++  /* ================ VMCS OP MUTATIONS =============== */
++
++  size_t Mutate_RemoveOp(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_InsertOp(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_RemoveOpBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_InsertOpBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_MutateOpBytes(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t Mutate_CrossOverOps(uint8_t *Data, size_t Size, size_t MaxSize);
++
+   void AddWordToManualDictionary(const Word &W);
+ 
+   void PrintRecommendedDictionary();
+ 
+   void SetCrossOverWith(const Unit *U) { CrossOverWith = U; }
+ 
++  void SetBaseII(const InputInfo *II) { OurBaseII  = II; }
++
+   Random &GetRand() { return Rand; }
+ 
++  uint16_t LastChangedIdx;
++
+  private:
+   struct Mutator {
+     size_t (MutationDispatcher::*Fn)(uint8_t *Data, size_t Size, size_t Max);
+@@ -103,6 +149,10 @@
+ 
+   size_t AddWordFromDictionary(Dictionary &D, uint8_t *Data, size_t Size,
+                                size_t MaxSize);
++  void TestSyscallMutateImpl(uint8_t *Data, size_t Size,
++          size_t MaxSize);
++  size_t SyscallMutateImpl(uint8_t *Data, size_t Size, size_t MaxSize);
++  size_t VmcsMutateImpl(uint8_t *Data, size_t Size, size_t MaxSize);
+   size_t MutateImpl(uint8_t *Data, size_t Size, size_t MaxSize,
+                     std::vector<Mutator> &Mutators);
+ 
+@@ -140,6 +190,7 @@
+   size_t CmpDictionaryEntriesDequeIdx = 0;
+ 
+   const Unit *CrossOverWith = nullptr;
++  const InputInfo *OurBaseII = nullptr;
+   std::vector<uint8_t> MutateInPlaceHere;
+   std::vector<uint8_t> MutateWithMaskTemp;
+   // CustomCrossOver needs its own buffer as a custom implementation may call
+@@ -149,6 +200,11 @@
+   std::vector<Mutator> Mutators;
+   std::vector<Mutator> DefaultMutators;
+   std::vector<Mutator> CurrentMutatorSequence;
++  
++  std::vector<Mutator> NonDestructiveMutators;
++  std::vector<Mutator> DestructiveMutators;
++  std::vector<Mutator> VmcsMutators;
++
+ };
+ 
+ }  // namespace fuzzer
+diff '--color=auto' -au fuzzer/FuzzerOptions.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerOptions.h
+--- fuzzer/FuzzerOptions.h	2025-04-06 11:36:34.834284754 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerOptions.h	2025-03-23 14:05:57.384468914 +0100
+@@ -50,7 +50,7 @@
+   bool ForkCorpusGroups = false;
+   size_t EntropicFeatureFrequencyThreshold = 0xFF;
+   size_t EntropicNumberOfRarestFeatures = 100;
+-  bool EntropicScalePerExecTime = false;
++  bool EntropicScalePerExecTime = true;
+   std::string OutputCorpus;
+   std::string ArtifactPrefix = "./";
+   std::string ExactArtifactPath;
+diff '--color=auto' -au fuzzer/FuzzerRandom.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerRandom.h
+--- fuzzer/FuzzerRandom.h	2025-04-06 11:36:34.834284754 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerRandom.h	2025-03-23 14:05:57.384468914 +0100
+@@ -42,6 +42,15 @@
+   }
+ };
+ 
++// N-1 is k times more likely than 0
++inline int biased_rand(int n, int k, Random &Rand) {
++    double nf = n;
++    double kf = k;
++    double rf = nf * (kf/2 + 1) * (double)(Rand(100000))/(double)100000;
++    double bf = (-1 + sqrt(1+2*kf*rf/nf)) * nf / kf;
++    return (int)bf;
++};  
++
+ }  // namespace fuzzer
+ 
+ #endif  // LLVM_FUZZER_RANDOM_H
+diff '--color=auto' -au fuzzer/FuzzerTracePC.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerTracePC.cpp
+--- fuzzer/FuzzerTracePC.cpp	2025-04-06 11:47:03.876335686 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerTracePC.cpp	2025-03-23 14:05:57.384468914 +0100
+@@ -22,8 +22,10 @@
+ #include "FuzzerPlatform.h"
+ #include "FuzzerUtil.h"
+ #include "FuzzerValueBitMap.h"
++#include <map>
+ #include <set>
+ 
++extern std::map <uintptr_t, int> cmplog_counts;
+ // Used by -fsanitize-coverage=stack-depth to track stack depth
+ ATTRIBUTES_INTERFACE_TLS_INITIAL_EXEC uintptr_t __sancov_lowest_stack;
+ 
+@@ -107,7 +109,7 @@
+   if (size_t NumExtraCounters = ExtraCountersEnd() - ExtraCountersBegin())
+     Printf("INFO: %zd Extra Counters\n", NumExtraCounters);
+ 
+-  size_t MaxFeatures = CollectFeatures([](uint32_t) {});
++  size_t MaxFeatures = CollectFeatures([](uint32_t, bool) {});
+   if (MaxFeatures > std::numeric_limits<uint32_t>::max())
+     Printf("WARNING: The coverage PC tables may produce up to %zu features.\n"
+            "This exceeds the maximum 32-bit value. Some features may be\n"
+@@ -377,6 +379,44 @@
+   TORCW.Insert(Idx ^ Hash, Word(B1, Len), Word(B2, Len));
+ }
+ 
++
++extern std::map <uintptr_t, int> cmplog_counts;
++
++static void reset_cmplog(){
++    cmplog_counts.clear();
++}
++
++void TracePC::ClearCmpLog() {
++    cmplog_size = 0;
++    cmplog_counts.clear();
++}
++
++template <class T>
++ATTRIBUTE_TARGET_POPCNT ALWAYS_INLINE
++ATTRIBUTE_NO_SANITIZE_ALL
++void TracePC::AddToCmpLog(uintptr_t PC,  T Arg1, T Arg2) {
++    if (!fuzzer::RunningUserCallback) return;
++    if(cmplog_size == 1024*8-1) {
++        Printf("Ran out of cmplog space (%lx vs %lx @ %p)\n", Arg1, Arg2, PC);
++    }
++    else if(cmplog_size >= 1024*8) {
++        return;
++    }
++    for(int i = 0; i < 3; i++){
++        uint64_t val = PC;
++        val = i == 1 ? Arg1 : val;
++        val = i == 2 ? Arg2 : val;
++
++        if (cmplog_counts.find(val) == cmplog_counts.end())
++            cmplog_counts[val] = 0;
++        if(cmplog_counts[val] >= 60)
++            return;
++        cmplog_counts[val] +=1;
++    }
++    cmplog[cmplog_size++ ] = {sizeof(T), Arg1, Arg2, PC};
++}
++
++
+ template <class T>
+ ATTRIBUTE_TARGET_POPCNT ALWAYS_INLINE
+ ATTRIBUTE_NO_SANITIZE_ALL
+@@ -386,6 +426,10 @@
+       TORC4.Insert(ArgXor, Arg1, Arg2);
+   else if (sizeof(T) == 8)
+       TORC8.Insert(ArgXor, Arg1, Arg2);
++  
++  if((Arg1 != Arg2) && (Arg1 !=0 && Arg2 !=0) && (Arg1 != -1 && Arg2 != -1))
++      AddToCmpLog(PC, Arg1, Arg2);
++
+   uint64_t HammingDistance = Popcountll(ArgXor);  // [0,64]
+   uint64_t AbsoluteDistance = (Arg1 == Arg2 ? 0 : Clzll(Arg1 - Arg2) + 1);
+   ValueProfileMap.AddValue(PC * 128 + HammingDistance);
+@@ -548,10 +592,40 @@
+ ATTRIBUTE_INTERFACE
+ ATTRIBUTE_NO_SANITIZE_ALL
+ ATTRIBUTE_TARGET_POPCNT
+-void __sanitizer_cov_trace_switch(uint64_t Val, uint64_t *Cases) {
++void __sanitizer_cov_trace_cmp8_pc(uint64_t PC, uint64_t Arg1, uint64_t Arg2) {
++  fuzzer::TPC.HandleCmp(PC, Arg1, Arg2);
++}
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL
++ATTRIBUTE_TARGET_POPCNT
++void __sanitizer_cov_trace_cmp4_pc(uint64_t PC, uint32_t Arg1, uint32_t Arg2) {
++  fuzzer::TPC.HandleCmp(PC, Arg1, Arg2);
++}
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL
++ATTRIBUTE_TARGET_POPCNT
++void __sanitizer_cov_trace_cmp2_pc(uint64_t PC, uint16_t Arg1, uint16_t Arg2) {
++  fuzzer::TPC.HandleCmp(PC, Arg1, Arg2);
++}
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL
++ATTRIBUTE_TARGET_POPCNT
++void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2) {
++  fuzzer::TPC.HandleCmp(PC, Arg1, Arg2);
++}
++
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL
++ATTRIBUTE_TARGET_POPCNT
++void __sanitizer_cov_trace_switch_pc(uint64_t PC, uint64_t Val, uint64_t *Cases) {
+   uint64_t N = Cases[0];
+   uint64_t ValSizeInBits = Cases[1];
+   uint64_t *Vals = Cases + 2;
++  /*  
+   // Skip the most common and the most boring case: all switch values are small.
+   // We may want to skip this at compile-time, but it will make the
+   // instrumentation less general.
+@@ -560,7 +634,7 @@
+   // Also skip small inputs values, they won't give good signal.
+   if (Val < 256)
+     return;
+-  uintptr_t PC = reinterpret_cast<uintptr_t>(GET_CALLER_PC());
++  */
+   size_t i;
+   uint64_t Smaller = 0;
+   uint64_t Larger = ~(uint64_t)0;
+@@ -576,7 +650,12 @@
+ 
+   // Apply HandleCmp to {Val,Smaller} and {Val, Larger},
+   // use i as the PC modifier for HandleCmp.
+-  if (ValSizeInBits == 16) {
++  if (ValSizeInBits == 8) {
++    fuzzer::TPC.HandleCmp(PC + 2 * i, static_cast<uint8_t>(Val),
++                          (uint8_t)(Smaller));
++    fuzzer::TPC.HandleCmp(PC + 2 * i + 1, static_cast<uint8_t>(Val),
++                          (uint8_t)(Larger));
++  } else if (ValSizeInBits == 16) {
+     fuzzer::TPC.HandleCmp(PC + 2 * i, static_cast<uint16_t>(Val),
+                           (uint16_t)(Smaller));
+     fuzzer::TPC.HandleCmp(PC + 2 * i + 1, static_cast<uint16_t>(Val),
+@@ -592,6 +671,15 @@
+   }
+ }
+ 
++
++ATTRIBUTE_INTERFACE
++ATTRIBUTE_NO_SANITIZE_ALL
++ATTRIBUTE_TARGET_POPCNT
++void __sanitizer_cov_trace_switch(uint64_t Val, uint64_t *Cases) {
++    uintptr_t PC = reinterpret_cast<uintptr_t>(GET_CALLER_PC());
++    __sanitizer_cov_trace_switch_pc(PC, Val, Cases);
++}
++
+ ATTRIBUTE_INTERFACE
+ ATTRIBUTE_NO_SANITIZE_ALL
+ ATTRIBUTE_TARGET_POPCNT
+@@ -619,6 +707,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_memcmp(void *caller_pc, const void *s1,
+                                   const void *s2, size_t n, int result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   if (result == 0) return;  // No reason to mutate.
+   if (n <= 1) return;  // Not interesting.
+@@ -628,6 +717,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strncmp(void *caller_pc, const char *s1,
+                                    const char *s2, size_t n, int result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   if (result == 0) return;  // No reason to mutate.
+   size_t Len1 = fuzzer::InternalStrnlen(s1, n);
+@@ -641,6 +731,26 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strcmp(void *caller_pc, const char *s1,
+                                    const char *s2, int result) {
++    return;
++  if (!fuzzer::RunningUserCallback) return;
++  if (result == 0) return;  // No reason to mutate.
++  size_t N = fuzzer::InternalStrnlen2(s1, s2);
++  if (N <= 1) return;  // Not interesting.
++  fuzzer::TPC.AddValueForMemcmp(caller_pc, s1, s2, N, /*StopAtZero*/true);
++}
++
++void __sanitizer_hook_strcmp(void *caller_pc, const char *s1,
++                                   const char *s2, int result) {
++    return;
++  if (!fuzzer::RunningUserCallback) return;
++  if (result == 0) return;  // No reason to mutate.
++  size_t N = fuzzer::InternalStrnlen2(s1, s2);
++  if (N <= 1) return;  // Not interesting.
++  fuzzer::TPC.AddValueForMemcmp(caller_pc, s1, s2, N, /*StopAtZero*/true);
++}
++
++void __sanitizer_hook_strcmp_ng(void *caller_pc, const char *s1,
++                                   const char *s2, int result) {
+   if (!fuzzer::RunningUserCallback) return;
+   if (result == 0) return;  // No reason to mutate.
+   size_t N = fuzzer::InternalStrnlen2(s1, s2);
+@@ -651,6 +761,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strncasecmp(void *called_pc, const char *s1,
+                                        const char *s2, size_t n, int result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   return __sanitizer_weak_hook_strncmp(called_pc, s1, s2, n, result);
+ }
+@@ -658,6 +769,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strcasecmp(void *called_pc, const char *s1,
+                                       const char *s2, int result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   return __sanitizer_weak_hook_strcmp(called_pc, s1, s2, result);
+ }
+@@ -665,6 +777,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strstr(void *called_pc, const char *s1,
+                                   const char *s2, char *result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   fuzzer::TPC.MMT.Add(reinterpret_cast<const uint8_t *>(s2), strlen(s2));
+ }
+@@ -672,6 +785,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_strcasestr(void *called_pc, const char *s1,
+                                       const char *s2, char *result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   fuzzer::TPC.MMT.Add(reinterpret_cast<const uint8_t *>(s2), strlen(s2));
+ }
+@@ -679,6 +793,7 @@
+ ATTRIBUTE_INTERFACE ATTRIBUTE_NO_SANITIZE_MEMORY
+ void __sanitizer_weak_hook_memmem(void *called_pc, const void *s1, size_t len1,
+                                   const void *s2, size_t len2, void *result) {
++    return;
+   if (!fuzzer::RunningUserCallback) return;
+   fuzzer::TPC.MMT.Add(reinterpret_cast<const uint8_t *>(s2), len2);
+ }
+diff '--color=auto' -au fuzzer/FuzzerTracePC.h /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerTracePC.h
+--- fuzzer/FuzzerTracePC.h	2025-04-06 11:36:34.835284749 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerTracePC.h	2025-03-23 14:05:57.384468914 +0100
+@@ -18,6 +18,13 @@
+ #include <set>
+ #include <unordered_map>
+ 
++
++struct CmpLogEntry {
++    uint8_t size;
++    uint64_t val1;
++    uint64_t val2;
++    uintptr_t pc;
++};
+ namespace fuzzer {
+ 
+ // TableOfRecentCompares (TORC) remembers the most recently performed
+@@ -105,8 +112,14 @@
+   TableOfRecentCompares<uint32_t, 32> TORC4;
+   TableOfRecentCompares<uint64_t, 32> TORC8;
+   TableOfRecentCompares<Word, 32> TORCW;
++
+   MemMemTable<1024> MMT;
+ 
++  template <class T> void AddToCmpLog(uintptr_t PC,  T Arg1, T Arg2);
++  void ClearCmpLog();
++  size_t cmplog_size;
++  struct CmpLogEntry cmplog[1024*8];
++
+   void RecordInitialStack();
+   uintptr_t GetMaxStackOffset() const;
+ 
+@@ -234,16 +247,16 @@
+     return Bit;
+ }
+ 
+-template <class Callback> // void Callback(uint32_t Feature)
++template <class Callback> // void Callback(uint32_t Feature, bool value_profile)
+ ATTRIBUTE_NO_SANITIZE_ADDRESS ATTRIBUTE_NOINLINE size_t
+ TracePC::CollectFeatures(Callback HandleFeature) const {
+   auto Handle8bitCounter = [&](size_t FirstFeature,
+                                size_t Idx, uint8_t Counter) {
+     if (UseCounters)
+       HandleFeature(static_cast<uint32_t>(FirstFeature + Idx * 8 +
+-                                          CounterToFeature(Counter)));
++                                          CounterToFeature(Counter)), false);
+     else
+-      HandleFeature(static_cast<uint32_t>(FirstFeature + Idx));
++      HandleFeature(static_cast<uint32_t>(FirstFeature + Idx), false);
+   };
+ 
+   size_t FirstFeature = 0;
+@@ -263,7 +276,7 @@
+ 
+   if (UseValueProfileMask) {
+     ValueProfileMap.ForEach([&](size_t Idx) {
+-      HandleFeature(static_cast<uint32_t>(FirstFeature + Idx));
++      HandleFeature(static_cast<uint32_t>(FirstFeature + Idx), true);
+     });
+     FirstFeature += ValueProfileMap.SizeInBits();
+   }
+@@ -284,7 +297,7 @@
+ 
+   if (auto MaxStackOffset = GetMaxStackOffset()) {
+     HandleFeature(static_cast<uint32_t>(
+-        FirstFeature + StackDepthStepFunction(MaxStackOffset / 8)));
++        FirstFeature + StackDepthStepFunction(MaxStackOffset / 8)), false);
+     FirstFeature += StackDepthStepFunction(std::numeric_limits<size_t>::max());
+   }
+ 
+diff '--color=auto' -au fuzzer/FuzzerUtilLinux.cpp /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerUtilLinux.cpp
+--- fuzzer/FuzzerUtilLinux.cpp	2025-04-06 11:47:03.876335686 +0200
++++ /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/FuzzerUtilLinux.cpp	2025-03-23 14:05:57.385468892 +0100
+@@ -11,9 +11,7 @@
+ #if LIBFUZZER_LINUX || LIBFUZZER_NETBSD || LIBFUZZER_FREEBSD ||                \
+     LIBFUZZER_EMSCRIPTEN
+ #include "FuzzerCommand.h"
+-#include "FuzzerInternal.h"
+ 
+-#include <signal.h>
+ #include <stdlib.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
+@@ -27,8 +25,6 @@
+   int exit_code = system(CmdLine.c_str());
+   if (WIFEXITED(exit_code))
+     return WEXITSTATUS(exit_code);
+-  if (WIFSIGNALED(exit_code) && WTERMSIG(exit_code) == SIGINT)
+-    return Fuzzer::InterruptExitCode();
+   return exit_code;
+ }
+ 
+Only in /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/: libFuzzer.a
+Common subdirectories: fuzzer/scripts and /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/scripts
+Common subdirectories: fuzzer/standalone and /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/standalone
+Common subdirectories: fuzzer/tests and /home/liuqiang/Project/HyperPill/vendor/libfuzzer-ng/tests
