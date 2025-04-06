@@ -777,7 +777,7 @@ bool op_clock_step() {
     return true;
 }
 
-extern bool fuzz_unhealthy_input, fuzz_do_not_continue;
+extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
 		[OP_READ] = op_read,

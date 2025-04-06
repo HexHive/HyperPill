@@ -13,6 +13,7 @@ bool verbose = 1;
 
 bool fuzz_unhealthy_input = false; /* We reached an execution timeout */
 bool fuzz_do_not_continue = false; /* Don't inject new instructions. */
+bool fuzz_should_abort = false;    /* We got a crash. */
 
 bool fuzzing;
 static bool executing_input;
@@ -113,6 +114,7 @@ void fuzz_emu_stop_unhealthy(){
 
 void fuzz_emu_stop_crash(const char *type){
 	fuzz_emu_stop_unhealthy();
+	fuzz_should_abort = 1;
 	if (type) {
 		printf(".crash %s\n", type);
 	} else {
@@ -266,11 +268,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	/* Reset vars used to early abort input */
 	fuzz_do_not_continue = false;
 	fuzz_unhealthy_input = false;
+	fuzz_should_abort = false;
 	reset_cur_cov();
 
 	fuzzing = true;
 	fuzz_run_input(Data, Size);
 	fuzzing = false;
+
+	if (fuzz_should_abort) abort();
 
 	size_t len;
 	uint8_t *output = ic_get_output(&len);

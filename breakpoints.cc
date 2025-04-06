@@ -137,7 +137,7 @@ void apply_breakpoints_linux() {
     });
     add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
             printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
-            print_stacktrace();
+            fuzz_emu_stop_crash("page fault");
     });
 }
 
