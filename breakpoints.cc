@@ -82,8 +82,15 @@ static void bp__stdio_write(bxInstruction_c *i){
 }
 
 void apply_breakpoints_linux() {
-
-    // TODO exit/abort/sanitizer stuff
+    // sanitizer stuff
+    // _asan_report_store4
+    // -> __asan::ReportGenericError or __asan::ReportDoubleFree()
+    //     -> __asan::ScopedInErrorReport::ScopedInErrorReport()
+    //     -> __asan::ErrorGeneric::ErrorGeneric
+    //     -> internal_memcpy(&current_error_, &description, sizeof(current_error_));
+    //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
+    //         -> __asan::DescribeThread()
+    //         -> __sanitizer::Die(), abort or exit
     add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
             fuzz_emu_stop_crash("firecracker: panic");
             });
@@ -109,35 +116,14 @@ void apply_breakpoints_linux() {
             i->modRMForm.Iw[1] = 0;
             BX_CPU(id)->async_event = 1;
             });
-    add_breakpoint(sym_to_addr("libasan.so", "__asan::DescribeThread"), [](bxInstruction_c *i) {
-            fuzz_emu_stop_crash("ASAN describe thread");
-            });
-    add_breakpoint(sym_to_addr("libasan.so", "__asan::ReportGenericError"), [](bxInstruction_c *i) {
-            printf("ASAN generic error\n");
-            fuzz_stacktrace();
-            });
-    add_breakpoint(sym_to_addr("libasan.so", "__asan::AsanOnDeadlySignal"), [](bxInstruction_c *i) {
-            printf("ASAN deadly signal\n");
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
+            // every error through asan should reach this
+            printf("ASAN error report\n");
             fuzz_stacktrace();
             });
     add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
     add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
     //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
-    add_breakpoint(0x464258, [](bxInstruction_c *i) {
-            i->execute1 = BX_CPU_C::RETnear64_Iw;
-            i->modRMForm.Iw[0] = 0;
-            i->modRMForm.Iw[1] = 0;
-
-            char* msg = copy_string_from_vm(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx,
-                    BX_CPU(id)->gen_reg[BX_64BIT_REG_RDX].rrx);
-            printf("sanitizer internal write: %s\n", msg);
-            if(strstr(msg, "ERROR"))
-                fuzz_emu_stop_crash("Sanitizer Error");
-            free(msg);
-
-            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = BX_CPU(id)->gen_reg[BX_64BIT_REG_RDX].rrx;
-            BX_CPU(id)->async_event = 1;
-            });
     add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
             printf("kexec crash\n");
             print_stacktrace();
@@ -158,6 +144,7 @@ void apply_breakpoints_linux() {
 
 void handle_syscall_hooks(bxInstruction_c *i)
 {
+    // crashes often go for exit/abort
     /* Hook Syscalls */
     if (i->getIaOpcode() == 0x471) {
         switch(BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx) {
