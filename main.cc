@@ -28,7 +28,7 @@ static void *log_writes;
 static bool fuzzenum;
 
 uint64_t icount_limit_floor = 200000;
-uint64_t icount_limit = 5000000;
+uint64_t icount_limit = 50000000;
 
 static unsigned long int icount, pio_icount;
 
@@ -232,7 +232,7 @@ void fuzz_instr_before_execution(bxInstruction_c *i) {
 
 	/* Check Icount limits */
 	if (icount > icount_limit && fuzzing) {
-		printf("icount abort %lx\n", icount);
+		printf("icount abort %d\n", icount);
 	    fuzz_emu_stop_unhealthy();
 	}
     icount++;

@@ -71,7 +71,7 @@ void fuzz_hook_memory_access(bx_address phy, unsigned len,
       // When we do the actual fuzzing runs on beefier hardware, we should just
       // make a complete shadow-copy on startup.
       if (dirtyset.emplace(aligned).second) {
-          if(ndirty++>1000){
+          if(ndirty++>10000){
               printf("Too many dirty pages. Early stop\n");
               fuzz_emu_stop_unhealthy();
           }
