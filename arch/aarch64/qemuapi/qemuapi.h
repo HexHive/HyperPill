@@ -29,7 +29,7 @@ const uint8_t excp_codes[2] = {
     0x24    // DATAABORT
 };
 
-void aarch64_set_esr_el2(aa64_syndrom syndrom);
+void aarch64_set_esr_el2_for_hvc(aa64_syndrom syndrom);
 
 void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read);
 void aarch64_set_far_el2(uint64_t far);
@@ -46,6 +46,7 @@ bool qemu_is_running();
 bool __add_breakpoint(uint64_t addr, int (*h)(void));
 
 // instrument.cc
+void write_pcs_execution(uint64_t pc, uint64_t pc_last);
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
 bool fuzz_hook_back_to_el1_kernel();
 void qemu_tb_before_execution(hp_instruction *i);
@@ -68,6 +69,9 @@ void __cpu0_set_pc(uint64_t pc);
 void __dump_regs();
 
 
+// fuzz.cc
+void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
+bool __fuzz_emu_stop_normal(void);
 
 #ifdef __cplusplus
 }

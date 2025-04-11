@@ -732,6 +732,7 @@ bool op_vmcall() {
 	//	return false;
 
 #if defined(HP_X86_64)
+	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
 
 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
@@ -782,11 +783,30 @@ bool op_vmcall() {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 #elif defined(HP_AARCH64)
-	const uint64_t fuzzable_regs_bitmap = 
-		(0b11111111111111111000000000000000000000000000000000000000000000);
+	// Only 17 XRegs according to the SMCCC v1.2
+	const uint64_t fuzzable_regs_bitmap = (0b11111111111111111);
 
-	aarch64_set_xregs(vmcall_gpregs);
-	aarch64_set_esr_el2(HVC);
+	// So we have a calling convention to respect. but not all registers are used.
+
+	// On the x86_64 implementation, I don't know why, there is a fuzzable_regs_bitmap that disallow
+	// RAX, RSP and RBP to be fuzzed. However, there is still an
+	// explicit check on BX_64BIT_REG_RSP to NOT BE FUZZED
+
+	/* Consider the SMCCC calling convention */
+	vmcall_enabled_regs &= fuzzable_regs_bitmap;
+	for (int i = 0; i < 32; i++) { // FIXME : DO I CHECK FUZZ X0 ?
+		if ((vmcall_enabled_regs >> i) & 1) {
+			// NO NEED, X1 to X17 are fuzzable
+			//if (i == BX_64BIT_REG_RSP)
+			//	continue;
+			uint64_t val;
+			if (ic_ingest64(&val, 0, -1)) {
+				return false;
+			}
+			aarch64_set_xreg(i, val)
+		}
+	}
+	aarch64_set_esr_el2_for_hvc();
 
 // TODO
 #else

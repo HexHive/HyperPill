@@ -20,8 +20,6 @@ void qemu_wait_until_stop() {
     qemu_mutex_unlock(&barrier_mutex);
 }
 
-
-
 /* Copied from QEMU 8.2.0, target/arm/tcg/helper-a64.c */
 static int el_from_spsr(uint32_t spsr)
 {
@@ -100,10 +98,12 @@ void aarch64_set_xregs(uint64_t xregs[32]) {
     memcpy(env->xregs, xregs, sizeof(xregs[32]));
 }
 
-void aarch64_set_esr_el2(aa64_syndrom syndrom) {
+void aarch64_set_esr_el2_for_hvc() {
     CPUARMState *env = &(ARM_CPU(cpu0))->env;
-    uint8_t excp_code = excp_codes[syndrom];
-    env->cp15.esr_el[2] |= (uint64_t)excp_code << 26; // TODO : add IL and ISS fields
+    env->cp15.esr_el[2] = 
+          (0x16 << 26) // HVC_AA64
+        |    (1 << 25) // 32 bit instruction trapped
+        ; 
 }
 
 // for mmio (linux kernel)
@@ -262,6 +262,7 @@ void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
     qemu_ctrl_flow_insn(prev_pc, tb->pc);
     prev_pc = tb->pc;
     qemu_tb_after_execution(NULL);
+    write_pcs_execution(tb->pc, tb->pc_last);
 }
 
 typedef struct {
@@ -313,9 +314,9 @@ static void hp_vcpu_mem_access(
              if (__cpu0_get_fuzztrace()) {
                  /* printf(".dma inject: %lx +%lx ",phy, len); */
              }
-             fuzz_dma_read_cb(hwaddr, __size, data);
+             fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
          }
-        __cpu0_mem_write_physical_page(hwaddr, __size, data);
+        __cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
     }
 }
 
@@ -417,7 +418,7 @@ int hp_qemu_plugin_load() {
 
 void init_qemu(int argc, char **argv, char *snapshot_tag) {
     qemu_init(argc, argv);
-    hp_qemu_plugin_load();
+    //hp_qemu_plugin_load();
 
     qemu_mutex_init(&barrier_mutex);
     qemu_cond_init(&barrier_cond);

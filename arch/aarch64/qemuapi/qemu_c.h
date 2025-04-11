@@ -20,6 +20,7 @@
 #include "internal-target.h"
 
 #include "qemu/qemu-plugin.h"
+#include "qemu/plugin-memory.h"
 #include "plugin.h"
 
 #endif
