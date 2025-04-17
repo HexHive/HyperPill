@@ -50,13 +50,7 @@ static std::string executeCommand(const char* cmd) {
 // Function to parse the output of 'nm' command and construct map of addresses to symbol names
 static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPath) {
     std::map<std::string, size_t> symbolMap;
-#if defined(HP_X86_64)
-    std::string nmOutput = executeCommand(("nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
-#elif defined(HP_AARCH64)
-    std::string nmOutput = executeCommand(("aarch64-linux-gnu-nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
-#else
-#error
-#endif
+    std::string nmOutput = executeCommand((NM_PREFIX"nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
     size_t pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);
@@ -69,13 +63,7 @@ static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPat
             symbolMap.emplace(name, strtoull(address.c_str(), NULL, 16));
         }
     }
-#if defined(HP_X86_64)
-    nmOutput = executeCommand(("nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
-#elif defined(HP_AARCH64)
-    nmOutput = executeCommand(("aarch64-linux-gnu-nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T '").c_str());
-#else
-#error
-#endif
+    nmOutput = executeCommand((NM_PREFIX"nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
     pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);

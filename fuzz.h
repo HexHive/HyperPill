@@ -37,10 +37,12 @@ void ept_mark_page_table();
 void ept_locate_pc();
 void fuzz_walk_ept();
 void fuzz_walk_cr3();
+#define NM_PREFIX ""
 #elif defined(HP_AARCH64)
 #include "qemuapi.h"
 #include <libgen.h>
 #include <csignal>
+#define NM_PREFIX "aarch64-linux-gnu-"
 #else
 #error
 #endif

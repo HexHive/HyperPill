@@ -47,13 +47,7 @@ static uint64_t get_addr_of_symbol(const char* symbolname)
     char addr[100];
 
     char cmd[500];
-#if defined(HP_X86_64)
-    snprintf(cmd, 500, "nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
-#elif defined(HP_AARCH64)
-    snprintf(cmd, 500, "aarch64-linux-gnu-nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
-#else
-#error
-#endif
+    snprintf(cmd, 500, NM_PREFIX"nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
 
     fp = popen(cmd, "r");
     if (fp == NULL) {
@@ -75,7 +69,7 @@ static uint64_t pnstart, pnstop, pnsize;
 
 static uint8_t *pd, *pc, *pn;
 
-static void write_source_cov() {
+void write_source_cov() {
     // Write Header
     static uint64_t header[11] = {};
 	size_t len;
@@ -144,11 +138,11 @@ static void write_source_cov() {
 		while (len) {
 			/* printf("Reading pd %lx\n", pd+offset); */
 			if(len> 0x1000) {
-                cpu0_read_virtual(pdstart+offset, 0x1000, pd + offset);
+				cpu0_read_virtual(pdstart+offset, 0x1000, pd + offset);
 				len -= 0x1000;
 				offset += 0x1000;
 			} else {
-                cpu0_read_virtual(pdstart+offset, len, pd + offset);
+				cpu0_read_virtual(pdstart+offset, len, pd + offset);
 				len = 0;
 			}
 		}
@@ -157,11 +151,11 @@ static void write_source_cov() {
 		while (len) {
 			/* printf("Reading pn %lx\n", pn+offset); */
 			if(len> 0x1000) {
-                cpu0_read_virtual(pnstart+offset, 0x1000, pn + offset);
+				cpu0_read_virtual(pnstart+offset, 0x1000, pn + offset);
 				len -= 0x1000;
 				offset += 0x1000;
 			} else {
-                cpu0_read_virtual(pnstart+offset, len, pn + offset);
+				cpu0_read_virtual(pnstart+offset, len, pn + offset);
 				len = 0;
 			}
 		}
@@ -197,7 +191,7 @@ static void write_source_cov() {
     close(fd);
 }
 
-static void TERMhandler(int sig){
+void  TERMhandler(int sig){
     write_source_cov();
     _exit(0);
 }
