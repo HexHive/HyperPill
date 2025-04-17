@@ -6,7 +6,7 @@ ifeq ($(OS),Linux)
 endif
 
 CXX ?= clang++
-VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a vendor/lib/libavx.a vendor/lib/libfpu.a vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o 
+VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a vendor/lib/libavx.a vendor/lib/libfpu.a vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o vendor/lib/pc_system.o
 VENDOR_OBJS =
 
 
@@ -71,12 +71,14 @@ rebuild_bochs:
 	cp ./vendor/bochs-build/cpu/avx/libavx.a vendor/lib/
 	cp ./vendor/bochs-build/config.h vendor/include/
 	cp ./vendor/bochs-build/gdbstub.o vendor/lib/gdbstub.o
+	cp ./vendor/bochs-build/pc_system.o vendor/lib/pc_system.o
 	cp ./vendor/bochs/instrument/stubs/instrument.h vendor/include/
 	cd vendor/bochs-build; make -j bx_debug/libdebug.a
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
 
 tests: rebuild_bochs $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
 	$(CXX) $(CFLAGS) -I. tests/cve-2021-3947.cc $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o tests/cve-2021-3947
+	$(CXX) $(CFLAGS) -I. tests/cve-2022-0216.cc $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o tests/cve-2022-0216
 
 clean:
 	rm -rf vendor/bochs-build vendor/lib vendor/include

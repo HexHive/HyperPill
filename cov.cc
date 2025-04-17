@@ -61,11 +61,11 @@ void add_edge(bx_address prev_rip, bx_address new_rip) {
     if(fuzzing) {
         if(cur_input.emplace(new_rip).second)
             last_new = 0;
-        if(last_new++ > 100000 && !master_fuzzer ){
+        if(last_new++ > 1000000 && !master_fuzzer ){
             printf("No new edges for over %d..\n", last_new);
             fuzz_emu_stop_unhealthy();
         }
-        if(last_new > 300000 && master_fuzzer ){
+        if(last_new > 3000000 && master_fuzzer ){
             printf("No new edges for over %d..\n", last_new);
             fuzz_stacktrace();
             fuzz_emu_stop_unhealthy();

@@ -213,10 +213,10 @@ void bx_pc_system_c::exit(void)
   // delete all registered timers (exception: null timer and APIC timer)
   numTimers = 1 + BX_SUPPORT_APIC;
   bx_devices.exit();
-  if (bx_gui) {
-    bx_gui->cleanup();
-    bx_gui->exit();
-  }
+  // if (bx_gui) {
+  //   bx_gui->cleanup();
+  //   bx_gui->exit();
+  // }
 }
 
 void bx_pc_system_c::register_state(void)

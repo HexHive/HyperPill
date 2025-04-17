@@ -191,6 +191,7 @@ bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
   return 1;
 page_fault:
   printf("PAGE FAULT ON ADDR: %lx\n", paddress);
+  fuzz_emu_stop_crash("page fault");
   return 0;
 }
 

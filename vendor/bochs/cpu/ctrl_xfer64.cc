@@ -22,7 +22,6 @@
 #define NEED_CPU_REG_SHORTCUTS 1
 #include "bochs.h"
 #include "cpu.h"
-#include "memory/memory-bochs.h"
 #define LOG_THIS BX_CPU_THIS_PTR
 
 #if BX_SUPPORT_X86_64
@@ -102,9 +101,6 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::RETfar64_Iw(bxInstruction_c *i)
   BX_NEXT_TRACE(i);
 }
 
-
-extern bool fuzzing;
-__attribute__((weak)) bool fuzzing;
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_Jq(bxInstruction_c *i)
 {
   Bit64u new_RIP = RIP + (Bit32s) i->Id();
@@ -114,6 +110,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_Jq(bxInstruction_c *i)
 #endif
 
   RSP_SPECULATIVE;
+
   /* push 64 bit EA of next instruction */
   push_64(RIP);
 #if BX_SUPPORT_CET
@@ -142,30 +139,6 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::CALL_EqR(bxInstruction_c *i)
 #endif
 
   Bit64u new_RIP = BX_READ_64BIT_REG(i->dst());
-  if (new_RIP == 0x5555575cace0){ // ohci
-      return;
-  }
-  if (new_RIP == 0x5555575b0890){ // uhci
-      return;
-  }
-  if(new_RIP == 0x67d3f0)
-  {
-      uint64_t phy_addr;
-      size_t len = 0x1000-(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx&0xFFF);
-      bool valid = BX_CPU(0)->dbg_xlate_linear2phy(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx, &phy_addr);
-      if (valid){
-          uint8_t* logbuf = (uint8_t*)malloc(len);
-          BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, len, logbuf);
-          if(!strstr((char*)logbuf, "WARNING,"))
-            printf("LOG: %s\n", logbuf);
-      } else {
-        printf("LOG (Message read failed)\n");
-      }
-      /* for(int i=0; i<=BX_GENERAL_REGISTERS; i++){ */
-      /*     printf("REG%d = %lx\n",i, BX_CPU(id)->gen_reg[i].rrx ); */
-      /* } */
-      return;
-  }
 
   RSP_SPECULATIVE;
 
@@ -280,7 +253,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JB_Jq(bxInstruction_c *i)
 
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNB_Jq(bxInstruction_c *i)
 {
-  if (! get_CF() || BX_CPU(0)->prev_rip == 0x55555822a234) { // qtest_enabled
+  if (! get_CF()) {
     branch_near64(i);
     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
     BX_LINK_TRACE(i);
@@ -304,7 +277,7 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::JZ_Jq(bxInstruction_c *i)
 
 void BX_CPP_AttrRegparmN(1) BX_CPU_C::JNZ_Jq(bxInstruction_c *i)
 {
-  if (! get_ZF() ||  BX_CPU(0)->prev_rip == 0x55555822a37b) {
+  if (! get_ZF()) {
     branch_near64(i);
     BX_INSTR_CNEAR_BRANCH_TAKEN(BX_CPU_ID, PREV_RIP, RIP);
     BX_LINK_TRACE(i);

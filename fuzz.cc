@@ -758,9 +758,26 @@ bool op_vmcall() {
 }
 
 bool op_clock_step() {
+	if (!getenv("END_WITH_CLOCK_STEP")) {
+		printf("END_WITH_CLOCK_STEP is not set.\n");
+		return false;
+	} else if (in_clock_step < 0) {
+		printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
+		return false;
+	}
+	in_clock_step = CLOCK_STEP_GET_DEADLINE;
+
+	uint64_t addr = mmio_regions.begin()->first;
+	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
+        in_clock_step = 0;
+        return false;
+	}
+    start_cpu();
+    in_clock_step = CLOCK_STEP_NONE;
+    return true;
 }
 
-extern bool fuzz_unhealthy_input, fuzz_do_not_continue;
+extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
@@ -780,7 +797,7 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		inited = 1;
 		fuzz_legacy = getenv("FUZZ_LEGACY");
 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
-		end_with_clockstep = getenv("END_WITH_CLOCKSTEP");
+		end_with_clockstep = getenv("END_WITH_CLOCK_STEP");
 		log_ops = getenv("LOG_OPS") || BX_CPU(id)->fuzztrace;
 	}
 

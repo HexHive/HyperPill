@@ -6,6 +6,8 @@
 
 bx_devices_c::bx_devices_c() {}
 bx_devices_c::~bx_devices_c() {}
+void bx_devices_c::exit() {}
+void bx_devices_c::reset(unsigned int) {}
 
 static char output_buf[128];
 static char output_index = 0;
