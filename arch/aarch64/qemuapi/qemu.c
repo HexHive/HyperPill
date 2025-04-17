@@ -100,10 +100,10 @@ void aarch64_set_xregs(uint64_t xregs[32]) {
 
 void aarch64_set_esr_el2_for_hvc() {
     CPUARMState *env = &(ARM_CPU(cpu0))->env;
-    env->cp15.esr_el[2] = 
+    env->cp15.esr_el[2] =
           (0x16 << 26) // HVC_AA64
         |    (1 << 25) // 32 bit instruction trapped
-        ; 
+        ;
 }
 
 // for mmio (linux kernel)

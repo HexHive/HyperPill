@@ -267,14 +267,11 @@ void fuzz_instr_before_execution(hp_instruction *i) {
 
 static void usage() {
 	printf("The following environment variables must be set:\n");
-#if defined(HP_X86_64)
 	printf("ICP_MEM_PATH\n");
 	printf("ICP_REGS_PATH\n");
+#if defined(HP_X86_64)
 	printf("ICP_VMCS_LAYOUT_PATH\n");
 	printf("ICP_VMCS_ADDR\n");
-#elif defined(HP_AARCH64)
-	printf("ICP_EFI_PATH\n");
-	printf("ICP_VM_PATH\n");
 #endif
 	exit(-1);
 }
@@ -391,7 +388,12 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (!(mem_path && regs_path && vmcs_shadow_layout_path &&
 	      vmcs_addr_str))
 		usage();
+#elif defined(HP_AARCH64)
+	if (!(mem_path && regs_path))
+		usage();
+#endif
 
+#if defined(HP_X86_64)
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
 
 	/* Bochs-specific initialization. (e.g. CPU version/features). */
@@ -403,6 +405,26 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	bx_init_pc_system();
 
 	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
+#elif defined(HP_AARCH64)
+	// should be the same as when launching L1 vm
+	int qemu_argc = 20;
+	char *qemu_argv[] = {
+		"qemu-system-aarch64",
+//		"-monitor", "telnet:127.0.0.1:1235,server,nowait",
+		"-nographic",
+		"-smp", "1",
+		"-m", "8192",
+		"-cpu", "max",
+		"-drive", efi_arg,
+		"-device", "virtio-scsi-pci,id=scsi0",
+		"-drive", vm_arg,
+		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
+		"-device", "virtio-net-device,netdev=net0",
+		"-M", "virt,virtualization=on",
+		NULL
+	};
+	init_qemu(qemu_argc, qemu_argv, __snapshot_tag);
+#endif
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
 	cpu0_set_fuzztrace(fuzztrace);
 
@@ -411,27 +433,33 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	icp_init_mem(mem_path);
 	fuzz_watch_memory_inc();
 
+#if defined(HP_X86_64)
 	icp_init_shadow_vmcs_layout(vmcs_shadow_layout_path);
+#endif
 	printf(".loading register snapshot from %s\n", regs_path);
 	icp_init_regs(regs_path);
 
+#if defined(HP_X86_64)
 	/* The current VMCS address is part of the CPU-state, but it is not part
 	 * of the memory or register snapshot. As such, we load it (and adjacent
 	 * internal Bochs pointers) separately.
 	 */
 	printf(".vmcs addr set  to %lx\n", vmcs_addr);
 	icp_set_vmcs(vmcs_addr);
+#endif
 
 	/* Dump disassembly and CMP hooks? */
 
 	fuzz_walk_ept();
 
+#if defined(HP_X86_64)
 	/* WIP: Tweak the VMCS/L2 state. E.g. set up our own page-tables for L2
 	 * and ensure that the hypervisor thinks L2 is running privileged
 	 * code/ring0 code.
 	 */
 	vmcs_fixup();
 	/* fuzz_walk_cr3(); */
+#endif
 
 	/*
 	 * Previously, we identified all of L2's pages. However, we want to
@@ -456,12 +484,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 */
 	ept_mark_page_table();
 
+#if defined(HP_X86_64)
 	/* Translate the guest's RIP in the VMCS to a physical-address */
 	ept_locate_pc();
+#endif
 
 	/* Save guest RIP so that we can restore it after each fuzzer input */
-	guest_rip = BX_CPU(id)->get_rip();
-#endif
+	guest_rip = cpu0_get_pc();
 
 	/* For addr -> symbol */
 	if (getenv("SYMBOLS_DIR"))
@@ -488,12 +517,12 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		}
 	}
 
-#if defined(HP_X86_64)
-	BX_CPU(id)->TLB_flush();
+	cpu0_tlb_flush();
 	fuzz_walk_ept();
+#if defined(HP_X86_64)
 	vmcs_fixup();
-	init_register_feedback();
 #endif
+	init_register_feedback();
 
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
@@ -514,67 +543,22 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 				}
 			}
 	}
+#endif
 	if (getenv("KVM")) {
 		add_pc_range(0, 0x7fffffffffff);
 		apply_breakpoints_linux();
     }
+#if defined(HP_X86_64)
 	/*
 	 * make a copy of the bochs CPU state, which we use to reset the CPU
 	 * state after each fuzzer input
 	 */
 	shadow_bx_cpu = bx_cpu;
-#elif defined(HP_AARCH64)
-	char *efi_path = getenv("ICP_EFI_PATH");
-	char *vm_path = getenv("ICP_VM_PATH");
-
-	if (!(efi_path && vm_path)) {
-		usage();
-	}
-
-	// construct argc/argv for qemu
-	char vm_path_copy[256];
-	memcpy(vm_path_copy, vm_path, strlen(vm_path));
-	snprintf(__snapshot_tag, sizeof(__snapshot_tag), "%s/vm", basename(dirname(vm_path_copy)));
-
-	char efi_arg[320];
-	snprintf(efi_arg, sizeof(efi_arg), "if=pflash,format=raw,file=%s,readonly=on", efi_path);
-	char vm_arg[320];
-	snprintf(vm_arg, sizeof(vm_arg), "if=virtio,format=qcow2,file=%s", vm_path);
-
-	// should be the same as when launching L1 vm
-	int qemu_argc = 20;
-	char *qemu_argv[] = {
-		"qemu-system-aarch64",
-//		"-monitor", "telnet:127.0.0.1:1235,server,nowait",
-		"-nographic",
-		"-smp", "1",
-		"-m", "8192",
-		"-cpu", "max",
-		"-drive", efi_arg,
-		"-device", "virtio-scsi-pci,id=scsi0",
-		"-drive", vm_arg,
-		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
-		"-device", "virtio-net-device,netdev=net0",
-		"-M", "virt,virtualization=on",
-		NULL
-	};
-	init_qemu(qemu_argc, qemu_argv, __snapshot_tag);
-
-    signal(SIGINT, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
 #endif
-	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
-	cpu0_set_fuzztrace(fuzztrace);
 
-	/* Save guest RIP so that we can restore it after each fuzzer input */
-	guest_rip = cpu0_get_pc();
-
-#if defined(HP_X86_64)
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
-#endif
 	reset_vm();
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */

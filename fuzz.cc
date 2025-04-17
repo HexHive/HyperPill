@@ -206,7 +206,7 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		break;
 	case Word:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x66\x89\x02", 2);
+		cpu_physical_memory_write(phy, "\x66\x89\x02", 3);
 		break;
 	case Long:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
@@ -226,16 +226,16 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 	}
 	switch (size) {
 	case Byte:
-		aarch64_set_esr_el2_for_data_abort(0, 1, 1); // question
+		aarch64_set_esr_el2_for_data_abort(Byte, 1, 1); // question
 		break;
 	case Word:
-		aarch64_set_esr_el2_for_data_abort(1, 1, 1);
+		aarch64_set_esr_el2_for_data_abort(Word, 1, 1);
 		break;
 	case Long:
-		aarch64_set_esr_el2_for_data_abort(2, 1, 1);
+		aarch64_set_esr_el2_for_data_abort(Long, 1, 1);
 		break;
 	case Quad:
-		aarch64_set_esr_el2_for_data_abort(3, 1, 1);
+		aarch64_set_esr_el2_for_data_abort(Quad, 1, 1);
 		break;
 	}
 #endif
@@ -307,16 +307,16 @@ bool inject_read(hp_address addr, int size) {
 	}
 	switch (size) {
 	case Byte:
-		aarch64_set_esr_el2_for_data_abort(0, 0, 0);
+		aarch64_set_esr_el2_for_data_abort(Byte, 0, 0);
 		break;
 	case Word:
-		aarch64_set_esr_el2_for_data_abort(1, 0, 0);
+		aarch64_set_esr_el2_for_data_abort(Word, 0, 0);
 		break;
 	case Long:
-		aarch64_set_esr_el2_for_data_abort(2, 0, 0);
+		aarch64_set_esr_el2_for_data_abort(Long, 0, 0);
 		break;
 	case Quad:
-		aarch64_set_esr_el2_for_data_abort(3, 0, 0);
+		aarch64_set_esr_el2_for_data_abort(Quad, 0, 0);
 		break;
 	}
 #endif
@@ -326,7 +326,6 @@ bool inject_read(hp_address addr, int size) {
 #if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size) {
 	enum Sizes { Byte, Word, Long, end_sizes };
-
 	uint64_t field_64 = 0;
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!in%d %x\n", size, addr);
@@ -374,7 +373,6 @@ bool inject_in(uint16_t addr, uint16_t size) {
 
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	enum Sizes { Byte, Word, Long, end_sizes };
-
 	uint64_t field_64 = 0;
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!out%d %x %x\n", size, addr, value);
@@ -479,7 +477,6 @@ uint64_t inject_rdmsr(hp_address msr) {
 /* OPERATIONS */
 
 bool op_write() {
-	printf("OP WRITE\n");
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
 	uint8_t size;
 	uint8_t base;
@@ -729,16 +726,21 @@ void insert_register_value_into_fuzz_input(int idx) {
  * [the corresponding registers in natural order]
  */
 bool op_vmcall() {
-	printf("OP VMCALL\n");
 	static uint8_t local_dma[4096]; // Used to make a copy of dma data
 					// before rewriting regs
 	size_t local_dma_len; // Used to make a copy of dma data before
 			      // rewriting regs
-	//if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
-	//	return false;
+#if defined(HP_X86_64)
+	// disallow RAX, RSP and RBP to be fuzzed.
+	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
+#elif defined(HP_AARCH64)
+	// Only 17 XRegs according to the SMCCC v1.2
+	const uint64_t fuzzable_regs_bitmap = (0b11111111111111111);
+#endif
+	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
+		return false;
 
 #if defined(HP_X86_64)
-	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
 
 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
@@ -789,22 +791,10 @@ bool op_vmcall() {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 #elif defined(HP_AARCH64)
-	// Only 17 XRegs according to the SMCCC v1.2
-	const uint64_t fuzzable_regs_bitmap = (0b11111111111111111);
-
-	// So we have a calling convention to respect. but not all registers are used.
-
-	// On the x86_64 implementation, I don't know why, there is a fuzzable_regs_bitmap that disallow
-	// RAX, RSP and RBP to be fuzzed. However, there is still an
-	// explicit check on BX_64BIT_REG_RSP to NOT BE FUZZED
-
-	/* Consider the SMCCC calling convention */
 	vmcall_enabled_regs &= fuzzable_regs_bitmap;
 	for (int i = 0; i < 32; i++) { // FIXME : DO I CHECK FUZZ X0 ?
 		if ((vmcall_enabled_regs >> i) & 1) {
 			// NO NEED, X1 to X17 are fuzzable
-			//if (i == BX_64BIT_REG_RSP)
-			//	continue;
 			uint64_t val;
 			if (ic_ingest64(&val, 0, -1)) {
 				return false;
@@ -813,8 +803,6 @@ bool op_vmcall() {
 		}
 	}
 	aarch64_set_esr_el2_for_hvc();
-
-// TODO
 #endif
 	uint8_t *dma_start = ic_get_cursor();
 
@@ -853,8 +841,6 @@ bool op_vmcall() {
                 fuzz_emu_stop_unhealthy();
 		}
 	}
-#elif defined(HP_AARCH64)
-// TODO
 #endif
 	if (!ic_append(local_dma, local_dma_len))
         fuzz_emu_stop_unhealthy();

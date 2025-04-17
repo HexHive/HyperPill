@@ -34,6 +34,10 @@ void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
 	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
 }
 
+void cpu0_tlb_flush(void) {
+	BX_CPU(id)->TLB_flush();
+}
+
 extern void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
 
 void hp_add_persistent_memory_range(hp_address start, size_t len) {

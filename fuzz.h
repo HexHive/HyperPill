@@ -21,11 +21,6 @@
 #include "cpu/cpu.h"
 #include "memory/memory-bochs.h"
 void icp_init_params();
-void icp_init_mem(const char* filename);
-void icp_init_regs(const char* filename);
-void fuzz_reset_memory();
-void fuzz_clear_dirty();
-void fuzz_watch_memory_inc();
 extern uint64_t vmcs_addr;
 void icp_set_vmcs(uint64_t vmcs);
 void redo_paging();
@@ -33,9 +28,7 @@ void vmcs_fixup();
 void icp_init_shadow_vmcs_layout(const char* filename);
 bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
 int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
-void ept_mark_page_table();
 void ept_locate_pc();
-void fuzz_walk_ept();
 void fuzz_walk_cr3();
 #define NM_PREFIX ""
 #elif defined(HP_AARCH64)
@@ -44,6 +37,13 @@ void fuzz_walk_cr3();
 #include <csignal>
 #define NM_PREFIX "aarch64-linux-gnu-"
 #endif
+void icp_init_mem(const char* filename);
+void icp_init_regs(const char* filename);
+void fuzz_reset_memory();
+void fuzz_clear_dirty();
+void fuzz_watch_memory_inc();
+void fuzz_walk_ept();
+void ept_mark_page_table();
 
 #if defined(HP_X86_64)
 typedef bx_address hp_address;
@@ -71,6 +71,7 @@ void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_read_virtual(hp_address start, size_t size, void *data);
 void cpu0_write_virtual(hp_address start, size_t size, void *data);
 bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf);
+bool cpu0_tlb_flush(void);
 void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
 void hp_add_persistent_memory_range(hp_address start, size_t len);
