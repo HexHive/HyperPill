@@ -29,7 +29,7 @@ const uint8_t excp_codes[2] = {
     0x24    // DATAABORT
 };
 
-void aarch64_set_esr_el2_for_hvc(aa64_syndrom syndrom);
+void aarch64_set_esr_el2_for_hvc();
 
 void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read);
 void aarch64_set_far_el2(uint64_t far);

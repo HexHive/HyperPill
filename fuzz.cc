@@ -803,7 +803,7 @@ bool op_vmcall() {
 			if (ic_ingest64(&val, 0, -1)) {
 				return false;
 			}
-			aarch64_set_xreg(i, val)
+			aarch64_set_xreg(i, val);
 		}
 	}
 	aarch64_set_esr_el2_for_hvc();
