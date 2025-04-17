@@ -4,17 +4,29 @@
 #include <ctime>
 
 enum cmds {
+	OP_READ,
+	OP_WRITE,
 #if defined(HP_X86_64)
 	OP_IN,
 	OP_OUT,
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
 #endif
-	OP_READ,
-	OP_WRITE,
 	OP_VMCALL,
 	OP_CLOCK_STEP,
 };
+#define FUZZ_LEGACY_S    OP_READ
+#if defined(HP_X86_64)
+#define FUZZ_LEGACY_E    OP_OUT
+#elif defined(HP_AARCH64)
+#define FUZZ_LEGACY_E    OP_WRITE
+#endif
+#if defined(HP_X86_64)
+#define FUZZ_HYPERCALL_S OP_MSR_WRITE
+#elif defined(HP_AARCH64)
+#define FUZZ_HYPERCALL_S OP_VMCALL
+#endif
+#define FUZZ_HYPERCALL_E OP_VMCALL
 
 static bool log_ops = false;
 
@@ -226,8 +238,6 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		aarch64_set_esr_el2_for_data_abort(3, 1, 1);
 		break;
 	}
-#else
-#error
 #endif
 	return true;
 }
@@ -309,8 +319,6 @@ bool inject_read(hp_address addr, int size) {
 		aarch64_set_esr_el2_for_data_abort(3, 0, 0);
 		break;
 	}
-#else
-#error
 #endif
 	return true;
 }
@@ -694,8 +702,6 @@ static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
 #elif defined(HP_AARCH64)
 static uint64_t vmcall_gpregs[20]; // TODO
-#else
-#error
 #endif
 static uint32_t vmcall_enabled_regs;
 
@@ -809,8 +815,6 @@ bool op_vmcall() {
 	aarch64_set_esr_el2_for_hvc();
 
 // TODO
-#else
-#error
 #endif
 	uint8_t *dma_start = ic_get_cursor();
 
@@ -851,8 +855,6 @@ bool op_vmcall() {
 	}
 #elif defined(HP_AARCH64)
 // TODO
-#else
-#error
 #endif
 	if (!ic_append(local_dma, local_dma_len))
         fuzz_emu_stop_unhealthy();
@@ -860,19 +862,36 @@ bool op_vmcall() {
 }
 
 bool op_clock_step() {
+	if (!getenv("END_WITH_CLOCK_STEP")) {
+		printf("END_WITH_CLOCK_STEP is not set.\n");
+		return false;
+	} else if (in_clock_step < 0) {
+		printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
+		return false;
+	}
+	in_clock_step = CLOCK_STEP_GET_DEADLINE;
+
+	uint64_t addr = mmio_regions.begin()->first;
+	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
+        in_clock_step = 0;
+        return false;
+	}
+    start_cpu();
+    in_clock_step = CLOCK_STEP_NONE;
+    return true;
 }
 
-extern bool fuzz_unhealthy_input, fuzz_do_not_continue;
+extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
+		[OP_READ] = op_read,
+		[OP_WRITE] = op_write,
 	#if defined(HP_X86_64)
 		[OP_IN] = op_in,
 		[OP_OUT] = op_out,
 		[OP_PCI_WRITE] = op_pci_write,
 		[OP_MSR_WRITE] = op_msr_write,
 	#endif
-		[OP_READ] = op_read,
-		[OP_WRITE] = op_write,
 		[OP_VMCALL] = op_vmcall,
 	};
 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
@@ -898,19 +917,19 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		dma_start = ic_get_cursor() - input_start;
 		dma_len = 0;
 		if (fuzz_legacy) {
-			if (ic_ingest8(&op, 0, OP_WRITE, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_LEGACY_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else if (fuzz_hypercalls) {
-			if (ic_ingest8(&op, OP_VMCALL, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_HYPERCALL_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else { /* Fuzz Everything */
-			if (ic_ingest8(&op, 0, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
@@ -944,7 +963,7 @@ void add_mmio_region(uint64_t addr, uint64_t size) {
 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
 	       size);
 }
-void add_mmio_range_all(uint64_t addr, uint64_t end) {
+void add_mmio_range_alt(uint64_t addr, uint64_t end) {
 	add_mmio_region(addr, end - addr);
 }
 void init_regions(const char *path) {

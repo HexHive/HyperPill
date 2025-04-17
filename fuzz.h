@@ -43,8 +43,6 @@ void fuzz_walk_cr3();
 #include <libgen.h>
 #include <csignal>
 #define NM_PREFIX "aarch64-linux-gnu-"
-#else
-#error
 #endif
 
 #if defined(HP_X86_64)
@@ -55,8 +53,6 @@ typedef bxInstruction_c hp_instruction;
 typedef uint64_t hp_address;
 typedef uint64_t hp_phy_address;
 typedef void hp_instruction;
-#else
-#error
 #endif
 
 extern bool fuzzing;
@@ -94,6 +90,14 @@ void cpu0_set_pc(uint64_t rip);
 // fuzz.cc
 void clear_seen_dma();
 void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
+extern int in_clock_step;
+enum {
+	CLOCK_STEP_NONE,
+	CLOCK_STEP_GET_DEADLINE,
+	CLOCK_STEP_GET_NS,
+	CLOCK_STEP_WARP,
+	CLOCK_STEP_DONE
+};
 bool op_clock_step();
 #if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size);
@@ -182,8 +186,6 @@ void init_register_feedback();
 bool fuzz_hook_vmlaunch();
 #elif defined(HP_AARCH64)
 extern "C" bool fuzz_hook_back_to_el1_kernel(void);
-#else
-#error
 #endif
 
 // link_map.cc
