@@ -136,7 +136,7 @@ void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     fuzzed_guest_pages.push_back(std::make_tuple(new_addr, new_pgtable_lvl, is_l2_pagetable_bitmap[new_addr>>12]));
     //printf("!fuzz_mark_l2_guest_page Mark 0x%lx lvl %x as tmp guest page\n", new_addr, new_pgtable_lvl);
     if (new_pgtable_lvl) {
-        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl);
+        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl - 1);
     } else {
         mark_l2_guest_page(new_addr, len, 0);
     }
