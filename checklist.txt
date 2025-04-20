@@ -9,7 +9,7 @@
                cov.cc: arch-agnostic, emulators's callbacks update coverage
          sourcecov.cc: arch-agnostic, source-based code coverage
     sym2addr_linux.cc: arch-agnostic, symbolization
-	 symbolize.cc: arch-agnostic, symbolization
+         symbolize.cc: arch-agnostic, symbolization
               enum.cc: arch-agnostic, input space enumeration
           feedback.cc: arch-agnostic
 
@@ -17,3 +17,11 @@
               fuzz.cc: arch-specific
               main.cc: arch-specific
                 arch/: arch-specific
+
+
+# Ready to upgrade
+
+- sourcecov.cc
+- sym2addr_linux.cc
+- symbolize.cc
+
