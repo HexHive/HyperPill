@@ -21,7 +21,19 @@
 
 # Ready to upgrade
 
+- conveyour.cc
+- conveyour.h
+- db.cc
+- enum.cc
+- feedback.cc (vmm)
+- fuzz.cc (hypercall)
+- link_map.cc
+- main.cc
 - sourcecov.cc
 - sym2addr_linux.cc
 - symbolize.cc
 
+# logs
+
+- verbose
+- log_ops

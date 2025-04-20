@@ -1,4 +1,4 @@
-void init_backend() {
+void icp_init_backend() {
 	int qemu_argc = 20;
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",

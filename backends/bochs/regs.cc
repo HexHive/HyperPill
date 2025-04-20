@@ -6,9 +6,12 @@
 #include <cstdint>
 #include <regex>
 
-#include "fuzz.h"
+#include "bochs.h"
+#include "cpu/cpu.h"
 #include "cpu/vmx.h"
 
+BX_CPU_C bx_cpu = BX_CPU_C(0);
+BX_CPU_C shadow_bx_cpu;
 
 //std::cout << "  submatch " << i << ": " << piece << '\n';
 #define GETREG32(REG) \
@@ -248,6 +251,11 @@ void icp_set_vmcs(uint64_t vmcs) {
     BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 }
 
+void icp_set_vmcs_map() {
+    if (BX_CPU(id)->vmcs_map)
+        BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
+}
+
 void dump_regs() {
 	static const char *general_64bit_regname[17] = {
 		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
@@ -267,4 +275,26 @@ uint64_t cpu0_get_pc(void) {
 }
 void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
+}
+
+size_t init_random_register_data_len(void) {
+    return 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
+}
+
+uint64_t cpu0_get_vmcsptr(void) {
+    return BX_CPU(id)->vmcsptr;
+}
+
+void save_cpu() {
+    shadow_bx_cpu = bx_cpu;
+}
+
+void restore_cpu() {
+    bx_cpu = shadow_bx_cpu;
+}
+
+void init_cpu() {
+	BX_CPU(id)->initialize();
+	BX_CPU(id)->reset(BX_RESET_HARDWARE);
+	BX_CPU(id)->sanity_checks();
 }

@@ -508,20 +508,13 @@ void __cpu0_set_fuzz_executing_input(bool fuzzing) {
 
 // mem.c
 void __cpu0_mem_write_physical_page(hwaddr addr, size_t len, void *buf) {
-    cpu_physical_memory_write(addr, buf, len);
 }
 
 void __cpu0_mem_read_physical_page(hwaddr addr, size_t len, void *buf) {
-    cpu_physical_memory_read(addr, buf, len);
 }
 
 int __cpu0_memory_rw_debug(vaddr addr, void *ptr, size_t len, bool is_write) {
     return cpu_memory_rw_debug(cpu0, addr, ptr, len, is_write);
-}
-
-// regs.c
-void __dump_regs(void) {
-    cpu_dump_state(cpu0, NULL, CPU_DUMP_FPU);
 }
 
 uint64_t __cpu0_get_pc(void) {

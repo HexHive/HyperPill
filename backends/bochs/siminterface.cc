@@ -236,15 +236,3 @@ void icp_init_params() {
 logfunctions *siminterface_log = NULL;
 bx_list_c *root_param = NULL;
 bx_simulator_interface_c *SIM = new bx_real_sim_c();
-
-void init_backend() {
-	/* Bochs-specific initialization. (e.g. CPU version/features). */
-	if (getenv("GDB")) {
-		bx_dbg.gdbstub_enabled = 1;
-	}
-	icp_init_params();
-	init_cpu();
-	bx_init_pc_system();
-
-	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
-}

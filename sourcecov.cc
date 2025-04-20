@@ -254,7 +254,7 @@ void init_sourcecov(size_t baseaddr) {
             len = pcstop - page;
 
         cpu0_write_virtual(start, len, pc);
-        hp_add_persistent_memory_range(start, len);
+        add_persistent_memory_range(start, len);
     }
 
     /* std::atexit(write_source_cov); */

@@ -23,6 +23,18 @@ struct Hasher {
 
 tsl::robin_set<std::tuple<uint64_t, uint64_t, uint64_t>, Hasher> structset;
 
+#if defined(HP_X86_64)
+bool fuzz_hook_vmlaunch() {
+    /* printf("Vmlaunch:%lx\n", cpu0_get_vmcsptr()); */
+    if(vmcs_addr == cpu0_get_vmcsptr()) {
+        fuzz_emu_stop_normal();
+        return true;
+    }
+
+    return false;
+}
+#endif
+
 extern "C" void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2);
 extern "C" void __sanitizer_cov_trace_cmp2_pc(uint64_t PC, uint16_t Arg1, uint16_t Arg2);
 extern "C" void __sanitizer_cov_trace_cmp4_pc(uint64_t PC, uint32_t Arg1, uint32_t Arg2);
@@ -57,6 +69,8 @@ void indicator_cb(void(*cb)(uint64_t)) {
 }
 
 void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
+
+
     uint64_t PC = cpu0_get_pc();
     if(cpu0_get_fuzztrace())
         printf("CMP%ld: %lx vs %lx @ %lx\n", size, op1, op2, PC);
@@ -123,4 +137,42 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
 
 }
 
-extern void init_register_feedback();
+void init_register_feedback() {
+#if defined(HP_X86_64)
+    // 16 General-Purpose Registers + 16 XMM Registers
+#elif defined(HP_AARCH64)
+    // 31 General-Purpose Registers
+#endif
+    /* int fd = open("/dev/random", O_RDONLY); */
+    srand(0);
+    random_register_data = (uint8_t*) malloc(random_register_data_len);
+    /* read(fd, random_register_data, random_register_data_len); */
+    uint8_t* cursor = random_register_data;
+#if defined(HP_X86_64)
+    for(int i=0; i<16; i++) {
+            if(i == BX_64BIT_REG_RSP || i == BX_64BIT_REG_RBP)
+                continue;
+#elif defined(HP_AARCH64)
+    for(int i=0; i<31; i++) {
+#endif
+            uint64_t value;
+            uint8_t* ptr = (uint8_t*)&value;
+            for(int j=0; j<sizeof(value); j++)
+                ptr[j] = rand();
+            memcpy(cursor, &value, sizeof(value));
+            BX_CPU(id)->set_reg64(i, value);
+            register_contents[i] = std::make_pair(cursor, 8);
+            cursor += 8;
+            printf("REG%d: %lx\n", i, value);
+    }
+#if defined(HP_X86_64)
+    for(int i=0; i<BX_XMM_REGISTERS+1; i++) {
+            uint8_t* ptr = (uint8_t*)&BX_CPU(id)->vmm[i];
+            for(int j=0; j<sizeof(BX_CPU(id)->vmm[i]); j++)
+                ptr[j] = rand();
+            memcpy(cursor, &BX_CPU(id)->vmm[i], sizeof(BX_CPU(id)->vmm[i]));
+            register_contents[16+i] = std::make_pair(cursor, sizeof(BX_CPU(id)->vmm[i]));
+            cursor += sizeof(BX_CPU(id)->vmm[i]);
+    }
+#endif
+}

@@ -15,12 +15,7 @@ bool fuzz_should_abort = false;    /* We got a crash. */
 bool fuzzing;
 
 #if defined(HP_X86_64)
-BOCHSAPI BX_CPU_C bx_cpu = BX_CPU_C(0);
-BOCHSAPI BX_CPU_C shadow_bx_cpu;
-
 uint64_t vmcs_addr;
-#elif defined(HP_AARCH64)
-// TODO
 #endif
 
 uint64_t guest_rip; /* Entrypoint. Reset after each op */
@@ -42,15 +37,6 @@ static void dump_hex(const uint8_t *data, size_t len) {
 	printf("\n");
 }
 
-extern void dump_regs();
-
-static void init_cpu(void) {
-#if defined(HP_X86_64)
-#elif defined(HP_AARCH64)
-// TODO
-#endif
-}
-
 void start_cpu() {
 	if (fuzzing && (fuzz_unhealthy_input || fuzz_do_not_continue))
 		return;
@@ -67,16 +53,7 @@ void start_cpu() {
 	}
 	reset_op_cov();
 	cpu0_set_fuzz_executing_input(true);
-#if defined(HP_X86_64)
-	while (cpu0_get_fuzz_executing_input()) {
-	BX_CPU(id)->cpu_loop();
-	}
-#elif defined(HP_AARCH64)
-	// FIXME : BX_CPU(id)->cpu_loop() is probably blocking, which is not the case
-	// for us with qemu_start_vm();
-	// TODO : block on a barrier or something
-	qemu_wait_until_stop();
-#endif
+	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
 	cpu0_set_pc(guest_rip); // reset $RIP
@@ -150,21 +127,14 @@ unsigned long int get_pio_icount() {
 }
 #endif
 
-#if defined(HP_AARCH64)
-char __snapshot_tag[320];
-#endif
-
 void reset_vm() {
 	if (verbose)
 		printf("Resetting VM !\n");
+	restore_cpu();
 #if defined(HP_X86_64)
-	bx_cpu = shadow_bx_cpu;
-	if (BX_CPU(id)->vmcs_map)
-		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
-	fuzz_reset_memory();
-#elif defined(HP_AARCH64)
-	qemu_reload_vm(__snapshot_tag);
+	icp_set_vmcs_map();
 #endif
+	fuzz_reset_memory();
 }
 
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
@@ -243,16 +213,14 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 }
 
 void fuzz_instr_before_execution(hp_instruction *i) {
-#if defined(HP_X86_64)
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);
-#endif
 	if (!fuzzing && !fuzzenum)
 		return;
 
 	/* Check Icount limits */
 	if (icount > icount_limit && fuzzing) {
-		printf("icount abort %lx\n", icount);
+		printf("icount abort %d\n", icount);
 	    fuzz_emu_stop_unhealthy();
 	}
     icount++;
@@ -276,7 +244,6 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-
 	if (cpu0_get_fuzztrace())
 		printf("NEW INPUT\n");
 	if (!done) {
@@ -368,6 +335,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	char *regs_path = getenv("ICP_REGS_PATH");
 	char *icp_db_path = getenv("ICP_DB_PATH");
 	verbose = getenv("VERBOSE");
+
 #if defined(HP_X86_64)
 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
 	 * collected, so we also need to load a mapping of VMCS encodings to
@@ -393,7 +361,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #if defined(HP_X86_64)
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
 #endif
-	init_backend();
+	icp_init_backend();
 
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
 	cpu0_set_fuzztrace(fuzztrace);
@@ -518,13 +486,12 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		add_pc_range(0, 0x7fffffffffff);
 		apply_breakpoints_linux();
     }
-#if defined(HP_X86_64)
+
 	/*
-	 * make a copy of the bochs CPU state, which we use to reset the CPU
+	 * make a copy of the CPU state, which we use to reset the CPU
 	 * state after each fuzzer input
 	 */
-	shadow_bx_cpu = bx_cpu;
-#endif
+	save_cpu();
 
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */

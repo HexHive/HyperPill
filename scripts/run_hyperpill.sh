@@ -41,5 +41,5 @@ export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"
 export ICP_DB_PATH="$SNAPSHOT_BASE/snap.sqlite"
 
 cp "$PROJECT_ROOT/fuzz" .
-gdb --args \
+# gdb --args \
 ./fuzz $LIBFUZZER_FLAGS

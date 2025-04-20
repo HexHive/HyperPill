@@ -160,7 +160,7 @@ void enum_mmio_regions(void) {
         hp_address base = addr;
         hp_address end = std::get<1>(a);
         unsigned int reason = std::get<2>(a);
-        // printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
+        printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
         while(addr < end && addr - base < 0x10000000) { 
             bool new_icount = 0;
             inject_write(addr, 2,1);

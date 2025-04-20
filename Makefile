@@ -1,8 +1,20 @@
 NPROCS     := 1
 OS         := $(shell uname -s)
 ARCH       ?= x86_64
+BACKEND    ?= qemu
+ifeq ($(ARCH), x86_64)
+	BACKEND = bochs
+else ifeq ($(ARCH), aarch64)
+	BACKEND = qemu
+endif
+ifeq ($(BACKEDN), bochs)
+	ARCH    = x86_64
+endif
+ifeq ($(BACKEDN), qemu)
+	ARCH    = aarch64
+endif
 
-ifeq ($(OS),Linux)
+ifeq ($(OS), Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
@@ -10,27 +22,30 @@ CC         ?= clang
 CXX        ?= clang++
 
 LDFLAGS     = -fPIE -lrt -ldl -lpthread -lsqlite3 -lstdc++fs -lcrypto #-fsanitize=address
-ifeq ($(ARCH), x86_64)
+ifeq ($(BACKEND), bochs)
 INCLUDES    = -I. \
 			  -I vendor/bochs \
 			  -I vendor/bochs/gui \
 			  -I vendor/include \
 			  -I vendor/robin-map/include
 ARCH_FLAGS  = -DHP_X86_64
-else ifeq ($(ARCH), aarch64)
+else ifeq ($(BACKEDN), qemu)
 INCLUDES    = -I. \
 			  -I vendor/robin-map/include \
-			  -I arch/aarch64/qemuapi \
+			  -I backends/qemu \
 			  -I vendor/qemu/include \
-			  -I vendor/qemu/target/arm \
 			  -I vendor/qemu/accel/tcg \
 			  -I vendor/qemu/plugins \
 			  -I vendor/qemu-build \
 			  -I /usr/include/glib-2.0 \
 			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include
+ifeq ($(ARCH), aarch64)
+INCLUDES    = $(INCLUDES) \
+		      -I vendor/qemu/target/arm \
 ARCH_FLAGS  = -DHP_AARCH64 -DNEED_CPU_H \
 			  -DCONFIG_TARGET=\"aarch64-softmmu-config-target.h\" \
 			  -DCONFIG_DEVICES=\"aarch64-softmmu-config-devices.h\"
+endif
 else
     $(error Unsupported architecture: $(ARCH))
 endif
@@ -38,42 +53,41 @@ CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \
-			  fuzz.o \
+			  breakpoints.o \
+			  conveyor.o \
 			  cov.o \
 			  db.o \
+			  fuzz.o \
 			  enum.o \
 			  feedback.o \
-			  conveyor.o \
 			  link_map.o \
+			  main.o \
 			  sourcecov.o \
 			  sym2addr_linux.o \
 			  symbolize.o \
-			  main.o
 
-ifeq ($(ARCH), x86_64)
+ifeq ($(BACKEND), bochs)
 VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \
 			  vendor/lib/libavx.a vendor/lib/libfpu.a \
-			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o
+			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o vendor/lib/pc_system.o
 VENDOR_OBJS =
 OBJS        = $(OBJS_GENERIC) \
-			  arch/x86_64/breakpoints.o \
-			  arch/x86_64/devices.o \
-			  arch/x86_64/ept.o \
-			  arch/x86_64/control.o \
-			  arch/x86_64/feedback.o \
-			  arch/x86_64/instrument.o \
-			  arch/x86_64/mem.o \
-			  arch/x86_64/regs.o \
-			  arch/x86_64/vmcs.o \
-              arch/x86_64/bochsapi/logfunctions.o \
-			  arch/x86_64/bochsapi/system.o \
-			  arch/x86_64/bochsapi/mem.o \
-              arch/x86_64/bochsapi/siminterface.o \
-			  arch/x86_64/bochsapi/paramtree.o \
-			  arch/x86_64/bochsapi/gui.o \
-			  arch/x86_64/bochsapi/apic.o \
-              arch/x86_64/bochsapi/dbg.o
-else ifeq ($(ARCH), aarch64)
+			  backends/bochs/devices.o \
+			  backends/bochs/ept.o \
+			  backends/bochs/control.o \
+			  backends/bochs/init.o \
+			  backends/bochs/instrument.o \
+			  backends/bochs/mem.o \
+			  backends/bochs/regs.o \
+			  backends/bochs/vmcs.o \
+              backends/bochs/logfunctions.o \
+			  backends/bochs/system.o \
+              backends/bochs/siminterface.o \
+			  backends/bochs/paramtree.o \
+			  backends/bochs/gui.o \
+			  backends/bochs/apic.o \
+              backends/bochs/dbg.o
+else ifeq ($(BACKEDN), qemu)
 
 MAKEFLAGS += --no-builtin-rules
 %.a: %.fa %.fa.p
@@ -83,13 +97,13 @@ VENDOR_LIBS:= vendor/libfuzzer-ng/libFuzzer.a
 VENDOR_OBJS =
 LDFLAGS    := $(LDFLAGS) -Wl,--whole-archive vendor/lib/qemu_system_aarch64.a \
 			  -Wl,--no-whole-archive
-OBJS        = arch/aarch64/qemuapi/qemu.o \
-			  arch/aarch64/breakpoints.o \
-			  arch/aarch64/control.o \
-			  arch/aarch64/mem.o \
-			  arch/aarch64/feedback.o \
-			  arch/aarch64/instrument.o \
-			  arch/aarch64/regs.o \
+OBJS        = backends/qemu/qemuapi/qemu.o \
+			  backends/qemu/breakpoints.o \
+			  backends/qemu/control.o \
+			  backends/qemu/mem.o \
+			  backends/qemu/feedback.o \
+			  backends/qemu/instrument.o \
+			  backends/qemu/regs.o \
 			  $(OBJS_GENERIC)
 else
     $(error Unsupported architecture: $(ARCH))
@@ -113,7 +127,7 @@ vendor/libfuzzer-ng/libFuzzer.a:
 	cd vendor/libfuzzer-ng/; ./build.sh
 
 rebuild_emulator:
-ifeq ($(ARCH), x86_64)
+ifeq ($(BACKEND), bochs)
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/bochs-build vendor/lib vendor/include
 	cd vendor/bochs-build; test -f config.h || ../bochs/configure \
@@ -130,10 +144,11 @@ ifeq ($(ARCH), x86_64)
 	cp ./vendor/bochs-build/cpu/avx/libavx.a vendor/lib/
 	cp ./vendor/bochs-build/config.h vendor/include/
 	cp ./vendor/bochs-build/gdbstub.o vendor/lib/gdbstub.o
+	cp ./vendor/bochs-build/pc_system.o vendor/lib/pc_system.o
 	cp ./vendor/bochs/instrument/stubs/instrument.h vendor/include/
 	cd vendor/bochs-build; make -j bx_debug/libdebug.a
 	cp ./vendor/bochs-build/bx_debug/libdebug.a vendor/lib/
-else ifeq ($(ARCH), aarch64)
+else ifeq ($(BACKEND), qemu)
 	if [ ! -d "vendor/qemu" ]; then \
 		git clone https://github.com/qemu/qemu.git vendor/qemu \
 			--branch v8.2.7 --depth=1; \
@@ -154,27 +169,26 @@ else ifeq ($(ARCH), aarch64)
 	# cp -r ./vendor/qemu/subprojects/dtc vendor/lib/subprojects
 
 	rsync -av ./vendor/qemu-build/libcommon.fa.p vendor/lib/
+ifeq ($(ARCH), aarch64)
 	rsync -av ./vendor/qemu-build/libqemu-aarch64-softmmu.fa.p vendor/lib/
 	mkdir -p ./vendor/lib/qemu-system-aarch64.p
 	rsync -av ./vendor/qemu-build/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o \
 		vendor/lib/qemu-system-aarch64.p/meson-generated_.._ui_dbus-display1.c.o
+endif
 
 	python3 ./scripts/gen_makefile_qemu.py vendor/qemu-build/build.ninja
+ifeq ($(ARCH), aarch64)
 	chmod +x Makefile.qemu.rsync && bash -x Makefile.qemu.rsync
 	. ./Makefile.qemu.env && export LIBCOMMON LIBQEMU_AARCH64_SOFTMMU QEMU_SYSTEM_AARCH64 OTHERS && \
 		make $$OTHERS && \
 		ar cr vendor/lib/qemu_system_aarch64.a $$LIBCOMMON $$LIBQEMU_AARCH64_SOFTMMU $$QEMU_SYSTEM_AARCH64
+endif
 else
     $(error Unsupported architecture: $(ARCH))
 endif
 
 clean:
-ifeq ($(ARCH), x86_64)
-	rm -rf vendor/bochs-build arch/x86_64/*.o arch/x86_64/bochsapi/*.o
-else ifeq ($(ARCH), aarch64)
-	rm -rf vendor/qemu-build arch/aarch64/*.o arch/aarch64/qemuapi/*.o
-else
-    $(error Unsupported architecture: $(ARCH))
-endif
+	rm -rf vendor/bochs-build backends/bochs/*.o
+	rm -rf vendor/qemu-build backedns/qemu/*.o
 	rm -rf vendor/lib vendor/include
 	rm -rf ./*.o
