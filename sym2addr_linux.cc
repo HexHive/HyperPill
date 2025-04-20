@@ -130,7 +130,7 @@ void load_symbol_map(char *path) {
                     if(log)
                         printf(".info Symbol Name added: %s@%s %lx\n", name.c_str(), binfile.c_str(), it.second+offset);
                     sym2addr[std::make_pair(binfile, name)] = it.second + offset;
-                    printf("Looking up %s@%s %lx\n", name.c_str(), binfile.c_str(), sym2addr[std::make_pair(binfile, name)]);
+                    // printf("Looking up %s@%s %lx\n", name.c_str(), binfile.c_str(), sym2addr[std::make_pair(binfile, name)]);
                     /* if(!sym2addr.emplace(std::make_pair(binfile, name), it.second + offset).second) */
                     /*     printf(".warning Symbol Name Collision: %s@%s %lx %lx\n", name.c_str(), binfile.c_str(), it.second+offset, sym2addr[std::make_pair(binfile, name)]); */
                 }
