@@ -46,9 +46,6 @@ extern void dump_regs();
 
 static void init_cpu(void) {
 #if defined(HP_X86_64)
-	BX_CPU(id)->initialize();
-	BX_CPU(id)->reset(BX_RESET_HARDWARE);
-	BX_CPU(id)->sanity_checks();
 #elif defined(HP_AARCH64)
 // TODO
 #endif
@@ -395,36 +392,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 #if defined(HP_X86_64)
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
-
-	/* Bochs-specific initialization. (e.g. CPU version/features). */
-	if (getenv("GDB")) {
-		bx_dbg.gdbstub_enabled = 1;
-	}
-	icp_init_params();
-	init_cpu();
-	bx_init_pc_system();
-
-	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
-#elif defined(HP_AARCH64)
-	// should be the same as when launching L1 vm
-	int qemu_argc = 20;
-	char *qemu_argv[] = {
-		"qemu-system-aarch64",
-//		"-monitor", "telnet:127.0.0.1:1235,server,nowait",
-		"-nographic",
-		"-smp", "1",
-		"-m", "8192",
-		"-cpu", "max",
-		"-drive", efi_arg,
-		"-device", "virtio-scsi-pci,id=scsi0",
-		"-drive", vm_arg,
-		"-netdev", "user,id=net0,hostfwd=tcp::2222-:22",
-		"-device", "virtio-net-device,netdev=net0",
-		"-M", "virt,virtualization=on",
-		NULL
-	};
-	init_qemu(qemu_argc, qemu_argv, __snapshot_tag);
 #endif
+	init_backend();
+
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
 	cpu0_set_fuzztrace(fuzztrace);
 

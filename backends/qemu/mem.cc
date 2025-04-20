@@ -29,3 +29,5 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 }
 
 void hp_add_persistent_memory_range(hp_address start, size_t len) { assert(0); }
+
+void icp_init_mem(const char *filename) {}
