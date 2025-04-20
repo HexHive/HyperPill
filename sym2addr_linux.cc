@@ -1,6 +1,4 @@
 #include "fuzz.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
 #include <sstream>
 #include <fstream>
 #include <iostream>
