@@ -1,8 +1,6 @@
-#include "bochs.h"
 #include "fuzz.h"
 
 #include "iodev/iodev.h"
-#include "cpu/cpu.h"
 
 bx_devices_c::bx_devices_c() {}
 bx_devices_c::~bx_devices_c() {}

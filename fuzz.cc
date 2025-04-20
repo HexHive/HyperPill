@@ -1,7 +1,4 @@
 #include "fuzz.h"
-#include "bochs.h"
-#include "conveyor.h"
-#include "cpu/cpu.h"
 #include <tsl/robin_map.h>
 
 #include <ctime>

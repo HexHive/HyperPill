@@ -1,5 +1,3 @@
-#include "bochs.h"
-#include "cpu/cpu.h"
 #include "fuzz.h"
 #include <tsl/robin_set.h>
 #include <unordered_set>

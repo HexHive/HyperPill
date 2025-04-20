@@ -1,8 +1,5 @@
-#include "bochs.h"
-#include "cpu/cpu.h"
 #include "fuzz.h"
 #include <cstdint>
-#include "conveyor.h"
 
 int in_clock_step = CLOCK_STEP_NONE;
 bool hack_qtest_allowed = false;

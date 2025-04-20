@@ -1,6 +1,3 @@
-#include "bochs.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
 #include <sys/mman.h>
 #include <cstdint>
 
