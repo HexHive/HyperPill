@@ -1,22 +1,23 @@
 # HP-Snap Instructions
 
+Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
+
 <!-- toc -->
 
-- [x86-64](#x86-64)
-  * [Setup L0 KVM](#setup-l0-kvm)
-  * [Run L1 and L2 VMs](#run-l1-and-l2-vms)
-    + [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
-    + [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
-  * [Take the snapshot](#take-the-snapshot)
-- [aarch64](#aarch64)
-  * [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
-  * [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
-  * [Take the snapshot](#take-the-snapshot-1)
-- [[Optional] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
+- [HP-Snap Instructions](#hp-snap-instructions)
+  - [x86-64](#x86-64)
+    - [Setup L0 KVM](#setup-l0-kvm)
+    - [Run L1 and L2 VMs](#run-l1-and-l2-vms)
+      - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
+      - [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
+    - [Take the snapshot](#take-the-snapshot)
+  - [aarch64](#aarch64)
+    - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
+    - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
+    - [Take the snapshot](#take-the-snapshot-1)
+  - [\[Optional\] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
 
 <!-- tocstop -->
-
-Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
 
 ## x86-64
 
@@ -132,7 +133,7 @@ ubuntu 22.04).
 [L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20240827-1852/debian-12-nocloud-amd64-daily-20240827-1852.qcow2 --no-check-certificate
 [L0] $ qemu-img resize debian-12-nocloud-amd64-daily-20240827-1852.qcow2 20G
 [L0] $ qemu/build/qemu-system-x86_64 -machine q35 -accel kvm -m 8G \
-    -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt \
+    -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt,-hle,-rtm,-waitpkg \
     -netdev user,id=u1,hostfwd=tcp::2222-:22 \
     -device virtio-net,netdev=u1 -smp 1 -serial stdio \
     -hda debian-12-nocloud-amd64-daily-20240827-1852.qcow2 \
@@ -143,7 +144,7 @@ ubuntu 22.04).
 [L1] $ resize2fs /dev/sda1
 [L1] $ df -h
 
-[L1] $ apt-get install -y  libslirp-dev
+[L1] $ apt-get install -y git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build libslirp-dev
 [L1] $ apt-get install -y python3 python3-pip python3-venv
 
 # Setup the QEMU under test - example 1: QEMU 8.0.0 with ASAN
@@ -267,7 +268,7 @@ image, install ubuntu, and restart the ubuntu
 #include <stdlib.h>
 
 int main() {
-    size_t size = 0x100000; // 4G
+    size_t size = 0x100000; // 1MB
     int fd = open("/dev/random", O_RDONLY);
     int i =0;
     void *bloat = -1;
@@ -336,7 +337,7 @@ at this exact moment. This will allow us to snapshot the VM along with the
 hypervisor running inside.
 
 ```bash
-[L0] sudo apt-get update && sudo apt-get install -y cloud-utils xarchiver openssh-server git \
+[L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
 [L0] wget https://download.qemu.org/qemu-8.2.0.tar.bz2
@@ -355,8 +356,7 @@ First, set up L0 to run L1. At the root of the project :
 ```bash
 [L0] sudo apt-get install -y qemu-system-arm # Only needed for the EFI image.
 [L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
-[L0] mv debian-12-nocloud-arm64.qcow2 disk.qcow2
-[L0] qemu-img resize disk.qcow2 30G
+[L0] qemu-img resize debian-12-nocloud-arm64.qcow2 disk.qcow2 30G
 [L0] truncate -s 64m efi.img
 [L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
 
@@ -382,8 +382,7 @@ First, set up L0 to run L1. At the root of the project :
 	-drive if=virtio,format=qcow2,file=disk.qcow2 \
 	-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 	-device virtio-net-device,netdev=net0 \
-	-M virt,virtualization=on \
-	$@
+	-M virt,virtualization=on
 ```
 
 Once L1 booted successfully, we prepare it to host a guest VM "L2" :
@@ -402,7 +401,7 @@ Once L1 booted successfully, we prepare it to host a guest VM "L2" :
 
 # Setup the QEMU under test - example 1: QEMU 8.0.0
 # WARNING : this will take hours !
-[L1] apt-get update && apt-get install -y git \
+[L1] apt-get install -y git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
 [L1] wget https://download.qemu.org/qemu-8.0.0.tar.bz2
@@ -434,7 +433,7 @@ virt.dtb`.
 
 ```bash
 [L1] qemu-8.0.0/build/qemu-system-aarch64 -M virt \
-        -enable-kvm -cpu max -nographic \
+        -enable-kvm -cpu max -nographic -m 4G \
         -kernel Image -append "rootwait root=/dev/vda console=ttyAMA0" \
         -initrd rootfs.cpio.gz \
         \
@@ -472,17 +471,22 @@ monitor :
 
 ```bash
 [L0] telnet localhost 55556
-[L0 qemu-monitor] savevm dir/vm
-[L0] cp efi.img /path/to/snapshots/dir/
-[L0] cp disk.qcow2 /path/to/snapshots/dir/vm
+[L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
+[L0 qemu-monitor] info registers
+# Copy the output of the above command to /path/to/snapshots/dir/regs
 ```
 
-This will save a snapshot in the qcow virtual disk of the L1 VM.
+The snapshot should now be ready for fuzzing.
 
 After collecting the snapshot, the snapshot directory should contain the
 following files:
-* `dir/efi.img`
-* `dir/vm`
+* `dir/mem`
+* `dir/regs`
+
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+
+P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
+make your life easy.
 
 ## [Optional] Obtain Symbols for Debugging
 
@@ -490,7 +494,7 @@ Adjust the kernel version and architecture accordingly.
 
 ``` bash
 # install the debugging symbols for the Linux kernel
-[L1] uname -r # 6.1.0-23-amd64
+[L1] uname -r # 6.1.0-23-amd64 or 6.1.0-28-arm64
 [L1] sudo apt-get install -y linux-image-$(uname -r)-dbg
 [L1] cd qemu-8.0.0/build && ldd qemu-system-x86_64
 # linux-vdso.so.1 (0x00007ffea85f8000)
@@ -520,6 +524,7 @@ Adjust the kernel version and architecture accordingly.
 [L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm.ko .
 # copy the debugging symbols for the QEMU
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libc.so.6 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libasan.so.8 .
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libglib-2.0.so.0 .
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libslirp.so.0 .
 [L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
