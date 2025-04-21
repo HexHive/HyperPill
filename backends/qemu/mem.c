@@ -30,3 +30,11 @@ void add_persistent_memory_range(hp_address start, size_t len) { assert(0); }
 void icp_init_mem(const char *filename) {}
 
 void cpu0_tlb_flush(void) { assert(0); }
+
+void fuzz_reset_memory() { assert(0); }
+
+void fuzz_watch_memory_inc() { assert(0); }
+
+void fuzz_walk_ept() { assert(0); }
+
+void ept_mark_page_table() { assert(0); }

@@ -51,46 +51,6 @@ void qemu_wait_until_stop() {
 /* previous PC before entering hypervisor */
 static uint64_t pre_hyp_pc = 0;
 
-/* Copied from QEMU 8.2.0, target/arm/tcg/helper-a64.c */
-static int el_from_spsr(uint32_t spsr)
-{
-    /* Return the exception level that this SPSR is requesting a return to,
-     * or -1 if it is invalid (an illegal return)
-     */
-    if (spsr & PSTATE_nRW) {
-        switch (spsr & CPSR_M) {
-        case ARM_CPU_MODE_USR:
-            return 0;
-        case ARM_CPU_MODE_HYP:
-            return 2;
-        case ARM_CPU_MODE_FIQ:
-        case ARM_CPU_MODE_IRQ:
-        case ARM_CPU_MODE_SVC:
-        case ARM_CPU_MODE_ABT:
-        case ARM_CPU_MODE_UND:
-        case ARM_CPU_MODE_SYS:
-            return 1;
-        case ARM_CPU_MODE_MON:
-            /* Returning to Mon from AArch64 is never possible,
-             * so this is an illegal return.
-             */
-        default:
-            return -1;
-        }
-    } else {
-        if (extract32(spsr, 1, 1)) {
-            /* Return with reserved M[1] bit set */
-            return -1;
-        }
-        if (extract32(spsr, 0, 4) == 1) {
-            /* return to EL0 with M[0] bit set */
-            return -1;
-        }
-        return extract32(spsr, 2, 2);
-    }
-}
-
-
 
 void aarch64_set_xregs(uint64_t xregs[32]) {
     CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
@@ -274,7 +234,7 @@ static void hp_vcpu_mem_access(
              }
              fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
          }
-        __cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
+        // __cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
     }
 }
 

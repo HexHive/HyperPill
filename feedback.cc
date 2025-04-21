@@ -160,7 +160,7 @@ void init_register_feedback() {
             for(int j=0; j<sizeof(value); j++)
                 ptr[j] = rand();
             memcpy(cursor, &value, sizeof(value));
-            BX_CPU(id)->set_reg64(i, value);
+            cpu0_set_general_purpose_reg64(i, value);
             register_contents[i] = std::make_pair(cursor, 8);
             cursor += 8;
             printf("REG%d: %lx\n", i, value);

@@ -6,6 +6,47 @@ void el_change_fn(ARMCPU *cpu, void *opaque) {
     // TODO : leaving it here in case we need it
 }
 
+/* Copied from QEMU 8.2.0, target/arm/tcg/helper-a64.c */
+int el_from_spsr(uint32_t spsr)
+{
+    /* Return the exception level that this SPSR is requesting a return to,
+     * or -1 if it is invalid (an illegal return)
+     */
+    if (spsr & PSTATE_nRW) {
+        switch (spsr & CPSR_M) {
+        case ARM_CPU_MODE_USR:
+            return 0;
+        case ARM_CPU_MODE_HYP:
+            return 2;
+        case ARM_CPU_MODE_FIQ:
+        case ARM_CPU_MODE_IRQ:
+        case ARM_CPU_MODE_SVC:
+        case ARM_CPU_MODE_ABT:
+        case ARM_CPU_MODE_UND:
+        case ARM_CPU_MODE_SYS:
+            return 1;
+        case ARM_CPU_MODE_MON:
+            /* Returning to Mon from AArch64 is never possible,
+             * so this is an illegal return.
+             */
+        default:
+            return -1;
+        }
+    } else {
+        if (extract32(spsr, 1, 1)) {
+            /* Return with reserved M[1] bit set */
+            return -1;
+        }
+        if (extract32(spsr, 0, 4) == 1) {
+            /* return to EL0 with M[0] bit set */
+            return -1;
+        }
+        return extract32(spsr, 2, 2);
+    }
+}
+
+
+
 void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
 	CPUARMState *env = &cpu->env;
     CPUState *cs = env_cpu(env);

@@ -1,5 +1,7 @@
 #include "qemu.h"
 
+void handle_breakpoints(void *i) { assert(0); }
+
 hp_address add_breakpoint(uint64_t addr, void (*h)(void)) {
     if (!addr)
         return addr;
@@ -7,6 +9,6 @@ hp_address add_breakpoint(uint64_t addr, void (*h)(void)) {
     return addr;
 }
 
-void __apply_breakpoints_linux() { }
+void __apply_breakpoints_linux() { assert(0); }
 
-void __apply_syscall_hooks() { }
+void __handle_syscall_hooks(void *i) { assert(0); }

@@ -3,19 +3,21 @@ OS         := $(shell uname -s)
 ARCH       ?= x86_64
 BACKEND    ?= qemu
 ifeq ($(ARCH), x86_64)
-	BACKEND = bochs
+BACKEND     = bochs
+BACKEND_FLAG= -DHP_BACKEND_BOCHS
 else ifeq ($(ARCH), aarch64)
-	BACKEND = qemu
+BACKEND     = qemu
+BACKEND_FLAG= -DHP_BACKEND_QEMU
 endif
 ifeq ($(BACKEND), bochs)
-	ARCH    = x86_64
+ARCH       = x86_64
 endif
 ifeq ($(BACKEND), qemu)
-	ARCH    = aarch64
+ARCH       = aarch64
 endif
 
 ifeq ($(OS), Linux)
-	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
+NPROCS     := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
 CC         ?= clang
@@ -48,7 +50,7 @@ endif
 else
     $(error Unsupported architecture: $(ARCH))
 endif
-CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \

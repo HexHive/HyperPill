@@ -77,6 +77,10 @@ void __apply_breakpoints_linux() {
             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
             BX_CPU(id)->async_event = 1;
             });
+    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](hp_instruction *i) {
+            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
+            // fuzz_emu_stop_crash("page fault");
+    });
     add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
     add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
     //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);

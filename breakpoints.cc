@@ -37,10 +37,10 @@ void apply_breakpoints_linux() {
     //         -> __asan::DescribeThread()
     //         -> __sanitizer::Die(), abort or exit
     __apply_breakpoints_linux();
-    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
+    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](hp_instruction *i) {
             fuzz_emu_stop_crash("firecracker: panic");
             });
-    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](hp_instruction *i) {
             // every error through asan should reach this
             printf("ASAN error report\n");
             fuzz_stacktrace();
@@ -48,10 +48,6 @@ void apply_breakpoints_linux() {
     add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](hp_instruction *i) { 
             printf("kexec crash\n");
             print_stacktrace();
-    });
-    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](hp_instruction *i) {
-            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
-            // fuzz_emu_stop_crash("page fault");
     });
     add_breakpoint(sym_to_addr("vmlinux", "hyp_panic"), [](hp_instruction *i) {
         fuzz_emu_stop_crash("vmlinux: hyp_panic");

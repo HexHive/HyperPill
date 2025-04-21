@@ -298,3 +298,7 @@ void init_cpu() {
 	BX_CPU(id)->reset(BX_RESET_HARDWARE);
 	BX_CPU(id)->sanity_checks();
 }
+
+void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
+    BX_CPU(id)->set_reg64(i, value);
+}
