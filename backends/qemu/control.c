@@ -1,24 +1,55 @@
-#include "qemu_c.h"
-#include "qemuapi.h"
+#include "qemu.h"
 
-/* previous PC before entering hypervisor */
-static uint64_t pre_hyp_pc = 0;
+CPUState cpu0;
+CPUState shadow_cpu0;
+
+bool cpu0_get_fuzztrace(void) {
+    return QEMU_CPU(0)->fuzztrace;
+}
+
+void cpu0_set_fuzztrace(bool fuzztrace) {
+    QEMU_CPU(0)->fuzztrace = fuzztrace;
+}
 
 QemuMutex barrier_mutex;
 QemuCond barrier_cond;
 
-/* The CPU handling the VM EXIT */
-static CPUState *cpu0 = NULL;
+void qemu_start_vm() {
+    vm_start();
+    if (qemu_mutex_iothread_locked()) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
+bool cpu0_get_fuzz_executing_input(void) {
+    return QEMU_CPU(0)->fuzz_executing_input;
+}
+
+void cpu0_set_fuzz_executing_input(bool fuzzing) {
+    QEMU_CPU(0)->fuzz_executing_input = fuzzing;
+    if (!fuzzing) {
+        qemu_mutex_lock(&barrier_mutex);
+        qemu_cond_signal(&barrier_cond);
+        qemu_mutex_unlock(&barrier_mutex);
+    } else {
+        qemu_mutex_lock(&barrier_mutex);
+        qemu_start_vm();
+        qemu_mutex_unlock(&barrier_mutex);
+    }
+}
 
 void qemu_wait_until_stop() {
     qemu_mutex_lock(&barrier_mutex);
 
-    while(__cpu0_get_fuzz_executing_input()) {
+    while(cpu0_get_fuzz_executing_input()) {
         qemu_cond_wait(&barrier_cond, &barrier_mutex);
     }
 
     qemu_mutex_unlock(&barrier_mutex);
 }
+
+/* previous PC before entering hypervisor */
+static uint64_t pre_hyp_pc = 0;
 
 /* Copied from QEMU 8.2.0, target/arm/tcg/helper-a64.c */
 static int el_from_spsr(uint32_t spsr)
@@ -59,47 +90,15 @@ static int el_from_spsr(uint32_t spsr)
     }
 }
 
-static void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
-	CPUARMState *env = &cpu->env;
-    CPUState *cs = env_cpu(env);
 
-    unsigned int cur_el = arm_current_el(env);
-
-    /* If we exit the hypervisor... 
-     *
-     * NOTE: checking cur_el = 2, new_el = 1 should only work on hardware
-     * providing ARM VHE and hypervisor making use of VHE mode.
-     * Without ARM VHE, a hosted hypervisor would work in split mode, with a 
-     * stub that catches all traps to EL2 and redirects control flow to EL1
-     * where the hypervisor actually sits. In that case, we would need more
-     * checks to differentiate whether we are returning control to the
-     * guest OS or the host OS/hypervisor running in EL1.
-     */
-    if (cur_el == 2) {
-        unsigned int spsr_idx = aarch64_banked_spsr_index(cur_el);
-        uint32_t spsr = env->banked_spsr[spsr_idx];
-        unsigned int new_el = el_from_spsr(spsr);
-    
-        if (new_el == 1) {
-            fuzz_hook_back_to_el1_kernel();
-        }
-    }
-}
-
-static void el_change_fn(ARMCPU *cpu, void *opaque) {
-	CPUARMState *env = &cpu->env;
-    CPUState *cs = env_cpu(env);
-
-    // TODO : leaving it here in case we need it
-}
 
 void aarch64_set_xregs(uint64_t xregs[32]) {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     memcpy(env->xregs, xregs, sizeof(xregs[32]));
 }
 
 void aarch64_set_esr_el2_for_hvc() {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     env->cp15.esr_el[2] =
           (0x16 << 26) // HVC_AA64
         |    (1 << 25) // 32 bit instruction trapped
@@ -169,7 +168,7 @@ void aarch64_set_esr_el2_for_hvc() {
 void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read) {
     int wnr = write_or_read;
 
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     env->cp15.esr_el[2] =
          (0x24 << 26) // data abort from a lower exception level
         |  (il << 25) // 1, 32-bit instruction trapped
@@ -191,78 +190,37 @@ void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read) {
 }
 
 void aarch64_set_far_el2(uint64_t far) {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     env->cp15.far_el[2] = far;
 }
 
 uint64_t aarch64_get_far_el2(void) {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     return env->cp15.far_el[2];
 }
 
 void aarch64_set_hpfar_el2(uint64_t addr) {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     env->cp15.hpfar_el2 = extract64(addr, 12, 47) << 4;
 }
 
 uint64_t aarch64_get_hpfar_el2(void) {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     return env->cp15.hpfar_el2;
 }
 
 void aarch64_set_xreg(uint64_t index, uint64_t value) {
     assert(index < 32);
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     env->xregs[index] = value;
 }
 
-bool qemu_reload_vm(char *snapshot_tag) {
-    Error *err;
-
-    if (!qemu_mutex_iothread_locked())
-        qemu_mutex_lock_iothread();
-
-    vm_stop(RUN_STATE_RESTORE_VM);
-
-    bool success = load_snapshot(snapshot_tag, NULL, false, NULL, &err);
-    if(!success) {
-        printf("Error loading snapshot\n");
-        error_report_err(err);
-    }
-
-    return success;
+bool qemu_reload_vm() {
 }
 
 void save_pre_hyp_pc() {
-    CPUARMState *env = &(ARM_CPU(cpu0))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
     pre_hyp_pc = env->elr_el[2];
-}
-
-void before_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
-    if(tb == NULL || cpu0->cpu_index != cpu_index)
-        return;
-
-    qemu_tb_before_execution(NULL);
-}
-
-void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
-    static uint64_t prev_pc = 0;
-
-    if(tb == NULL || cpu0->cpu_index != cpu_index)
-        return;
-
-    // printf("TB executed: cpu_index=%d pc=0x%"PRIxPTR" pc_end=0x%"PRIxPTR "\n",
-    //    cpu_index, tb->pc, tb->pc_last);
-
-    if (prev_pc == 0) {
-        prev_pc = tb->pc;
-        return;
-    }
-
-    qemu_ctrl_flow_insn(prev_pc, tb->pc);
-    prev_pc = tb->pc;
-    qemu_tb_after_execution(NULL);
-    write_pcs_execution(tb->pc, tb->pc_last);
 }
 
 typedef struct {
@@ -279,7 +237,7 @@ static void hp_vcpu_mem_access(
     if (pos == QEMU_PLUGIN_AFTER) {
         return;
     }
-    if (cpu0->cpu_index != cpu_index) {
+    if (QEMU_CPU(0)->cpu_index != cpu_index) {
         return;
     }
 
@@ -414,113 +372,4 @@ int hp_qemu_plugin_load() {
 
     qemu_rec_mutex_unlock(&plugin.lock);
     return rc;
-}
-
-void init_qemu(int argc, char **argv, char *snapshot_tag) {
-    qemu_init(argc, argv);
-    //hp_qemu_plugin_load();
-
-    qemu_mutex_init(&barrier_mutex);
-    qemu_cond_init(&barrier_cond);
-
-    CPUState *cpu;
-    CPU_FOREACH(cpu) {
-        arm_register_el_change_hook(ARM_CPU(cpu), el_change_fn, NULL);
-        arm_register_pre_el_change_hook(ARM_CPU(cpu), pre_el_change_fn, NULL);
-    }
-
-    printf(".loading vm snapshot\n");
-    if (!qemu_reload_vm(snapshot_tag)) {
-        printf("Fail to load snapshot %s\n", snapshot_tag);
-    }
-
-    CPU_FOREACH(cpu) {
-        CPUARMState *env = &(ARM_CPU(cpu))->env;
-        if (env->xregs[0] == 0xdeadbeef) {
-            cpu0 = cpu;
-            break;
-        }
-    }
-
-    assert(cpu0 != NULL);
-
-    printf("CPU0 is at index : %d\n", cpu0->cpu_index);
-
-    /* Save PC address pre VMENTER before restarting the VM */
-    save_pre_hyp_pc();
-
-    /* Register TB execution callback */
-    register_exec_tb_cb(before_exec_tb_fn, after_exec_tb_fn);
-
-    printf("Enters Hypervisor at address : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->pc);
-    printf("Last PC before entering Hypervisor : 0x%"PRIxPTR "\n", (&(ARM_CPU(cpu0))->env)->elr_el[2]);
-}
-
-// breakpoints.c
-#define GDB_BREAKPOINT_HW        1
-
-int gdb_breakpoint_insert(CPUState *cs, int type, vaddr addr, vaddr len, int (*h)(void));
-
-bool __add_breakpoint(vaddr addr, int (*h)(void)) {
-    return gdb_breakpoint_insert(cpu0, GDB_BREAKPOINT_HW, addr, 0x1000, h);
-}
-
-// control.c
-bool __cpu0_get_fuzztrace(void) {
-    return cpu0->fuzztrace;
-}
-
-void __cpu0_set_fuzztrace(bool fuzztrace) {
-    cpu0->fuzztrace = fuzztrace;
-}
-
-static void qemu_signal_stop() {
-    qemu_mutex_lock(&barrier_mutex);
-    qemu_cond_signal(&barrier_cond);
-    qemu_mutex_unlock(&barrier_mutex);
-}
-
-static void qemu_start_vm() {
-    vm_start();
-    if (qemu_mutex_iothread_locked()) {
-        qemu_mutex_unlock_iothread();
-    }
-}
-
-static void qemu_set_running() {
-    qemu_mutex_lock(&barrier_mutex);
-	qemu_start_vm();
-    qemu_mutex_unlock(&barrier_mutex);
-}
-
-bool __cpu0_get_fuzz_executing_input(void) {
-    return cpu0->fuzz_executing_input;
-}
-
-void __cpu0_set_fuzz_executing_input(bool fuzzing) {
-    cpu0->fuzz_executing_input = fuzzing;
-    if (!fuzzing) {
-        qemu_signal_stop();
-    } else {
-        qemu_set_running();
-    }
-}
-
-// mem.c
-void __cpu0_mem_write_physical_page(hwaddr addr, size_t len, void *buf) {
-}
-
-void __cpu0_mem_read_physical_page(hwaddr addr, size_t len, void *buf) {
-}
-
-int __cpu0_memory_rw_debug(vaddr addr, void *ptr, size_t len, bool is_write) {
-    return cpu_memory_rw_debug(cpu0, addr, ptr, len, is_write);
-}
-
-uint64_t __cpu0_get_pc(void) {
-    return (&(ARM_CPU(cpu0))->env)->pc;
-}
-
-void __cpu0_set_pc(uint64_t pc) {
-    (&(ARM_CPU(cpu0))->env)->pc = pc;
 }

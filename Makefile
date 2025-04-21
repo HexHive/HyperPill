@@ -7,10 +7,10 @@ ifeq ($(ARCH), x86_64)
 else ifeq ($(ARCH), aarch64)
 	BACKEND = qemu
 endif
-ifeq ($(BACKEDN), bochs)
+ifeq ($(BACKEND), bochs)
 	ARCH    = x86_64
 endif
-ifeq ($(BACKEDN), qemu)
+ifeq ($(BACKEND), qemu)
 	ARCH    = aarch64
 endif
 
@@ -29,20 +29,19 @@ INCLUDES    = -I. \
 			  -I vendor/include \
 			  -I vendor/robin-map/include
 ARCH_FLAGS  = -DHP_X86_64
-else ifeq ($(BACKEDN), qemu)
+else ifeq ($(BACKEND), qemu)
 INCLUDES    = -I. \
 			  -I vendor/robin-map/include \
 			  -I backends/qemu \
 			  -I vendor/qemu/include \
-			  -I vendor/qemu/accel/tcg \
 			  -I vendor/qemu/plugins \
+			  -I vendor/qemu/ \
 			  -I vendor/qemu-build \
 			  -I /usr/include/glib-2.0 \
 			  -I /usr/lib/x86_64-linux-gnu/glib-2.0/include
 ifeq ($(ARCH), aarch64)
-INCLUDES    = $(INCLUDES) \
-		      -I vendor/qemu/target/arm \
-ARCH_FLAGS  = -DHP_AARCH64 -DNEED_CPU_H \
+ARCH_FLAGS  = -I vendor/qemu/target/arm \
+			  -DHP_AARCH64 -DNEED_CPU_H \
 			  -DCONFIG_TARGET=\"aarch64-softmmu-config-target.h\" \
 			  -DCONFIG_DEVICES=\"aarch64-softmmu-config-devices.h\"
 endif
@@ -72,6 +71,7 @@ VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \
 			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o vendor/lib/pc_system.o
 VENDOR_OBJS =
 OBJS        = $(OBJS_GENERIC) \
+			  backends/bochs/breakpoints.o \
 			  backends/bochs/devices.o \
 			  backends/bochs/ept.o \
 			  backends/bochs/control.o \
@@ -87,7 +87,7 @@ OBJS        = $(OBJS_GENERIC) \
 			  backends/bochs/gui.o \
 			  backends/bochs/apic.o \
               backends/bochs/dbg.o
-else ifeq ($(BACKEDN), qemu)
+else ifeq ($(BACKEND), qemu)
 
 MAKEFLAGS += --no-builtin-rules
 %.a: %.fa %.fa.p
@@ -97,12 +97,12 @@ VENDOR_LIBS:= vendor/libfuzzer-ng/libFuzzer.a
 VENDOR_OBJS =
 LDFLAGS    := $(LDFLAGS) -Wl,--whole-archive vendor/lib/qemu_system_aarch64.a \
 			  -Wl,--no-whole-archive
-OBJS        = backends/qemu/qemuapi/qemu.o \
-			  backends/qemu/breakpoints.o \
+OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/control.o \
-			  backends/qemu/mem.o \
 			  backends/qemu/feedback.o \
+			  backends/qemu/init.o \
 			  backends/qemu/instrument.o \
+			  backends/qemu/mem.o \
 			  backends/qemu/regs.o \
 			  $(OBJS_GENERIC)
 else
@@ -159,7 +159,7 @@ else ifeq ($(BACKEND), qemu)
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
-		--disable-vnc --disable-sdl --disable-bpf --enable-slirp \
+		--disable-vnc --disable-sdl --disable-bpf --disable-slirp \
 		--enable-capstone --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
 
@@ -189,6 +189,6 @@ endif
 
 clean:
 	rm -rf vendor/bochs-build backends/bochs/*.o
-	rm -rf vendor/qemu-build backedns/qemu/*.o
+	rm -rf vendor/qemu-build backends/qemu/*.o
 	rm -rf vendor/lib vendor/include
 	rm -rf ./*.o

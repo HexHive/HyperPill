@@ -22,7 +22,7 @@
 #include "memory/memory-bochs.h"
 #define NM_PREFIX ""
 #elif defined(HP_AARCH64)
-#include "qemuapi.h"
+#include "qemu.h"
 #include <libgen.h>
 #include <csignal>
 #define NM_PREFIX "aarch64-linux-gnu-"
@@ -127,13 +127,13 @@ void dump_indicators();
 void aggregate_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 
-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
+bool vmcs_linear2phy(hp_address laddr, hp_phy_address *phy);
+int vmcs_translate_guest_physical_ept(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 
 void ept_mark_page_table();
 void ept_locate_pc();
-extern void mark_page_not_guest(bx_phy_address addr, int level);
-bool frame_is_guest(bx_phy_address addr);
+extern void mark_page_not_guest(hp_phy_address addr, int level);
+bool frame_is_guest(hp_phy_address addr);
 
 #if defined(HP_X86_64)
 uint64_t cpu0_get_vmcsptr(void);
@@ -213,7 +213,7 @@ void symbolize(size_t pc);
 
 // sym2addr_linux.cc
 void load_symbol_map(char *path);
-bx_address sym_to_addr(std::string bin, std::string name);
+hp_address sym_to_addr(std::string bin, std::string name);
 std::pair<std::string, std::string> addr_to_sym(size_t addr);
 
 // link_map.c
@@ -227,9 +227,13 @@ void setup_periodic_coverage();
 void check_write_coverage();
 
 // breakpoints.cc
+typedef void (*breakpoint_handler_t)(hp_instruction *);
+hp_address add_breakpoint(hp_address addr, breakpoint_handler_t h);
 void handle_breakpoints(hp_instruction *i);
 void handle_syscall_hooks(hp_instruction *i);
+void __handle_syscall_hooks(hp_instruction *i);
 void apply_breakpoints_linux();
+void __apply_breakpoints_linux();
 
 //stacktrace
 void fuzz_stacktrace();

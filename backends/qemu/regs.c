@@ -1,21 +1,20 @@
-#include "fuzz.h"
-#include "qemu_c.h"
+#include "qemu.h"
 
 void dump_regs() {
-    cpu_dump_state(cpu0, NULL, CPU_DUMP_FPU);
+    cpu_dump_state(QEMU_CPU(0), NULL, CPU_DUMP_FPU);
 	fflush(stdout);
 	fflush(stderr);
 }
 
 uint64_t cpu0_get_pc(void) {
-    return __cpu0_get_pc();
+    return (&(ARM_CPU(QEMU_CPU(0)))->env)->pc;
 }
 
 void cpu0_set_pc(uint64_t pc) {
-    return __cpu0_set_pc(pc);
+    (&(ARM_CPU(QEMU_CPU(0)))->env)->pc = pc;
 }
 
-void save_cpu()
+void save_cpu() {}
 
 void cpu0_run_loop() {
 	// FIXME : BX_CPU(id)->cpu_loop() is probably blocking, which is not the case

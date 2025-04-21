@@ -4,6 +4,9 @@ HyperPill
 Building
 --------
 ```bash
+sudo apt-get install -y libssl-dev libsqlite3-dev bison clang \
+    build-essential debuginfod elfutils python3-pip libcapstone4 \
+    libcapstone-dev
 CC=clang CXX=clang++ make # for x86_64 hypervisors
 ARCH=x86_64 CC=clang CXX=clang++ make # for x86_64 hypervisors
 ARCH=aarch64 CC=clang CXX=clang++ make # for aarch64 hypervisors
