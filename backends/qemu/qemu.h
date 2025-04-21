@@ -32,9 +32,9 @@ typedef uint64_t hp_address;
 typedef uint64_t hp_phy_address;
 typedef void hp_instruction;
 
-extern CPUState cpu0;
-extern CPUState shadow_cpu0;
-#define QEMU_CPU(x) (&cpu0)
+extern CPUState qemu_cpu;
+extern CPUState shadow_qemu_cpu;
+#define QEMU_CPU(x) (&qemu_cpu)
 
 extern QemuMutex barrier_mutex;
 extern QemuCond barrier_cond;

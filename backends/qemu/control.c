@@ -1,7 +1,7 @@
 #include "qemu.h"
 
-CPUState cpu0;
-CPUState shadow_cpu0;
+CPUState qemu_cpu;
+CPUState shadow_qemu_cpu;
 
 bool cpu0_get_fuzztrace(void) {
     return QEMU_CPU(0)->fuzztrace;
