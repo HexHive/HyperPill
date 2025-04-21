@@ -25,19 +25,24 @@ if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
 fi
 export NOCOV=1
 
-if [ "$ARCH" == "aarch64" ]; then
-    export ICP_EFI_PATH="$SNAPSHOT_BASE/efi.img"
-    export ICP_VM_PATH="$SNAPSHOT_BASE/vm"
-else
-    export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
-    export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
-    export ICP_MEM_PATH="$SNAPSHOT_BASE/mem"
-    if [ -e "$SNAPSHOT_BASE/mem.md5sum" ]; then
-        export ICP_MEM_MD5SUM=$(cat "$SNAPSHOT_BASE/mem.md5sum")
-    fi
-    export ICP_REGS_PATH="$SNAPSHOT_BASE/regs"
+if [ -n "$KVM" ] && [ -z "${FUZZ_ENUM+x}" ]; then
+    export END_WITH_CLOCK_STEP=1
+fi
+
+if [ -z "$ARCH" ]; then
+    export ARCH=x86_64
+fi
+
+if [ "$ARCH" == "x86_64" ]; then
+export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
+export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
 fi
 export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"
+export ICP_MEM_PATH="$SNAPSHOT_BASE/mem"
+if [ -e "$SNAPSHOT_BASE/mem.md5sum" ]; then
+    export ICP_MEM_MD5SUM=$(cat "$SNAPSHOT_BASE/mem.md5sum")
+fi
+export ICP_REGS_PATH="$SNAPSHOT_BASE/regs"
 export ICP_DB_PATH="$SNAPSHOT_BASE/snap.sqlite"
 
 cp "$PROJECT_ROOT/fuzz" .
