@@ -143,6 +143,7 @@ bool frame_is_guest(hp_phy_address addr);
 #if defined(HP_X86_64)
 uint64_t cpu0_get_vmcsptr(void);
 #endif
+bool cpu0_get_user_pl(void);
 uint64_t cpu0_get_pc(void);
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
 void cpu0_set_pc(uint64_t rip);

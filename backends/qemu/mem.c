@@ -1,7 +1,5 @@
 #include "qemu.h"
 
-uint64_t lookup_gpa_by_hpa(uint64_t hpa) { assert(0); }
-
 void cpu0_read_virtual(hp_address start, size_t size, void *data) {
     cpu_memory_rw_debug(QEMU_CPU(0), start, data, size, false);
 }
@@ -27,13 +25,7 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 
 void add_persistent_memory_range(hp_address start, size_t len) { assert(0); }
 
-void icp_init_mem(const char *filename) {}
-
 void cpu0_tlb_flush(void) { assert(0); }
-
-void fuzz_reset_memory() { assert(0); }
-
-void fuzz_watch_memory_inc() { assert(0); }
 
 void fuzz_walk_ept() { assert(0); }
 

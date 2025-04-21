@@ -63,6 +63,7 @@ OBJS_GENERIC= \
 			  feedback.o \
 			  link_map.o \
 			  main.o \
+			  mem.o \
 			  sourcecov.o \
 			  sym2addr_linux.o \
 			  symbolize.o \

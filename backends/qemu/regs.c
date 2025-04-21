@@ -14,6 +14,10 @@ void cpu0_set_pc(uint64_t pc) {
     (&(ARM_CPU(QEMU_CPU(0)))->env)->pc = pc;
 }
 
+bool cpu0_get_user_pl(void) {
+	assert(0);
+}
+
 void save_cpu() { assert(0); }
 
 void restore_cpu() { assert(0); }
