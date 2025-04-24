@@ -104,7 +104,7 @@ void walk_ept(){
 
 
 extern size_t guest_mem_size;
-void fuzz_walk_ept() {
+void fuzz_walk_slat() {
     printf(".performing ept walk \n");
     uint64_t eptp = BX_CPU(id)->VMread64(VMCS_64BIT_CONTROL_EPTPTR);
     printf("EPTP: %lx\n", eptp);

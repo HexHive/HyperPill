@@ -162,7 +162,7 @@ unsigned long int get_pio_icount();
 #endif
 void reset_vm();
 
-void fuzz_walk_ept();
+void fuzz_walk_slat();
 void fuzz_walk_cr3();
 
 typedef void (*breakpoint_handler_t)(hp_instruction *);
