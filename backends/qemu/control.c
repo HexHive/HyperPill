@@ -333,3 +333,10 @@ int hp_qemu_plugin_load() {
     qemu_rec_mutex_unlock(&plugin.lock);
     return rc;
 }
+
+void cpu0_run_loop() {
+	// FIXME : BX_CPU(id)->cpu_loop() is probably blocking, which is not the case
+	// for us with qemu_start_vm();
+	// TODO : block on a barrier or something
+	qemu_wait_until_stop();
+}

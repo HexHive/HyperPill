@@ -10,9 +10,5 @@ bool __fuzz_emu_stop_normal(void) {
     return true;
 }
 
-size_t init_random_register_data_len(void) {
-    return 0; // TODO
-}
-
 void init_register_feedback(void) {
 }
