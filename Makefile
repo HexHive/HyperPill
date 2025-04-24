@@ -10,10 +10,10 @@ BACKEND     = qemu
 BACKEND_FLAG= -DHP_BACKEND_QEMU
 endif
 ifeq ($(BACKEND), bochs)
-ARCH       = x86_64
+ARCH        = x86_64
 endif
 ifeq ($(BACKEND), qemu)
-ARCH       = aarch64
+ARCH        = aarch64
 endif
 
 ifeq ($(OS), Linux)
