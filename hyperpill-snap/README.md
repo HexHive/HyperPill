@@ -358,6 +358,10 @@ First, set up L0 to run L1. At the root of the project :
 [L0] sudo apt-get install -y qemu-system-arm # Only needed for the EFI image.
 [L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
 [L0] qemu-img resize debian-12-nocloud-arm64.qcow2 30G
+[L0] truncate -s 64m varstore.img
+[L0] truncate -s 64m efi.img
+[L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
+[L0] qemu-img convert -f raw -O qcow2 varstore.img varstore.qcow2
 
 # WARNING : since you are running an emulated aarch64 system on an x86_64 host,
 # enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2
@@ -376,6 +380,8 @@ First, set up L0 to run L1. At the root of the project :
   -nographic \
   -smp 1 -m 8192 \
   -cpu max \
+  -drive if=pflash,format=raw,file=efi.img,readonly=on \
+  -drive if=pflash,format=qcow2,file=varstore.qcow2 \
   -device virtio-scsi-pci,id=scsi0 \
   -drive if=virtio,format=qcow2,file=debian-12-nocloud-arm64.qcow2 \
   -netdev user,id=net0,hostfwd=tcp::2222-:22 \
@@ -474,12 +480,16 @@ monitor :
 [L0] telnet localhost 55556
 [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
 [L0 qemu-monitor] hp-save-devices-state /path/to/snapshots/dir/regs
+[L0] cp efi.img /path/to/snapshots/dir/efi.img
+[L0] cp varstore.qcow2 /path/to/snapshots/dir/varstore.qcow2
 ```
 
 The snapshot should now be ready for fuzzing.
 
 After collecting the snapshot, the snapshot directory should contain the
 following files:
+* `dir/efi.img`
+* `dir/varstore.qcow2`
 * `dir/mem`
 * `dir/regs`
 

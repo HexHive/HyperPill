@@ -1,6 +1,5 @@
 #include "qemu.h"
 
-CPUState qemu_cpu;
 CPUState shadow_qemu_cpu;
 
 bool cpu0_get_fuzztrace(void) {
@@ -53,12 +52,12 @@ static uint64_t pre_hyp_pc = 0;
 
 
 void aarch64_set_xregs(uint64_t xregs[32]) {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     memcpy(env->xregs, xregs, sizeof(xregs[32]));
 }
 
 void aarch64_set_esr_el2_for_hvc() {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->cp15.esr_el[2] =
           (0x16 << 26) // HVC_AA64
         |    (1 << 25) // 32 bit instruction trapped
@@ -128,7 +127,7 @@ void aarch64_set_esr_el2_for_hvc() {
 void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read) {
     int wnr = write_or_read;
 
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->cp15.esr_el[2] =
          (0x24 << 26) // data abort from a lower exception level
         |  (il << 25) // 1, 32-bit instruction trapped
@@ -150,28 +149,28 @@ void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read) {
 }
 
 void aarch64_set_far_el2(uint64_t far) {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->cp15.far_el[2] = far;
 }
 
 uint64_t aarch64_get_far_el2(void) {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     return env->cp15.far_el[2];
 }
 
 void aarch64_set_hpfar_el2(uint64_t addr) {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->cp15.hpfar_el2 = extract64(addr, 12, 47) << 4;
 }
 
 uint64_t aarch64_get_hpfar_el2(void) {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     return env->cp15.hpfar_el2;
 }
 
 void aarch64_set_xreg(uint64_t index, uint64_t value) {
     assert(index < 32);
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->xregs[index] = value;
 }
 
@@ -179,7 +178,7 @@ bool qemu_reload_vm() {
 }
 
 void save_pre_hyp_pc() {
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0)))->env;
+    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     pre_hyp_pc = env->elr_el[2];
 }
 

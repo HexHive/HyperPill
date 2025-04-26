@@ -1,8 +1,5 @@
 #include "qemu.h"
-
-uint64_t lookup_gpa_by_hpa(uint64_t hpa) {
-	assert(0);
-}
+#include "sys/param.h"
 
 void cpu0_read_virtual(hp_address start, size_t size, void *data) {
 	cpu_memory_rw_debug(QEMU_CPU(0), start, data, size, false);
@@ -33,8 +30,8 @@ void add_persistent_memory_range(hp_address start, size_t len) {
 
 // code from the linux kernel
 struct s2_walk_info {
-	int (*read_desc)(uint64_t pa, uint64_t *desc, void *data);
-	u64 baddr;
+	void (*read_desc)(uint64_t pa, uint64_t *desc);
+	uint64_t baddr;
 	unsigned int max_oa_bits;
 	unsigned int pgshift;
 	unsigned int sl;
@@ -42,14 +39,14 @@ struct s2_walk_info {
 	bool be;
 };
 
-static int read_guest_s2_desc(uint64_t pa, uint64_t *desc){
-	return cpu0_mem_read_physical_page(pa, sizeof(*desc), desc)
+static void read_guest_s2_desc(uint64_t pa, uint64_t *desc){
+	cpu0_mem_read_physical_page(pa, sizeof(*desc), desc);
 }
 
 // vtcr_el2, 64 bit
 // PS, bits [18:16], physical address Size for the second stage of translation
 #define VTCR_EL2_PS_SHIFT 16
-#define VTCR_EL2_PS_MASK (7 << TCR_EL2_PS_SHIFT)
+#define VTCR_EL2_PS_MASK (7 << VTCR_EL2_PS_SHIFT)
 // TG0, bits [15:14], granule size for the VTTBR_EL2
 #define VTCR_EL2_TG0_SHIFT 14
 #define VTCR_EL2_TG0_MASK (3 << VTCR_EL2_TG0_SHIFT)
@@ -91,7 +88,7 @@ uint64_t get_s2ptp(void) {
 	uint64_t vtcr_el2 = ARM_CPU(QEMU_CPU(0))->env.cp15.vtcr_el2;
 
 	wi.read_desc = read_guest_s2_desc;
-	wi.max_oa_bits = min(48, ps_to_output_size(
+	wi.max_oa_bits = MIN(48, ps_to_output_size(
 		(vtcr_el2 & VTCR_EL2_PS_MASK) >> VTCR_EL2_PS_SHIFT));
 
 	switch (vtcr_el2 & VTCR_EL2_TG0_MASK) {
@@ -124,14 +121,14 @@ uint64_t get_s2ptp(void) {
 	}
 	stride = wi.pgshift - 3;
 	input_size = 64 - wi.t0sz;
-	assert(input <= 48 && input_size >= 25);
+	assert(input_size <= 48 && input_size >= 25);
 
 	base_lower_bound = 3 + input_size - ((3 - level) * stride + wi.pgshift);
-	base_addr = wi->baddr & 
+	// base_addr = wi->baddr & 
 
 
 
-	switch (1 << wi.pgshift)
+	// switch (1 << wi.pgshift)
 
 
 }
@@ -152,10 +149,14 @@ void fuzz_walk_slat() {
 	// We walk the s2pt for 2 reasons:
 	// 1. To identify L0 Pages that are allocated to L1
 	// 2. To enumerate potential MMIO Ranges
-    walk_s2pt(&wi);
-	printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
+    walk_s2pt();
+	// printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
 }
 
 void ept_mark_page_table() {
+	assert(0);
+}
+
+void cpu0_tlb_flush(void) {
 	assert(0);
 }

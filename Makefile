@@ -157,13 +157,13 @@ else ifeq ($(BACKEND), qemu)
 			--branch v8.2.7 --depth=1; \
 		cd vendor/qemu; \
 		git am ../../Makefile.qemu.patch; \
-		patch -p1 < ../../hyperpill-snap/aarch64/migration.patch \
+		patch -p1 < ../../hyperpill-snap/aarch64/migration.patch; \
 		cd ../..; \
 	fi
 	rm -rf vendor/lib vendor/include
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
-		--disable-vnc --disable-sdl --disable-bpf --disable-slirp \
+		--disable-vnc --disable-sdl --disable-bpf --enable-slirp \
 		--enable-capstone --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
 
