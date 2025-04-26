@@ -1,4 +1,4 @@
-From 76e1d6454b1eb80ee7b1c3536aec24247ffdb734 Mon Sep 17 00:00:00 2001
+From e4f54b9053ca371ae5a7994118f77f8e26421c59 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sat, 26 Apr 2025 13:57:25 +0200
 Subject: [PATCH] Enable saving/restoring devices state except ram
@@ -10,13 +10,16 @@ A few options must be enabled. For example,
         -global migration.send-configuration=off \
         -global migration.store-global-state=off \
         -global migration.send-section-footer=off
+
+To debug, turn on the vmdesc, redump regs, and run
+`./scripts/analyze-migration.py -f /tmp/regs`
 ---
- hmp-commands.hx                | 32 +++++++++++++++++
+ hmp-commands.hx                | 32 +++++++++++++
  include/migration/snapshot.h   |  3 ++
- include/monitor/hmp.h          |  2 ++
- migration/migration-hmp-cmds.c | 18 ++++++++++
- migration/savevm.c             | 63 ++++++++++++++++++++++++++++++++++
- 5 files changed, 118 insertions(+)
+ include/monitor/hmp.h          |  2 +
+ migration/migration-hmp-cmds.c | 18 ++++++++
+ migration/savevm.c             | 83 +++++++++++++++++++++++++++++++++-
+ 5 files changed, 137 insertions(+), 1 deletion(-)
 
 diff --git a/hmp-commands.hx b/hmp-commands.hx
 index 765349e..07f8967 100644
@@ -118,10 +121,57 @@ index 2faa5ca..2be8677 100644
  {
      int saved_vm_running  = runstate_is_running();
 diff --git a/migration/savevm.c b/migration/savevm.c
-index f374da8..2b733eb 100644
+index f374da8..c0199c3 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
-@@ -3190,6 +3190,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
+@@ -1763,6 +1763,8 @@ void qemu_savevm_live_state(QEMUFile *f)
+ int qemu_save_device_state(QEMUFile *f)
+ {
+     SaveStateEntry *se;
++    JSONWriter *vmdesc = json_writer_new(false);
++    int vmdesc_len;
+ 
+     if (!migration_in_colo_state()) {
+         qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
+@@ -1770,13 +1772,17 @@ int qemu_save_device_state(QEMUFile *f)
+     }
+     cpu_synchronize_all_states();
+ 
++    json_writer_start_object(vmdesc, NULL);
++    json_writer_int64(vmdesc, "page_size", qemu_target_page_size());
++    json_writer_start_array(vmdesc, "devices");
++
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+         int ret;
+ 
+         if (se->is_ram) {
+             continue;
+         }
+-        ret = vmstate_save(f, se, NULL);
++        ret = vmstate_save(f, se, vmdesc);
+         if (ret) {
+             return ret;
+         }
+@@ -1784,6 +1790,18 @@ int qemu_save_device_state(QEMUFile *f)
+ 
+     qemu_put_byte(f, QEMU_VM_EOF);
+ 
++    json_writer_end_array(vmdesc);
++    json_writer_end_object(vmdesc);
++    vmdesc_len = strlen(json_writer_get(vmdesc));
++
++    if (!(MACHINE(qdev_get_machine())->suppress_vmdesc)) {
++        qemu_put_byte(f, QEMU_VM_VMDESCRIPTION);
++        qemu_put_be32(f, vmdesc_len);
++        qemu_put_buffer(f, (uint8_t *)json_writer_get(vmdesc), vmdesc_len);
++    }
++
++    json_writer_free(vmdesc);
++
+     return qemu_file_get_error(f);
+ }
+ 
+@@ -3190,6 +3208,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
      return ret == 0;
  }
  
