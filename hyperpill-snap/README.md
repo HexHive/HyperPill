@@ -340,10 +340,11 @@ hypervisor running inside.
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
 build-essential libslirp-dev
-[L0] wget https://download.qemu.org/qemu-8.2.0.tar.bz2
-[L0] tar xf qemu-8.2.0.tar.bz2
-[L0] cd qemu-8.2.0
+[L0] wget https://download.qemu.org/qemu-8.2.7.tar.bz2
+[L0] tar xf qemu-8.2.7.tar.bz2
+[L0] cd qemu-8.2.7
 [L0] patch -p0 < /path/to/hyperpill/hyperpill-snap/aarch64/helper.patch
+[L0] patch -p0 < /path/to/hyperpill/hyperpill-snap/aarch64/migration.patch
 [L0] mkdir build; cd build;
 [L0] ../configure --target-list=aarch64-softmmu --enable-slirp
 [L0] ninja -j$(nproc)
@@ -356,9 +357,7 @@ First, set up L0 to run L1. At the root of the project :
 ```bash
 [L0] sudo apt-get install -y qemu-system-arm # Only needed for the EFI image.
 [L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
-[L0] qemu-img resize debian-12-nocloud-arm64.qcow2 disk.qcow2 30G
-[L0] truncate -s 64m efi.img
-[L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
+[L0] qemu-img resize debian-12-nocloud-arm64.qcow2 30G
 
 # WARNING : since you are running an emulated aarch64 system on an x86_64 host,
 # enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2
@@ -372,17 +371,19 @@ First, set up L0 to run L1. At the root of the project :
 
 # WARNING: Increase the number of CPUs and memory to compile QEMU for L2 VM.
 # When taking snapshots, change back to "-smp 1 and -m 8192".
-[L0] qemu-8.2.0/build/qemu-system-aarch64 \
+[L0] qemu-8.2.7/build/qemu-system-aarch64 \
 	-monitor telnet:127.0.0.1:55556,server,nowait \
 	-nographic \
 	-smp 1 -m 8192 \
 	-cpu max \
-	-drive if=pflash,format=raw,file=efi.img,readonly=on \
 	-device virtio-scsi-pci,id=scsi0 \
-	-drive if=virtio,format=qcow2,file=disk.qcow2 \
+	-drive if=virtio,format=qcow2,file=debian-12-nocloud-arm64.qcow2 \
 	-netdev user,id=net0,hostfwd=tcp::2222-:22 \
 	-device virtio-net-device,netdev=net0 \
-	-M virt,virtualization=on
+	-M virt,virtualization=on,suppress-vmdesc=on \
+  -global migration.send-configuration=off \
+  -global migration.store-global-state=off \
+  -global migration.send-section-footer=of
 ```
 
 Once L1 booted successfully, we prepare it to host a guest VM "L2" :
@@ -472,8 +473,7 @@ monitor :
 ```bash
 [L0] telnet localhost 55556
 [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
-[L0 qemu-monitor] info registers
-# Copy the output of the above command to /path/to/snapshots/dir/regs
+[L0 qemu-monitor] hp-save-devices-state /path/to/snapshots/dir/regs
 ```
 
 The snapshot should now be ready for fuzzing.

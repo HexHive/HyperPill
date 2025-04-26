@@ -1,0 +1,196 @@
+From 76e1d6454b1eb80ee7b1c3536aec24247ffdb734 Mon Sep 17 00:00:00 2001
+From: Qiang Liu <cyruscyliu@gmail.com>
+Date: Sat, 26 Apr 2025 13:57:25 +0200
+Subject: [PATCH] Enable saving/restoring devices state except ram
+
+A few options must be enabled. For example,
+
+    ./qemu-system-aarch64 -cpu max \
+        -M virt,suppress-vmdesc=on \
+        -global migration.send-configuration=off \
+        -global migration.store-global-state=off \
+        -global migration.send-section-footer=off
+---
+ hmp-commands.hx                | 32 +++++++++++++++++
+ include/migration/snapshot.h   |  3 ++
+ include/monitor/hmp.h          |  2 ++
+ migration/migration-hmp-cmds.c | 18 ++++++++++
+ migration/savevm.c             | 63 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 118 insertions(+)
+
+diff --git a/hmp-commands.hx b/hmp-commands.hx
+index 765349e..07f8967 100644
+--- a/hmp-commands.hx
++++ b/hmp-commands.hx
+@@ -325,6 +325,38 @@ ERST
+ SRST
+ ``log`` *item1*\ [,...]
+   Activate logging of the specified items.
++ERST
++
++    {
++        .name       = "hp-save-devices-state",
++        .args_type  = "filename:F",
++        .params     = "filename",
++        .help       = "save devices state into file 'filename'.\n\t\n\t",
++        .cmd        = hmp_hp_save_devices_state,
++    },
++
++SRST
++``hp-save-devices-state`` *filename*
++
++  *filename*
++    the file to save the state of the devices to as binary data.
++
++ERST
++
++    {
++        .name       = "hp-load-devices-state",
++        .args_type  = "filename:F",
++        .params     = "filename",
++        .help       = "load devices state from file 'filename'.\n\t\n\t",
++        .cmd        = hmp_hp_load_devices_state,
++    },
++
++SRST
++``hp-load-devices-state`` *filename*
++
++  *filename*
++    the file to load the state of the devices to as binary data.
++
+ ERST
+ 
+     {
+diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
+index e72083b..7a93065 100644
+--- a/include/migration/snapshot.h
++++ b/include/migration/snapshot.h
+@@ -17,6 +17,9 @@
+ 
+ #include "qapi/qapi-builtin-types.h"
+ 
++void hp_save_devices_state(const char *name, Error **errp);
++void hp_load_devices_state(const char *name, Error **errp);
++
+ /**
+  * save_snapshot: Save an internal snapshot.
+  * @name: name of internal snapshot
+diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
+index 13f9a2d..e834a4f 100644
+--- a/include/monitor/hmp.h
++++ b/include/monitor/hmp.h
+@@ -59,6 +59,8 @@ void hmp_nmi(Monitor *mon, const QDict *qdict);
+ void hmp_info_network(Monitor *mon, const QDict *qdict);
+ void hmp_set_link(Monitor *mon, const QDict *qdict);
+ void hmp_balloon(Monitor *mon, const QDict *qdict);
++void hmp_hp_save_devices_state(Monitor *mon, const QDict *qdict);
++void hmp_hp_load_devices_state(Monitor *mon, const QDict *qdict);
+ void hmp_loadvm(Monitor *mon, const QDict *qdict);
+ void hmp_savevm(Monitor *mon, const QDict *qdict);
+ void hmp_delvm(Monitor *mon, const QDict *qdict);
+diff --git a/migration/migration-hmp-cmds.c b/migration/migration-hmp-cmds.c
+index 2faa5ca..2be8677 100644
+--- a/migration/migration-hmp-cmds.c
++++ b/migration/migration-hmp-cmds.c
+@@ -397,6 +397,24 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
+     qapi_free_MigrationParameters(params);
+ }
+ 
++void hmp_hp_save_devices_state(Monitor *mon, const QDict *qdict)
++{
++    Error *err = NULL;
++    const char *filename = qdict_get_str(qdict, "filename");
++
++    hp_save_devices_state(filename, &err);
++    hmp_handle_error(mon, err);
++}
++
++void hmp_hp_load_devices_state(Monitor *mon, const QDict *qdict)
++{
++    Error *err = NULL;
++    const char *filename = qdict_get_str(qdict, "filename");
++
++    hp_load_devices_state(filename, &err);
++    hmp_handle_error(mon, err);
++}
++
+ void hmp_loadvm(Monitor *mon, const QDict *qdict)
+ {
+     int saved_vm_running  = runstate_is_running();
+diff --git a/migration/savevm.c b/migration/savevm.c
+index f374da8..2b733eb 100644
+--- a/migration/savevm.c
++++ b/migration/savevm.c
+@@ -3190,6 +3190,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
+     return ret == 0;
+ }
+ 
++void hp_save_devices_state(const char *filename, Error **errp)
++{
++    QEMUFile *f;
++    QIOChannelFile *ioc;
++    int saved_vm_running;
++    int ret;
++
++    saved_vm_running = runstate_is_running();
++    if (saved_vm_running) {
++        vm_stop(RUN_STATE_SAVE_VM);
++    }
++    global_state_store_running();
++
++    ioc = qio_channel_file_new_path(
++        filename, O_WRONLY | O_CREAT | O_TRUNC, 0660, errp);
++    if (!ioc) {
++        goto the_end;
++    }
++    qio_channel_set_name(QIO_CHANNEL(ioc), "hp-save-devices-state");
++    f = qemu_file_new_output(QIO_CHANNEL(ioc));
++    object_unref(OBJECT(ioc));
++    ret = qemu_save_device_state(f);
++    if (ret < 0 || qemu_fclose(f) < 0) {
++        error_setg(errp, QERR_IO_ERROR);
++    }
++
++the_end:
++    if (saved_vm_running) {
++        vm_start();
++    }
++}
++
++void hp_load_devices_state(const char *filename, Error **errp)
++{
++    QEMUFile *f;
++    QIOChannelFile *ioc;
++    int saved_vm_running;
++    int ret;
++
++    saved_vm_running = runstate_is_running();
++    if (saved_vm_running) {
++        vm_stop(RUN_STATE_RESTORE_VM);
++    }
++
++    ioc = qio_channel_file_new_path(filename, O_RDONLY | O_BINARY, 0, errp);
++    if (!ioc) {
++        goto the_end;
++    }
++    qio_channel_set_name(QIO_CHANNEL(ioc), "hp-load-cpu-state");
++    f = qemu_file_new_input(QIO_CHANNEL(ioc));
++    object_unref(OBJECT(ioc));
++    ret = qemu_loadvm_state(f);
++    qemu_fclose(f);
++    if (ret < 0) {
++        error_setg(errp, QERR_IO_ERROR);
++    }
++
++the_end:
++    if (saved_vm_running) {
++        vm_start();
++    }
++}
++
+ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
+                                 Error **errp)
+ {
+-- 
+2.34.1
+
