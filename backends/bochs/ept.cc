@@ -62,7 +62,7 @@ enum {
 const Bit64u BX_PAGING_PHY_ADDRESS_RESERVED_BITS = BX_PHY_ADDRESS_RESERVED_BITS & BX_CONST64(0xfffffffffffff);
 const Bit64u PAGING_EPT_RESERVED_BITS = BX_PAGING_PHY_ADDRESS_RESERVED_BITS;                                  
 
-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level)
+int gpa2hpa(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level)
 {
   VMCS_CACHE *vm = &BX_CPU(id)->vmcs;
   bx_phy_address pt_address = LPFOf(vm->eptptr) ;//BX_CPU(id)->VMread64(VMCS_64BIT_CONTROL_EPTPTR) & (~0xFFF);
@@ -116,7 +116,7 @@ int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address
 
 // Translate GVA -> GPA -> HPA
 __attribute__((optnone))
-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
+bool gva2hpa(bx_address laddr, bx_phy_address *phy)
 {
   bx_phy_address paddress;
   bx_address offset_mask = 0xfff;
@@ -146,7 +146,7 @@ bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
         Bit64u pte;
         pt_address += ((laddr >> (9 + 9*level)) & 0xff8);
         offset_mask >>= 9;
-        if (vmcs_translate_guest_physical_ept(pt_address, &pt_address, NULL))
+        if (gpa2hpa(pt_address, &pt_address, NULL))
             goto page_fault;
         BX_MEM(0)->readPhysicalPage(BX_CPU(id), pt_address, 8, &pte);
         if(!(pte & 1))
@@ -172,7 +172,7 @@ bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
         abort();
     }
   }
-  if (vmcs_translate_guest_physical_ept(paddress, &paddress, NULL))
+  if (gpa2hpa(paddress, &paddress, NULL))
       goto page_fault;
   *phy = paddress;
   return 1;
@@ -184,10 +184,10 @@ page_fault:
 
 void ept_locate_pc() {
     bx_address phyaddr;
-    vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr);
+    gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr);
     printf("%lx -> %lx\n", BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phyaddr);
     
-    vmcs_linear2phy(0, &phyaddr);
+    gva2hpa(0, &phyaddr);
     printf("%lx -> %lx\n", 0, phyaddr);
 }
 
@@ -195,11 +195,11 @@ void ept_locate_pc() {
 void iterate_page_table(int level, bx_phy_address pt_address) {
     printf("Page table %d at: %lx\n", level, pt_address);
     bx_phy_address translated_pt_address;
-    vmcs_translate_guest_physical_ept(pt_address, &translated_pt_address, NULL);
+    gpa2hpa(pt_address, &translated_pt_address, NULL);
     mark_page_not_guest(translated_pt_address, BX_LEVEL_PTE);
     for(int i=0; i<512 && level!=BX_LEVEL_PTE; i++) {
         Bit64u pte;
-        vmcs_translate_guest_physical_ept(pt_address + i*8, &translated_pt_address, NULL);
+        gpa2hpa(pt_address + i*8, &translated_pt_address, NULL);
         BX_MEM(0)->readPhysicalPage(BX_CPU(id), translated_pt_address, 8, &pte);
         printf("PTE: %lx\n", pte);
         if(level != BX_LEVEL_PTE && !(pte & 0x80)) {
@@ -249,7 +249,7 @@ static void page_walk_la48(uint64_t pml4_addr,
     prior1 = 0;
     for (l1 = 0; l1 < 512; l1++) {
         if (guest)
-            vmcs_translate_guest_physical_ept(pml4_addr + l1 * 8, &physical_pt_address, NULL);
+            gpa2hpa(pml4_addr + l1 * 8, &physical_pt_address, NULL);
         else 
             physical_pt_address = pml4_addr + l1 * 8;
         if (l1 == 0 && page_table_cb) {
@@ -268,7 +268,7 @@ static void page_walk_la48(uint64_t pml4_addr,
         prior2=0;
         for (l2 = 0; l2 < 512; l2++) {
             if (guest)
-                vmcs_translate_guest_physical_ept(pdp_addr + l2 * 8, &physical_pt_address, NULL);
+                gpa2hpa(pdp_addr + l2 * 8, &physical_pt_address, NULL);
             else 
                 physical_pt_address = pdp_addr + l2 * 8;
             if (l2 == 0 && page_table_cb) {
@@ -295,7 +295,7 @@ static void page_walk_la48(uint64_t pml4_addr,
             prior3=0;
             for (l3 = 0; l3 < 512; l3++) {
                 if (guest)
-                    vmcs_translate_guest_physical_ept(pd_addr + l3 * 8, &physical_pt_address, NULL);
+                    gpa2hpa(pd_addr + l3 * 8, &physical_pt_address, NULL);
                 else 
                     physical_pt_address = pd_addr + l3 * 8;
                 if (l3 == 0 && page_table_cb) {
@@ -321,7 +321,7 @@ static void page_walk_la48(uint64_t pml4_addr,
                 pt_addr = pde & 0x3fffffffff000ULL;
                 for (l4 = 0; l4 < 512; l4++) {
                     if (guest)
-                        vmcs_translate_guest_physical_ept(pt_addr + l4 * 8, &physical_pt_address, NULL);
+                        gpa2hpa(pt_addr + l4 * 8, &physical_pt_address, NULL);
                     else 
                         physical_pt_address = pt_addr + l4 * 8;
                     if (l4 == 0 && page_table_cb) {
@@ -340,28 +340,6 @@ static void page_walk_la48(uint64_t pml4_addr,
     }
 }
 
-void ept_mark_page_table() {
-    bx_address phyaddr;
-
-    uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
-    bx_phy_address pt_address = cr3 & BX_CONST64(0x000ffffffffff000);
-    page_walk_la48(pt_address, true, mark_page_not_guest, NULL);
-
-    /* cr3 = BX_CPU(id)->cr3; */
-    /* printf("WALKING CR3: %lx\n", cr3); */
-    /* pt_address = cr3 & BX_CONST64(0x000ffffffffff000); */
-    /* page_walk_la48(pt_address, false, NULL, print_pte); */
-
-    // unmark the page containing the current guest RIP
-    // alternatively, check that (addr != guest RIP) in the DMA hook
-    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr))
-        mark_page_not_guest(phyaddr, BX_LEVEL_PTE);
-    else {
-        fprintf(stderr, "GUEST_RIP page not mapped");
-        abort();
-    }
-}
-
 static void print_page(bx_phy_address entry, int level, bx_phy_address virt ){
     uint64_t pte;
     return;
@@ -372,6 +350,12 @@ static void print_page(bx_phy_address entry, int level, bx_phy_address virt ){
             printf("%lx: %d %lx[%d] %lx\n", final_virt, level, entry, i, pte);
         }
     }
+}
+
+void fuzz_walk_s1() {
+    uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
+    bx_phy_address pt_address = cr3 & BX_CONST64(0x000ffffffffff000);
+    page_walk_la48(pt_address, true, mark_page_not_guest, NULL);
 }
 
 void fuzz_walk_cr3() {

@@ -107,6 +107,7 @@ OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/instrument.o \
 			  backends/qemu/mem.o \
 			  backends/qemu/regs.o \
+			  backends/qemu/s2pt.o \
 			  $(OBJS_GENERIC)
 else
     $(error Unsupported architecture: $(ARCH))
@@ -191,8 +192,10 @@ else
     $(error Unsupported architecture: $(ARCH))
 endif
 
+
 clean:
-	rm -rf vendor/bochs-build backends/bochs/*.o
-	rm -rf vendor/qemu-build backends/qemu/*.o
+	rm -rf ./*.o backends/bochs/*.o backends/qemu/*.o
+
+distclean: clean
 	rm -rf vendor/lib vendor/include
-	rm -rf ./*.o
+	rm -rf vendor/bochs-build vendor/qemu-build

@@ -270,6 +270,10 @@ void dump_regs() {
 	fflush(stderr);
 }
 
+uint64_t cpu0_vmcs_read_guest_rip() {
+    return BX_CPU(id)->VMread64(VMCS_GUEST_RIP);
+}
+
 uint64_t cpu0_get_pc(void) {
   return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
 }

@@ -16,8 +16,7 @@
 #include "fuzz.h"
 #include <openssl/md5.h>
 
-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
+std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
 
 size_t maxaddr = 0;
 
@@ -123,7 +122,7 @@ uint64_t lookup_gpa_by_hpa(uint64_t hpa){
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
 void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     uint64_t pg_entry;
-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
+    hp_cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
     hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
     uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
     uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
@@ -339,11 +338,11 @@ void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level) {
     }
 }
 
-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
+void hp_cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
     memcpy(dest, addr_conv(addr), len);
 }
 
-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
+void hp_cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
     notify_write(addr);
     memcpy(addr_conv(addr), src, len);
 }
@@ -368,9 +367,9 @@ void walk_slat(){
     do {
         phy = 0;
 #if defined(HP_X86_64)
-        reason = vmcs_translate_guest_physical_ept(addr, &phy, &translation_level);
+        reason = gpa2hpa(addr, &phy, &translation_level);
 #elif defined(HP_AARCH64)
-        reason = translate_guest_physical_s2pt(addr, &phy, &translation_level);
+        reason = gpa2hpa(addr, &phy, &translation_level);
 #endif
         if(phy){
             mark_l2_guest_page(phy, 0x1000*pow64(512, translation_level), addr);
@@ -414,5 +413,23 @@ void fuzz_walk_slat() {
     // 2. To enumerate potential MMIO Ranges.
     walk_slat();
     printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
+}
+
+void s2pt_mark_page_table() {
+    hp_address phyaddr;
+
+    fuzz_walk_s1();
+
+    // unmark the page containing the current guest RIP
+    // alternatively, check that (addr != guest RIP) in the DMA hook
+#if defined(HP_X86_64)
+    if(gva2hpa(cpu0_vmcs_read_guest_rip(), &phyaddr))
+#elif defined(HP_AARCH64)
+    if(gva2hpa(cpu0_get_pc(), &phyaddr))
+        mark_page_not_guest(phyaddr, 0/*LEVEL_PTE*/);
+    else {
+        fprintf(stderr, "GUEST_RIP page not mapped");
+        abort();
+    }
 }
 

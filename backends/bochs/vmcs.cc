@@ -46,8 +46,6 @@ unsigned fuzz_get_vmcs_field_offset(Bit32u encoding) {
     return shadow_vmcs_layout[encoding];
 }
 
-std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
-
 extern bool fuzz_timeout;
 
 /*
@@ -110,7 +108,7 @@ void redo_paging() {
 
     if(!fuzzing) {
         uint64_t phy;
-        if(!vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
+        if(!gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
             fflush(stdout);
             printf("failed to redo paging\n");
             abort();

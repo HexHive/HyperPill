@@ -59,6 +59,8 @@ extern "C" {
 #endif
 uint64_t lookup_gpa_by_hpa(uint64_t hpa);
 
+void hp_cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
+void hp_cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
 void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_read_virtual(hp_address start, size_t size, void *data);
@@ -132,15 +134,11 @@ void dump_indicators();
 void aggregate_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 
-#if defined(HP_X86_64)
-bool vmcs_linear2phy(hp_address laddr, hp_phy_address *phy);
-int vmcs_translate_guest_physical_ept(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
-#elif defined(HP_AARCH64)
-bool linear2phy(hp_address laddr, hp_phy_address *phy);
-int translate_guest_physical_s2pt(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
-#endif
+bool gva2hpa(hp_address laddr, hp_phy_address *phy);
+int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
+void fuzz_walk_s1();
 
-void ept_mark_page_table();
+void s2pt_mark_page_table();
 void ept_locate_pc();
 extern void mark_page_not_guest(hp_phy_address addr, int level);
 bool frame_is_guest(hp_phy_address addr);
@@ -151,6 +149,7 @@ uint64_t cpu0_get_vmcsptr(void);
 bool cpu0_get_user_pl(void);
 uint64_t cpu0_get_pc(void);
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
+uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
 void cpu0_set_pc(uint64_t rip);
 bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);

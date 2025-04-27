@@ -174,7 +174,7 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
 
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	/* printf("Exit reason: %lx\n", exit_reason); */
 	if (!exit_reason)
 		return false;
@@ -193,7 +193,7 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		       exit_reason);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -247,7 +247,7 @@ bool inject_read(hp_address addr, int size) {
 
 #if defined(HP_X86_64)
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, exit_reason);
 
 	BX_CPU(id)->VMwrite32(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
@@ -263,7 +263,7 @@ bool inject_read(hp_address addr, int size) {
 		printf("!read%d %lx\n", size, addr);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -331,7 +331,7 @@ bool inject_in(uint16_t addr, uint16_t size) {
 		printf("!in%d %x\n", size, addr);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -378,7 +378,7 @@ bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 		printf("!out%d %x %x\n", size, addr, value);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -440,7 +440,7 @@ bool inject_wrmsr(hp_address msr, uint64_t value) {
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, value & 0xFFFFFFFF);
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, value >> 32);
 
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -457,7 +457,7 @@ bool inject_wrmsr(hp_address msr, uint64_t value) {
 
 uint64_t inject_rdmsr(hp_address msr) {
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -663,7 +663,7 @@ bool op_pci_write() {
 		return false;
 
 	hp_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -776,7 +776,7 @@ bool op_vmcall() {
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);

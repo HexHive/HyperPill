@@ -60,7 +60,7 @@ void start_cpu() {
 
 #if defined(HP_X86_64)
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;
 	}
@@ -368,8 +368,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	/* Load the snapshot */
 	printf(".loading memory snapshot from %s\n", mem_path);
-	// icp_init_mem(mem_path);
-	// fuzz_watch_memory_inc();
+	icp_init_mem(mem_path);
+	fuzz_watch_memory_inc();
 
 #if defined(HP_X86_64)
 	icp_init_shadow_vmcs_layout(vmcs_shadow_layout_path);
@@ -423,7 +423,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * crash in practice (if the page-table was corrupted by the fuzzer, the
 	 * MMIO exit wouldn't have happened in the first place
 	 */
-	ept_mark_page_table();
+	s2pt_mark_page_table();
 
 #if defined(HP_X86_64)
 	/* Translate the guest's RIP in the VMCS to a physical-address */
