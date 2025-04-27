@@ -33,11 +33,11 @@ size_t init_random_register_data_len(void) {
 }
 
 bool cpu0_get_user_pl(void) {
-	assert(0);
+    return arm_current_el(ARM_CPU(QEMU_CPU(0))->env) == 0;
 }
 
 void save_cpu() {
-	shadow_qemu_cpu = *(QEMU_CPU(0));
+	shadow_qemu_cpu = *(first_cpu);
 }
 
 void restore_cpu() {
@@ -45,5 +45,11 @@ void restore_cpu() {
 }
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
-	 assert(0);
+    assert(reg < 31);
+    (ARM_CPU(QEMU_CPU(0))->env).xregs[reg] = value;
+}
+
+void cpu0_get_general_purpose_reg64(unsigned reg) {
+    assert(reg < 31);
+    return (ARM_CPU(QEMU_CPU(0))->env).xregs[reg];
 }

@@ -273,6 +273,7 @@ void dump_regs() {
 uint64_t cpu0_get_pc(void) {
   return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
 }
+
 void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
 }
@@ -305,4 +306,8 @@ void init_cpu() {
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
     BX_CPU(id)->set_reg64(i, value);
+}
+
+uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
+    return BX_CPU(id)->get_reg64(i);
 }

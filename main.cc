@@ -368,8 +368,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	/* Load the snapshot */
 	printf(".loading memory snapshot from %s\n", mem_path);
-	icp_init_mem(mem_path);
-	fuzz_watch_memory_inc();
+	// icp_init_mem(mem_path);
+	// fuzz_watch_memory_inc();
 
 #if defined(HP_X86_64)
 	icp_init_shadow_vmcs_layout(vmcs_shadow_layout_path);

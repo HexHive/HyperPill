@@ -10,9 +10,6 @@ bool __fuzz_emu_stop_normal(void) {
     return true;
 }
 
-void init_register_feedback(void) {
-}
-
 void el_change_fn(ARMCPU *cpu, void *opaque) {
 }
 

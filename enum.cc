@@ -12,9 +12,9 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 
-#if defined(HP_X86_64)
-static std::vector<std::tuple<hp_address, hp_address, unsigned int>> ept_exit_ranges; // Start, Base, Reason
+static std::vector<std::tuple<hp_address, hp_address, unsigned int>> s2pt_exit_ranges; // Start, Base, Reason
 
+#if defined(HP_X86_64)
 static std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -139,14 +139,21 @@ void enum_pio_regions() {
         insert_pio(a.first, a.second);
     }
 }
+#endif
 
-void enum_handle_ept_gap(unsigned int gap_reason,
+void enum_handle_s2pt_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end) {
-    ept_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
+    s2pt_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
+#if defined(HP_X86_64)
     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
     else if(gap_reason == VMX_VMEXIT_EPT_VIOLATION)
         printf("%lx +%lx Potential Violation\n", gap_start, gap_end - gap_start);
+#elif defined(HP_AARCH64)
+#define EXCP_DATA_ABORT      4
+    if(gap_reason == EXCP_DATA_ABORT) 
+        printf("%lx +%lx Potential Data Abort\n", gap_start, gap_end - gap_start);
+#endif
     else
         abort();
 }
@@ -155,12 +162,16 @@ void enum_mmio_regions(void) {
     tsl::robin_set<uint64_t> seen_icounts;
     std::vector<std::pair<hp_address,hp_address>> mmio_ranges;
     hp_address mmio_start = 0;
-    for (auto &a : ept_exit_ranges){
+    for (auto &a : s2pt_exit_ranges){
         hp_address addr = std::get<0>(a);
         hp_address base = addr;
         hp_address end = std::get<1>(a);
         unsigned int reason = std::get<2>(a);
+#if defined(HP_X86_64)
         printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
+#elif defined(HP_AARCH64)
+        printf("S2PT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, "data abort");
+#endif
         while(addr < end && addr - base < 0x10000000) { 
             bool new_icount = 0;
             inject_write(addr, 2,1);
@@ -203,4 +214,3 @@ void enum_mmio_regions(void) {
         insert_mmio(it.first, it.second);
     }
 }
-#endif

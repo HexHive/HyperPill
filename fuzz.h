@@ -132,8 +132,13 @@ void dump_indicators();
 void aggregate_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 
+#if defined(HP_X86_64)
 bool vmcs_linear2phy(hp_address laddr, hp_phy_address *phy);
 int vmcs_translate_guest_physical_ept(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
+#elif defined(HP_AARCH64)
+bool linear2phy(hp_address laddr, hp_phy_address *phy);
+int translate_guest_physical_s2pt(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
+#endif
 
 void ept_mark_page_table();
 void ept_locate_pc();
@@ -189,10 +194,10 @@ void fuzz_emu_stop_crash(const char *type);
 
 #if defined(HP_X86_64)
 void enum_pio_regions();
-void enum_mmio_regions();
-void enum_handle_ept_gap(unsigned int gap_reason,
-        hp_address gap_start, hp_address gap_end);
 #endif
+void enum_mmio_regions();
+void enum_handle_s2pt_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end);
 
 #if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size);
@@ -214,7 +219,7 @@ void set_pci_device(uint8_t dev, uint8_t function);
 void add_pio_region(uint16_t addr, uint16_t size);
 #endif
 void add_mmio_region(uint64_t addr, uint64_t size);
-void add_mmio_range_alt(uint64_t addr, uint64_t end);
+void add_mmio_range_all(uint64_t addr, uint64_t end);
 
 void open_db(const char* path);
 void insert_mmio(uint64_t addr, uint64_t len);

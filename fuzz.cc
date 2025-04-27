@@ -940,27 +940,33 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
 }
 
+#if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size) {
 	pio_regions[addr] = size;
 	printf("pio_regions %d = %lx + %lx\n", pio_regions.size(), addr, size);
 }
+#endif
+
 void add_mmio_region(uint64_t addr, uint64_t size) {
 	mmio_regions[addr] = size;
 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
 	       size);
 }
-void add_mmio_range_alt(uint64_t addr, uint64_t end) {
+
+void add_mmio_range_all(uint64_t addr, uint64_t end) {
 	add_mmio_region(addr, end - addr);
 }
+
 void init_regions(const char *path) {
 	open_db(path);
-#if defined(HP_X86_64)
 	if (getenv("FUZZ_ENUM")) {
+#if defined(HP_X86_64)
 		enum_pio_regions();
+#endif
 		enum_mmio_regions();
         exit(0);
 	}
-#endif
+
 	if (getenv("MANUAL_RANGES")) {
 		load_manual_ranges(getenv("MANUAL_RANGES"),
 				   getenv("RANGE_REGEX"), pio_regions,
