@@ -1,10 +1,6 @@
 #include "qemu.h"
 #include "sys/param.h"
 
-void add_persistent_memory_range(hp_address start, size_t len) {
-	assert(0);
-}
-
 void cpu0_read_virtual(hp_address start, size_t size, void *data) {
 	cpu_memory_rw_debug(QEMU_CPU(0), start, data, size, false);
 }

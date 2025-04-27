@@ -46,6 +46,8 @@ unsigned fuzz_get_vmcs_field_offset(Bit32u encoding) {
     return shadow_vmcs_layout[encoding];
 }
 
+std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
+
 extern bool fuzz_timeout;
 
 /*
@@ -85,25 +87,25 @@ void redo_paging() {
 
     // Map the first 2MB of memory using 4k pages
     uint64_t entry = (pdpt_addr | 0x3);
-    cpu0_mem_write_physical_page(pml4, sizeof(entry), &entry);
+    cpu_physical_memory_write(pml4, &entry, sizeof(entry));
     entry = (pd_addr | 0x3);
-    cpu0_mem_write_physical_page(pdpt, sizeof(entry), &entry);
+    cpu_physical_memory_write(pdpt, &entry, sizeof(entry));
     entry = (pt_addr | 0x3);
-    cpu0_mem_write_physical_page(pd, sizeof(entry), &entry);
+    cpu_physical_memory_write(pd, &entry, sizeof(entry));
     /* uint64_t entry = (code_addr | 0xc3); */
-    /* cpu0_mem_write_physical_page(pd, sizeof(entry), &entry); */
+    /* cpu_physical_memory_write(pd, &entry, sizeof(entry)); */
 
     for (int i=1; i<512; i++) {
         entry = 0x40000000*i + 0x83;
-        cpu0_mem_write_physical_page(pdpt + i*sizeof(entry), sizeof(entry), &entry);
+        cpu_physical_memory_write(pdpt + i*sizeof(entry), &entry, sizeof(entry));
     }
     for (int i=1; i<512; i++) {
         entry = 0x200000*i + 0x83;
-        cpu0_mem_write_physical_page(pd + i*sizeof(entry), sizeof(entry), &entry);
+        cpu_physical_memory_write(pd + i*sizeof(entry), &entry, sizeof(entry));
     }
     for (int i=0; i<512; i++) {
         entry = 0x1000*i + 0xc3;
-        cpu0_mem_write_physical_page(pt + i*sizeof(entry), sizeof(entry), &entry);
+        cpu_physical_memory_write(pt + i*sizeof(entry), &entry, sizeof(entry));
     }
 
     if(!fuzzing) {

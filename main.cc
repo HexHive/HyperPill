@@ -399,7 +399,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * code/ring0 code.
 	 */
 	vmcs_fixup();
-	/* fuzz_walk_cr3(); */
 #endif
 
 	/*

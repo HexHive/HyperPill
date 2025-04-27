@@ -134,6 +134,7 @@ void dump_indicators();
 void aggregate_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 
+hp_phy_address cpu0_virt2phy(hp_address addr);
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 void walk_s1_slow(

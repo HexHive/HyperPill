@@ -16,8 +16,6 @@
 #include "fuzz.h"
 #include <openssl/md5.h>
 
-std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
-
 size_t maxaddr = 0;
 
 static uint8_t watch_level = 0;
@@ -154,7 +152,7 @@ void fuzz_reset_watched_pages() {
     fuzzed_guest_pages.clear();
 }
 
-void __add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
+void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
     /* printf("Add persistent memory range: %lx %lx\n", start, len); */
     hp_phy_address page = (start >> 12) << 12;
     hp_phy_address startend;

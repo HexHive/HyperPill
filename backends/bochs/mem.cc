@@ -127,13 +127,3 @@ void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
 void cpu0_tlb_flush(void) {
 	BX_CPU(id)->TLB_flush();
 }
-
-extern void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
-
-void add_persistent_memory_range(hp_address start, size_t len) {
-  Bit32u lpf_mask = 0xfff; // 4K pages
-  Bit32u pkey = 0;
-  bx_phy_address phystart = cpu0_virt2phy(start); 
-  phystart = (phystart & ~((Bit64u) lpf_mask)) | (start & lpf_mask);
-  __add_persistent_memory_range(phystart, len);
-}

@@ -253,8 +253,12 @@ void init_sourcecov(size_t baseaddr) {
         if(pcstop - page < 0x1000)
             len = pcstop - page;
 
+        hp_phy_address phystart =
+            cpu0_virt2phy(start); 
+
         cpu0_write_virtual(start, len, pc);
-        add_persistent_memory_range(start, len);
+        phystart = (phystart & ~((uint64_t) 0xfff)) | (start & 0xfff);
+        add_persistent_memory_range(phystart, len);
     }
 
     /* std::atexit(write_source_cov); */
