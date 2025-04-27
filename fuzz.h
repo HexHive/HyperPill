@@ -136,8 +136,11 @@ void indicator_cb(void(*cb)(uint64_t));
 
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
-void fuzz_walk_s1();
-
+void walk_s1_slow(
+    bool guest,
+    void (*page_table_cb)(hp_phy_address address, int level),
+    void (*leaf_pte_cb)(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
+);
 void s2pt_mark_page_table();
 void ept_locate_pc();
 extern void mark_page_not_guest(hp_phy_address addr, int level);

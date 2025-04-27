@@ -209,7 +209,7 @@ void icp_init_regs(const char* filename) {
     BX_CPU(id)->set_TSC(GETREG64(tsc_deadline));
     BX_CPU(id)->msr.tsc_aux = GETREG64(tsc_aux);
     
-    BX_CPU(id)->msr.pat._u64 = GETREG64(pat);
+    BX_CPU(id)->msr.pat._uint64_t = GETREG64(pat);
     BX_CPU(id)->msr.apicbase = GETREG64(apicbase);
     
 

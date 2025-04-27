@@ -414,11 +414,61 @@ void fuzz_walk_slat() {
     walk_slat();
     printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
 }
+#define PG_PRESENT_BIT  0
+#define PG_RW_BIT       1
+#define PG_USER_BIT     2
+#define PG_PWT_BIT      3
+#define PG_PCD_BIT      4
+#define PG_ACCESSED_BIT 5
+#define PG_DIRTY_BIT    6
+#define PG_PSE_BIT      7
+#define PG_GLOBAL_BIT   8
+#define PG_PSE_PAT_BIT  12
+#define PG_PKRU_BIT     59
+#define PG_NX_BIT       63
+
+#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+#define PG_RW_MASK       (1 << PG_RW_BIT)
+#define PG_USER_MASK     (1 << PG_USER_BIT)
+#define PG_PWT_MASK      (1 << PG_PWT_BIT)
+#define PG_PCD_MASK      (1 << PG_PCD_BIT)
+#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
+#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
+#define PG_PSE_MASK      (1 << PG_PSE_BIT)
+#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
+#define PG_ADDRESS_MASK  0x000ffffffffff000LL
+#define PG_HI_USER_MASK  0x7ff0000000000000LL
+#define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
+#define PG_NX_MASK       (1ULL << PG_NX_BIT)
+
+static void print_pte(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
+{
+    if (addr & (1ULL << 47)) {
+        addr |= (hp_phy_address)-(1LL << 48);
+    }
+
+    printf("%lx: %lx"
+                   " %c%c%c%c%c%c%c%c%c %c\n",
+                   addr,
+                   pte & mask,
+                   pte & PG_NX_MASK ? 'X' : '-',
+                   pte & PG_GLOBAL_MASK ? 'G' : '-',
+                   pte & PG_PSE_MASK ? 'P' : '-',
+                   pte & PG_DIRTY_MASK ? 'D' : '-',
+                   pte & PG_ACCESSED_MASK ? 'A' : '-',
+                   pte & PG_PCD_MASK ? 'C' : '-',
+                   pte & PG_PWT_MASK ? 'T' : '-',
+                   pte & PG_USER_MASK ? 'U' : '-',
+                   pte & PG_RW_MASK ? 'W' : '-',
+                   frame_is_guest(pte&mask) ? 'g' : '-'
+                   );
+}
 
 void s2pt_mark_page_table() {
     hp_address phyaddr;
 
-    fuzz_walk_s1();
+    walk_s1_slow(true, mark_page_not_guest, print_pte);
 
     // unmark the page containing the current guest RIP
     // alternatively, check that (addr != guest RIP) in the DMA hook
@@ -426,10 +476,10 @@ void s2pt_mark_page_table() {
     if(gva2hpa(cpu0_vmcs_read_guest_rip(), &phyaddr))
 #elif defined(HP_AARCH64)
     if(gva2hpa(cpu0_get_pc(), &phyaddr))
+#endif
         mark_page_not_guest(phyaddr, 0/*LEVEL_PTE*/);
     else {
         fprintf(stderr, "GUEST_RIP page not mapped");
         abort();
     }
 }
-
