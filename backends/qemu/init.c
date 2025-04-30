@@ -5,14 +5,6 @@ extern void pre_el_change_fn(ARMCPU *cpu, void *opaque);
 extern void before_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 extern void after_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 
-// void init_qemu(int argc, char **argv) {
-//     qemu_mutex_init(&barrier_mutex);
-//     qemu_cond_init(&barrier_cond);
-
-//     /* Save PC address pre VMENTER before restarting the VM */
-//     save_pre_hyp_pc();
-// }
-
 void icp_init_backend() {
 	int qemu_argc = 21;
 	char *qemu_argv[] = {

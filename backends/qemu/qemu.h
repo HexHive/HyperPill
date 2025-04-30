@@ -32,14 +32,8 @@ typedef uint64_t hp_address;
 typedef uint64_t hp_phy_address;
 typedef void hp_instruction;
 
-extern CPUState shadow_qemu_cpu;
+extern ARMCPU shadow_qemu_cpu;
 #define QEMU_CPU(x) first_cpu
-
-extern QemuMutex barrier_mutex;
-extern QemuCond barrier_cond;
-
-/* AARCH64 cpu related functions */
-void aarch64_set_xregs(uint64_t xregs[32]);
 
 typedef enum aa64_syndrom {
     HVC = 0,

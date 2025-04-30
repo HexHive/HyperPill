@@ -33,6 +33,11 @@ bool fuzz_hook_vmlaunch() {
 
     return false;
 }
+#elif defined(HP_AARCH64)
+bool fuzz_hook_back_to_el1_kernel(void) {
+    fuzz_emu_stop_normal();
+    return true;
+}
 #endif
 
 extern "C" void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2);

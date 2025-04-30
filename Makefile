@@ -101,7 +101,6 @@ LDFLAGS    := $(LDFLAGS) -Wl,--whole-archive vendor/lib/qemu_system_aarch64.a \
 			  -Wl,--no-whole-archive
 OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/control.o \
-			  backends/qemu/feedback.o \
 			  backends/qemu/init.o \
 			  backends/qemu/instrument.o \
 			  backends/qemu/mem.o \

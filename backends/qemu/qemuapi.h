@@ -29,6 +29,5 @@ void qemu_tb_after_execution(void *i);
 
 // fuzz.cc
 void fuzz_dma_read_cb(uint64_t addr, unsigned len, void* data);
-bool __fuzz_emu_stop_normal(void);
 
 #endif
