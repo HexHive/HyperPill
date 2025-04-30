@@ -1,9 +1,9 @@
-From 5392b59ab0acff52bca7893d5e25e78dce1e3b7b Mon Sep 17 00:00:00 2001
+From 39e07ba83cc50514d207f9f5c2c93114b6fd49f7 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sat, 26 Apr 2025 13:57:25 +0200
-Subject: [PATCH] Enable saving/restoring devices state including ram
+Subject: [PATCH] Enable saving/restoring devices state except ram
 
-A few options are enabled. For example,
+A few options must be enabled. For example,
 
     ./qemu-system-aarch64 -cpu max \
         -M virt,suppress-vmdesc=on \
@@ -22,7 +22,7 @@ To debug, turn on the vmdesc, redump regs, and run
  5 files changed, 138 insertions(+), 1 deletion(-)
 
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 765349ed1..07f896793 100644
+index 765349e..07f8967 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -325,6 +325,38 @@ ERST
@@ -65,7 +65,7 @@ index 765349ed1..07f896793 100644
  
      {
 diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
-index e72083b11..7a93065bb 100644
+index e72083b..7a93065 100644
 --- a/include/migration/snapshot.h
 +++ b/include/migration/snapshot.h
 @@ -17,6 +17,9 @@
@@ -79,7 +79,7 @@ index e72083b11..7a93065bb 100644
   * save_snapshot: Save an internal snapshot.
   * @name: name of internal snapshot
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index 13f9a2ded..e834a4f0b 100644
+index 13f9a2d..e834a4f 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
 @@ -59,6 +59,8 @@ void hmp_nmi(Monitor *mon, const QDict *qdict);
@@ -92,7 +92,7 @@ index 13f9a2ded..e834a4f0b 100644
  void hmp_savevm(Monitor *mon, const QDict *qdict);
  void hmp_delvm(Monitor *mon, const QDict *qdict);
 diff --git a/migration/migration-hmp-cmds.c b/migration/migration-hmp-cmds.c
-index 2faa5cad4..2be86773a 100644
+index 2faa5ca..2be8677 100644
 --- a/migration/migration-hmp-cmds.c
 +++ b/migration/migration-hmp-cmds.c
 @@ -397,6 +397,24 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
@@ -121,7 +121,7 @@ index 2faa5cad4..2be86773a 100644
  {
      int saved_vm_running  = runstate_is_running();
 diff --git a/migration/savevm.c b/migration/savevm.c
-index f374da85b..e0a5d1a2e 100644
+index f374da8..e0a5d1a 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
 @@ -1318,6 +1318,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
@@ -250,5 +250,5 @@ index f374da85b..e0a5d1a2e 100644
                                  Error **errp)
  {
 -- 
-2.43.0
+2.34.1
 
