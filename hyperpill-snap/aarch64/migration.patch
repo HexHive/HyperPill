@@ -1,9 +1,9 @@
-From e4f54b9053ca371ae5a7994118f77f8e26421c59 Mon Sep 17 00:00:00 2001
+From 5392b59ab0acff52bca7893d5e25e78dce1e3b7b Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sat, 26 Apr 2025 13:57:25 +0200
-Subject: [PATCH] Enable saving/restoring devices state except ram
+Subject: [PATCH] Enable saving/restoring devices state including ram
 
-A few options must be enabled. For example,
+A few options are enabled. For example,
 
     ./qemu-system-aarch64 -cpu max \
         -M virt,suppress-vmdesc=on \
@@ -18,11 +18,11 @@ To debug, turn on the vmdesc, redump regs, and run
  include/migration/snapshot.h   |  3 ++
  include/monitor/hmp.h          |  2 +
  migration/migration-hmp-cmds.c | 18 ++++++++
- migration/savevm.c             | 83 +++++++++++++++++++++++++++++++++-
- 5 files changed, 137 insertions(+), 1 deletion(-)
+ migration/savevm.c             | 84 +++++++++++++++++++++++++++++++++-
+ 5 files changed, 138 insertions(+), 1 deletion(-)
 
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 765349e..07f8967 100644
+index 765349ed1..07f896793 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -325,6 +325,38 @@ ERST
@@ -65,7 +65,7 @@ index 765349e..07f8967 100644
  
      {
 diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
-index e72083b..7a93065 100644
+index e72083b11..7a93065bb 100644
 --- a/include/migration/snapshot.h
 +++ b/include/migration/snapshot.h
 @@ -17,6 +17,9 @@
@@ -79,7 +79,7 @@ index e72083b..7a93065 100644
   * save_snapshot: Save an internal snapshot.
   * @name: name of internal snapshot
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index 13f9a2d..e834a4f 100644
+index 13f9a2ded..e834a4f0b 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
 @@ -59,6 +59,8 @@ void hmp_nmi(Monitor *mon, const QDict *qdict);
@@ -92,7 +92,7 @@ index 13f9a2d..e834a4f 100644
  void hmp_savevm(Monitor *mon, const QDict *qdict);
  void hmp_delvm(Monitor *mon, const QDict *qdict);
 diff --git a/migration/migration-hmp-cmds.c b/migration/migration-hmp-cmds.c
-index 2faa5ca..2be8677 100644
+index 2faa5cad4..2be86773a 100644
 --- a/migration/migration-hmp-cmds.c
 +++ b/migration/migration-hmp-cmds.c
 @@ -397,6 +397,24 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
@@ -121,10 +121,18 @@ index 2faa5ca..2be8677 100644
  {
      int saved_vm_running  = runstate_is_running();
 diff --git a/migration/savevm.c b/migration/savevm.c
-index f374da8..c0199c3 100644
+index f374da85b..e0a5d1a2e 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
-@@ -1763,6 +1763,8 @@ void qemu_savevm_live_state(QEMUFile *f)
+@@ -1318,6 +1318,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
+     Error *local_err = NULL;
+     int ret;
+ 
++    json_writer_start_object(ms->vmdesc, NULL);
+     json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
+     json_writer_start_array(ms->vmdesc, "devices");
+ 
+@@ -1763,6 +1764,8 @@ void qemu_savevm_live_state(QEMUFile *f)
  int qemu_save_device_state(QEMUFile *f)
  {
      SaveStateEntry *se;
@@ -133,7 +141,7 @@ index f374da8..c0199c3 100644
  
      if (!migration_in_colo_state()) {
          qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
-@@ -1770,13 +1772,17 @@ int qemu_save_device_state(QEMUFile *f)
+@@ -1770,13 +1773,17 @@ int qemu_save_device_state(QEMUFile *f)
      }
      cpu_synchronize_all_states();
  
@@ -152,7 +160,7 @@ index f374da8..c0199c3 100644
          if (ret) {
              return ret;
          }
-@@ -1784,6 +1790,18 @@ int qemu_save_device_state(QEMUFile *f)
+@@ -1784,6 +1791,18 @@ int qemu_save_device_state(QEMUFile *f)
  
      qemu_put_byte(f, QEMU_VM_EOF);
  
@@ -171,7 +179,7 @@ index f374da8..c0199c3 100644
      return qemu_file_get_error(f);
  }
  
-@@ -3190,6 +3208,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
+@@ -3190,6 +3209,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
      return ret == 0;
  }
  
@@ -196,7 +204,7 @@ index f374da8..c0199c3 100644
 +    qio_channel_set_name(QIO_CHANNEL(ioc), "hp-save-devices-state");
 +    f = qemu_file_new_output(QIO_CHANNEL(ioc));
 +    object_unref(OBJECT(ioc));
-+    ret = qemu_save_device_state(f);
++    ret = qemu_savevm_state(f, errp);
 +    if (ret < 0 || qemu_fclose(f) < 0) {
 +        error_setg(errp, QERR_IO_ERROR);
 +    }
@@ -242,5 +250,5 @@ index f374da8..c0199c3 100644
                                  Error **errp)
  {
 -- 
-2.34.1
+2.43.0
 
