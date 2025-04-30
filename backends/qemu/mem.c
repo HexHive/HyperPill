@@ -19,9 +19,12 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 }
 
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
+	cpu_physical_memory_write(addr, buf, len);
 }
 
+
 void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
+	cpu_physical_memory_read(addr, buf, len);
 }
 
 void cpu0_tlb_flush(void) {

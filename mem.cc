@@ -311,7 +311,6 @@ void icp_init_mem(const char *filename) {
     munmap(ehdr, statbuf.st_size);
     // finally close the file
     fclose(file);
-
   }
 }
 
@@ -364,16 +363,14 @@ void walk_slat(){
 
     do {
         phy = 0;
-#if defined(HP_X86_64)
         reason = gpa2hpa(addr, &phy, &translation_level);
-#elif defined(HP_AARCH64)
-        reason = gpa2hpa(addr, &phy, &translation_level);
-#endif
         if(phy){
             mark_l2_guest_page(phy, 0x1000*pow64(512, translation_level), addr);
+#if defined(HP_X86_64)
             if(guest_page_scratchlist.size() < 10) {
                 guest_page_scratchlist.push_back(addr);
             }
+#endif
         }
 
         if(reason != gap_reason){

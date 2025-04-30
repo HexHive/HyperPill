@@ -48,7 +48,9 @@ extern tsl::robin_set<hp_address> cur_input;
 extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
+#if defined(HP_X86_64)
 extern std::vector<size_t> guest_page_scratchlist;
+#endif
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 

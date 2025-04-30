@@ -1,0 +1,3634 @@
+--- ../../HyperPill/breakpoints.cc	2025-04-30 16:58:00.644425396 +0200
++++ breakpoints.cc	2025-04-23 11:06:59.873825927 +0200
+@@ -1,5 +1,4 @@
+ #include "fuzz.h"
+-#include <tsl/robin_map.h>
+ #include <utility>
+ #include <vector>
+ 
+@@ -26,59 +25,6 @@
+ /*
+  * These breakpoints need to be pretty fast
+  */
+-#define MAX_BPS 16
+-using breakpoint_handler_t = void (*)(bxInstruction_c *);
+-std::pair<bx_address, breakpoint_handler_t> breakpoints[MAX_BPS]; 
+-static unsigned int bp_index;
+-
+-bx_address min_bp = -1;
+-bx_address max_bp;
+-
+-
+-
+-void handle_breakpoints(bxInstruction_c *insn) {
+-    auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+-    if(rip < min_bp || rip > max_bp)
+-        return;
+-    for (unsigned int i =1; i<bp_index; i++){
+-        if(breakpoints[i].first  == rip)
+-            breakpoints[i].second(insn);
+-    }
+-}
+-
+-bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
+-    if(!addr)
+-        return addr;
+-    assert(bp_index < MAX_BPS);
+-    printf("Applying breakpoint to: %lx %s\n", addr, addr_to_sym(addr).second.c_str());
+-    breakpoints[bp_index++] = std::make_pair(addr, h);
+-    if(addr > max_bp)
+-        max_bp = addr;
+-    if(addr< min_bp)
+-        min_bp = addr;
+-    return addr;
+-}
+-
+-static char* copy_string_from_vm(bx_address addr, size_t len) {
+-    len = len&0xFFF;
+-    char *buf = (char*)malloc(len);
+-    BX_CPU(0)->access_read_linear(addr, len, 3, BX_READ, 0x0, buf);
+-    buf[len-1] = 0;
+-    return buf;
+-}
+-
+-static void bp__stdio_write(bxInstruction_c *i){
+-    i->execute1 = BX_CPU_C::RETnear64_Iw;
+-    i->modRMForm.Iw[0] = 0;
+-    i->modRMForm.Iw[1] = 0;
+-    BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+-    BX_CPU(id)->async_event = 1;
+-
+-    char* msg = copy_string_from_vm(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx,
+-            BX_CPU(id)->gen_reg[BX_64BIT_REG_RDX].rrx);
+-    printf("__stdio_write: %s\n", msg);
+-    free(msg);
+-}
+ 
+ void apply_breakpoints_linux() {
+     // sanitizer stuff
+@@ -90,95 +36,31 @@
+     //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
+     //         -> __asan::DescribeThread()
+     //         -> __sanitizer::Die(), abort or exit
+-    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
++    __apply_breakpoints_linux();
++    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](hp_instruction *i) {
+             fuzz_emu_stop_crash("firecracker: panic");
+             });
+-    add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_rdlock"), [](bxInstruction_c *i) {
+-            i->execute1 = BX_CPU_C::RETnear64_Iw;
+-            i->modRMForm.Iw[0] = 0;
+-            i->modRMForm.Iw[1] = 0;
+-            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+-            BX_CPU(id)->async_event = 1;
+-            });
+-    add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_unlock"), [](bxInstruction_c *i) {
+-            i->execute1 = BX_CPU_C::RETnear64_Iw;
+-            i->modRMForm.Iw[0] = 0;
+-            i->modRMForm.Iw[1] = 0;
+-            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+-            BX_CPU(id)->async_event = 1;
+-            });
+-    add_breakpoint(sym_to_addr("firecracker", "__asan::CheckUnwind()"), [](bxInstruction_c *i) {
+-            printf("Skipping __asan::CheckUnwind");
+-            print_stacktrace();
+-            i->execute1 = BX_CPU_C::RETnear64_Iw;
+-            i->modRMForm.Iw[0] = 0;
+-            i->modRMForm.Iw[1] = 0;
+-            BX_CPU(id)->async_event = 1;
+-            });
+-    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
++    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](hp_instruction *i) {
+             // every error through asan should reach this
+             printf("ASAN error report\n");
+             fuzz_stacktrace();
+             });
+-    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
+-    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
+-    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
+-    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
++    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](hp_instruction *i) { 
+             printf("kexec crash\n");
+             print_stacktrace();
+     });
+-    add_breakpoint(sym_to_addr("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
+-            i->execute1 = BX_CPU_C::RETnear64_Iw;
+-            i->modRMForm.Iw[0] = 0;
+-            i->modRMForm.Iw[1] = 0;
+-            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+-            BX_CPU(id)->async_event = 1;
++    add_breakpoint(sym_to_addr("vmlinux", "hyp_panic"), [](hp_instruction *i) {
++        fuzz_emu_stop_crash("vmlinux: hyp_panic");
+     });
+-    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
+-            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
+-            // fuzz_emu_stop_crash("page fault");
++    add_breakpoint(sym_to_addr("vmlinux", "panic"), [](hp_instruction *i) {
++        fuzz_emu_stop_crash("vmlinux: panic");
++    });
++    add_breakpoint(sym_to_addr("vmlinux", "__guest_exit_panic"), [](hp_instruction *i) {
++        fuzz_emu_stop_crash("vmlinux: __guest_exit_panic");
+     });
+ }
+ 
+-
+-void handle_syscall_hooks(bxInstruction_c *i)
++void handle_syscall_hooks(hp_instruction *i)
+ {
+-    // crashes often go for exit/abort
+-    /* Hook Syscalls */
+-    if (i->getIaOpcode() == 0x471) {
+-        switch(BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx) {
+-            case 231:
+-            case 60:    // exit
+-                fuzz_emu_stop_crash("exit syscall");
+-                return;
+-                break;
+-            case 62:    // kill
+-            case 200:   // tkill
+-                if (BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx == 6) { // SIGABRT
+-                    fuzz_emu_stop_crash("kill syscall");
+-                    return;
+-                }
+-                break;
+-            case 1:     // write
+-                if (BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx == 1 ||
+-                        BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx == 2) {
+-                    i->execute1 = BX_CPU_C::NOP;
+-                    size_t len = BX_CPU(id)
+-                        ->gen_reg[BX_64BIT_REG_RDX]
+-                        .rrx &
+-                        0xFFF;
+-                    char *buf = (char *)malloc(len + 1);
+-                    BX_CPU(0)->access_read_linear(
+-                            BX_CPU(id)
+-                            ->gen_reg[BX_64BIT_REG_RSI]
+-                            .rrx,
+-                            len, 3, BX_READ, 0x0, buf);
+-                    buf[len] = 0;
+-                    printf("write: %s\n", buf);
+-                    BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = len;
+-                    return;
+-                }
+-                break;
+-        }
+-    }
++    __handle_syscall_hooks(i);
+ }
+--- ../../HyperPill/conveyor.cc	2024-08-27 13:48:02.715577754 +0200
++++ conveyor.cc	2024-12-12 11:17:56.908932890 +0100
+@@ -2,7 +2,6 @@
+ #include <stdlib.h>
+ #include <assert.h>
+ #include "conveyor.h"
+-#include <x86intrin.h>
+ #include <stdio.h>
+ 
+ #ifndef DEBUG                                                                    
+--- ../../HyperPill/cov.cc	2025-04-30 16:58:00.645425407 +0200
++++ cov.cc	2025-04-23 11:06:59.874825939 +0200
+@@ -3,12 +3,12 @@
+ #include <tsl/robin_map.h>
+ #include <tsl/robin_set.h> 
+ 
+-tsl::robin_map<bx_address, bool> ignore_edges;
+-tsl::robin_set<bx_address> seen_edges;
+-tsl::robin_map<bx_address, uint64_t> all_edges;
+-tsl::robin_map<bx_address, uint64_t> edge_to_idx;
++tsl::robin_map<hp_address, bool> ignore_edges;
++tsl::robin_set<hp_address> seen_edges;
++tsl::robin_map<hp_address, uint64_t> all_edges;
++tsl::robin_map<hp_address, uint64_t> edge_to_idx;
+ 
+-tsl::robin_set<bx_address> cur_input;
++tsl::robin_set<hp_address> cur_input;
+ 
+ std::vector<std::pair<size_t, size_t>> pc_ranges;
+ std::vector<std::pair<size_t, size_t>> our_stacktrace;
+@@ -23,7 +23,7 @@
+     pc_ranges.push_back(std::make_pair(base, len));
+ }
+ 
+-bool ignore_pc(bx_address pc) {
++bool ignore_pc(hp_address pc) {
+     if (pc_ranges.size() == 0) // No ranges = fuzz everthing
+         return false;
+     if (ignore_edges.find(pc) == ignore_edges.end()) {
+@@ -43,7 +43,7 @@
+ 
+ void print_stacktrace(){
+     printf("Stacktrace:\n");
+-    if(our_stacktrace.empty())
++    if(empty_stacktrace())
+         return;
+     for (auto r = our_stacktrace.rbegin(); r != our_stacktrace.rend(); ++r)
+     {
+@@ -53,7 +53,7 @@
+     fflush(stderr);
+ }
+ 
+-void add_edge(bx_address prev_rip, bx_address new_rip) {
++void add_edge(hp_address prev_rip, hp_address new_rip) {
+     time_t t;
+ 
+     symbolize(new_rip);
+@@ -84,26 +84,33 @@
+     }
+ }
+ 
+-void reset_op_cov() {
++void reset_op_cov(void) {
+     last_new = 0;
+ }
+-void reset_cur_cov() {
++void reset_cur_cov(void) {
+     our_stacktrace.clear();
+     cur_input.clear();
+     last_new = 0;
+     libfuzzer_coverage[0] = 1;
+ }
+ 
+-void fuzz_instr_cnear_branch_taken(bx_address branch_rip, bx_address new_rip) {
+-    add_edge(branch_rip, new_rip);
+-}
++uint32_t get_sysret_status(void) { return status; }
++
++void reset_sysret_status(void) { status = 0; }
+ 
+-void fuzz_instr_cnear_branch_not_taken(bx_address branch_rip) {}
++void set_sysret_status(uint32_t new_status) { status = new_status; }
+ 
+-uint32_t get_sysret_status() { return status; }
++void add_stacktrace(hp_address branch_rip, hp_address new_rip) {
++    our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
++}
+ 
+-void reset_sysret_status() { status = 0; }
++void pop_stacktrace(void) {
++    our_stacktrace.pop_back();
++}
+ 
++bool empty_stacktrace(void) {
++    return our_stacktrace.empty();
++}
+ 
+ void fuzz_stacktrace(){
+     /* if(master_fuzzer) */
+@@ -113,35 +120,4 @@
+     if(!log_crashes)
+         return;
+     print_stacktrace();
+-
+-}
+-void fuzz_instr_ucnear_branch(unsigned what, bx_address branch_rip,
+-                              bx_address new_rip) {
+-    if (what == BX_INSTR_IS_SYSRET)
+-        status |= 1; // sysret
+-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl ) {
+-        our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
+-        /* fuzz_stacktrace(); */
+-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl&& !our_stacktrace.empty()) {
+-        our_stacktrace.pop_back();
+-        /* fuzz_stacktrace(); */
+-    }
+-    add_edge(branch_rip, new_rip);
+-}
+-
+-void fuzz_instr_far_branch(unsigned what, Bit16u prev_cs, bx_address prev_rip,
+-                           Bit16u new_cs, bx_address new_rip) {
+-    if (what == BX_INSTR_IS_SYSRET)
+-        status |= 1; // sysret
+-
+-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl) {
+-        our_stacktrace.push_back(std::make_pair(prev_rip, new_rip));
+-        /* fuzz_stacktrace(); */
+-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl && !our_stacktrace.empty()) {
+-        our_stacktrace.pop_back();
+-        /* fuzz_stacktrace(); */
+-    }
+-
+-    if (what == BX_INSTR_IS_IRET && (new_rip >> 63) == 0)
+-        add_edge(prev_rip, new_rip);
+ }
+--- ../../HyperPill/db.cc	2024-08-27 13:48:02.715577754 +0200
++++ db.cc	2024-12-22 17:32:28.439669000 +0100
+@@ -2,6 +2,8 @@
+ #include <stdio.h>
+ #include <map>
+ #include "fuzz.h"
++#include <regex>
++#include <fstream>
+ 
+ 
+ sqlite3 *db;
+@@ -43,7 +45,7 @@
+     sqlite3_finalize(res);
+ }
+ 
+-void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions) {
++void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions) {
+     sqlite3_stmt *res;
+     const char *sql = "SELECT Address, Length from PIO";
+     int rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
+@@ -67,3 +69,38 @@
+         }
+     }
+ }
++
++void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions,
++                        std::map<hp_address, uint32_t> &mmio_regions) {
++    assert(range_file);
++    assert(range_regex);
++        
++    std::regex rx(range_regex);
++
++    std::ifstream infile(range_file);
++    std::string line;
++    while (std::getline(infile, line))
++    {
++        std::smatch match;
++        /* printf("Checking: %s\n", line.c_str()); */
++        if(std::regex_search(line, match, rx)){
++            if (line.find("ram)") != std::string::npos) {
++                continue;
++            }
++            if (line.find("rom)") != std::string::npos) {
++                continue;
++            }
++            printf("MATCH: %s\n", line.c_str());
++            std::istringstream iss(line);
++            uint64_t start, end;
++            char c;
++            if (!(iss >> std::hex  >> start >> c >>  std::hex >> end)) { continue; } 
++            assert(c=='-');
++            if(start < 0x10000)
++                pio_regions[start] = end-start;
++            else
++                add_mmio_region(start, end-start);
++            printf("Will fuzz: %s\n", line.c_str());
++        }
++    }
++}
+\ No newline at end of file
+--- ../../HyperPill/enum.cc	2024-08-27 13:48:02.715577754 +0200
++++ enum.cc	2025-04-28 09:09:41.863990465 +0200
+@@ -12,8 +12,9 @@
+ #include <tsl/robin_set.h>
+ #include <tsl/robin_map.h>
+ 
+-std::vector<std::tuple<bx_address, bx_address, unsigned int>> ept_exit_ranges; // Start, Base, Reason
++std::vector<std::tuple<hp_address, hp_address, unsigned int>> s2pt_exit_ranges; // Start, Base, Reason
+ 
++#if defined(HP_X86_64)
+ std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
+     // calculate icounts with lowest frequency
+     std::unordered_map<uint32_t, uint32_t> frequencies;
+@@ -79,17 +80,6 @@
+     return pio_regions;
+ }
+ 
+-// read number of whitespaces at the start of a line
+-uint32_t get_indentation(std::string line) {
+-    uint32_t indentation = 0;
+-    for (auto& c : line) {
+-        if (c == ' ')
+-            indentation++;
+-    }
+-    return indentation;
+-}
+-
+-
+ std::vector<uint32_t> get_pio_icounts() {
+     // idealy, we sum the icounts of injected pio read and write
+     // however, out to port 0x20 in KVM results in an infinite loop
+@@ -103,7 +93,7 @@
+         inject_in(i, 0);
+         start_cpu();
+         icount_read = get_pio_icount();
+-        reset_bx_vm();
++        reset_vm();
+ 
+         pio_icounts[i] = icount_read + icount_write;
+         printf("Port %x %lx\n", i, pio_icounts[i]);
+@@ -149,28 +139,38 @@
+         insert_pio(a.first, a.second);
+     }
+ }
++#endif
+ 
+-void enum_handle_ept_gap(unsigned int gap_reason,
+-        bx_address gap_start, bx_address gap_end) {
+-    ept_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
++void enum_handle_s2pt_gap(unsigned int gap_reason,
++        hp_address gap_start, hp_address gap_end) {
++    s2pt_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
++#if defined(HP_X86_64)
+     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
+         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
+     else if(gap_reason == VMX_VMEXIT_EPT_VIOLATION)
+         printf("%lx +%lx Potential Violation\n", gap_start, gap_end - gap_start);
+-    else
+-        abort();
++#elif defined(HP_AARCH64)
++#define EXCP_DATA_ABORT      4
++    if(gap_reason == EXCP_DATA_ABORT) 
++        printf("%lx +%lx Potential Data Abort\n", gap_start, gap_end - gap_start);
++#endif
++    // TODO
+ }
+ 
+ void enum_mmio_regions(void) {
+     tsl::robin_set<uint64_t> seen_icounts;
+-    std::vector<std::pair<bx_address,bx_address>> mmio_ranges;
+-    bx_address mmio_start = 0;
+-    for (auto &a : ept_exit_ranges){
+-        bx_address addr = std::get<0>(a);
+-        bx_address base = addr;
+-        bx_address end = std::get<1>(a);
++    std::vector<std::pair<hp_address,hp_address>> mmio_ranges;
++    hp_address mmio_start = 0;
++    for (auto &a : s2pt_exit_ranges){
++        hp_address addr = std::get<0>(a);
++        hp_address base = addr;
++        hp_address end = std::get<1>(a);
+         unsigned int reason = std::get<2>(a);
++#if defined(HP_X86_64)
+         printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
++#elif defined(HP_AARCH64)
++        printf("S2PT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, "data abort");
++#endif
+         while(addr < end && addr - base < 0x10000000) { 
+             bool new_icount = 0;
+             inject_write(addr, 2,1);
+@@ -199,7 +199,7 @@
+             }
+ 
+             reset_sysret_status();
+-            reset_bx_vm();
++            reset_vm();
+             reset_cur_cov();
+         }
+         if (mmio_start) {
+--- ../../HyperPill/feedback.cc	2025-04-30 16:58:00.645425407 +0200
++++ feedback.cc	2025-04-23 11:06:59.874825939 +0200
+@@ -4,7 +4,8 @@
+ #include <map>
+ 
+ uint8_t* random_register_data;
+-size_t random_register_data_len = 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
++size_t random_register_data_len = init_random_register_data_len();
++
+ std::map<int, std::tuple<uint8_t*, size_t>> register_contents;
+ 
+ std::unordered_set<uint64_t> indicator_values;
+@@ -22,15 +23,17 @@
+ 
+ tsl::robin_set<std::tuple<uint64_t, uint64_t, uint64_t>, Hasher> structset;
+ 
++#if defined(HP_X86_64)
+ bool fuzz_hook_vmlaunch() {
+-    /* printf("Vmlaunch:%lx\n", BX_CPU(id)->vmcsptr); */
+-    if(vmcs_addr == BX_CPU(id)->vmcsptr){
++    /* printf("Vmlaunch:%lx\n", cpu0_get_vmcsptr()); */
++    if(vmcs_addr == cpu0_get_vmcsptr()) {
+         fuzz_emu_stop_normal();
+         return true;
+     }
+ 
+     return false;
+ }
++#endif
+ 
+ extern "C" void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2);
+ extern "C" void __sanitizer_cov_trace_cmp2_pc(uint64_t PC, uint16_t Arg1, uint16_t Arg2);
+@@ -68,8 +71,8 @@
+ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
+ 
+ 
+-    uint64_t PC = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+-    if(BX_CPU(id)->fuzztrace)
++    uint64_t PC = cpu0_get_pc();
++    if(cpu0_get_fuzztrace())
+         printf("CMP%ld: %lx vs %lx @ %lx\n", size, op1, op2, PC);
+ 
+ 
+@@ -135,25 +138,34 @@
+ }
+ 
+ void init_register_feedback() {
++#if defined(HP_X86_64)
+     // 16 General-Purpose Registers + 16 XMM Registers
++#elif defined(HP_AARCH64)
++    // 31 General-Purpose Registers
++#endif
+     /* int fd = open("/dev/random", O_RDONLY); */
+     srand(0);
+     random_register_data = (uint8_t*) malloc(random_register_data_len);
+     /* read(fd, random_register_data, random_register_data_len); */
+     uint8_t* cursor = random_register_data;
++#if defined(HP_X86_64)
+     for(int i=0; i<16; i++) {
+             if(i == BX_64BIT_REG_RSP || i == BX_64BIT_REG_RBP)
+                 continue;
++#elif defined(HP_AARCH64)
++    for(int i=0; i<31; i++) {
++#endif
+             uint64_t value;
+             uint8_t* ptr = (uint8_t*)&value;
+             for(int j=0; j<sizeof(value); j++)
+                 ptr[j] = rand();
+             memcpy(cursor, &value, sizeof(value));
+-            BX_CPU(id)->set_reg64(i, value);
++            cpu0_set_general_purpose_reg64(i, value);
+             register_contents[i] = std::make_pair(cursor, 8);
+             cursor += 8;
+             printf("REG%d: %lx\n", i, value);
+     }
++#if defined(HP_X86_64)
+     for(int i=0; i<BX_XMM_REGISTERS+1; i++) {
+             uint8_t* ptr = (uint8_t*)&BX_CPU(id)->vmm[i];
+             for(int j=0; j<sizeof(BX_CPU(id)->vmm[i]); j++)
+@@ -162,4 +174,5 @@
+             register_contents[16+i] = std::make_pair(cursor, sizeof(BX_CPU(id)->vmm[i]));
+             cursor += sizeof(BX_CPU(id)->vmm[i]);
+     }
++#endif
+ }
+--- ../../HyperPill/fuzz.cc	2025-04-30 16:58:00.645425407 +0200
++++ fuzz.cc	2025-04-28 09:09:41.864990478 +0200
+@@ -6,20 +6,34 @@
+ enum cmds {
+ 	OP_READ,
+ 	OP_WRITE,
++#if defined(HP_X86_64)
+ 	OP_IN,
+ 	OP_OUT,
+ 	OP_PCI_WRITE,
+ 	OP_MSR_WRITE,
++#endif
+ 	OP_VMCALL,
+ 	OP_CLOCK_STEP,
+ };
++#define FUZZ_LEGACY_S    OP_READ
++#if defined(HP_X86_64)
++#define FUZZ_LEGACY_E    OP_OUT
++#elif defined(HP_AARCH64)
++#define FUZZ_LEGACY_E    OP_WRITE
++#endif
++#if defined(HP_X86_64)
++#define FUZZ_HYPERCALL_S OP_MSR_WRITE
++#elif defined(HP_AARCH64)
++#define FUZZ_HYPERCALL_S OP_VMCALL
++#endif
++#define FUZZ_HYPERCALL_E OP_VMCALL
+ 
+ static bool log_ops = false;
+ 
+-std::map<bx_address, uint32_t> mmio_regions;
++std::map<hp_address, uint32_t> mmio_regions;
+ std::map<uint16_t, uint16_t> pio_regions;
+ 
+-static tsl::robin_map<bx_address, size_t> seen_dma;
++static tsl::robin_map<hp_address, size_t> seen_dma;
+ uint16_t dma_start = 0;
+ uint16_t dma_len = 0;
+ 
+@@ -58,7 +72,7 @@
+ 	seen_dma.clear();
+ }
+ 
+-void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
++void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
+ 	uint8_t *buf;
+ 
+ 	if (!fuzzing)
+@@ -86,11 +100,11 @@
+ 	        fuzz_emu_stop_unhealthy();
+ 			return;
+ 		}
+-		if (BX_CPU(id)->fuzztrace || log_ops) {
++		if (cpu0_get_fuzztrace() || log_ops) {
+ 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
+ 			       addr, lookup_gpa_by_hpa(addr), len);
+ 		}
+-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, l, (void *)buf);
++		cpu0_mem_write_physical_page(addr, l, (void *)buf);
+ 		memcpy(data, buf, l);
+ 	} else if (sectionlen > 0x1000) {
+ 	} else {
+@@ -98,13 +112,13 @@
+ 		size_t source = addr + len + 1 - sectionlen;
+ 		if ((source + len) >> 12 != (source >> 12))
+ 			source -= len;
+-		BX_MEM(0)->readPhysicalPage(BX_CPU(id), source, len, buf);
++		cpu0_mem_read_physical_page(source, len, buf);
+ 
+-		if (BX_CPU(id)->fuzztrace || log_ops) {
++		if (cpu0_get_fuzztrace() || log_ops) {
+ 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
+ 			       addr, lookup_gpa_by_hpa(addr), len);
+ 		}
+-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, buf);
++		cpu0_mem_write_physical_page(addr, len, buf);
+ 	}
+ }
+ 
+@@ -112,7 +126,7 @@
+ 	return mmio_regions.size();
+ }
+ 
+-static bx_address mmio_region(int idx) {
++static hp_address mmio_region(int idx) {
+ 	for (auto &it : mmio_regions) {
+ 		if (idx == 0) {
+ 			return it.first;
+@@ -122,10 +136,11 @@
+ 	return 0;
+ }
+ 
+-static bx_address mmio_region_size(bx_address addr) {
++static hp_address mmio_region_size(hp_address addr) {
+ 	return mmio_regions[addr];
+ }
+ 
++#if defined(HP_X86_64)
+ static unsigned int num_pio_regions() {
+ 	return pio_regions.size();
+ }
+@@ -142,20 +157,24 @@
+ static uint16_t pio_region_size(uint16_t addr) {
+ 	return pio_regions[addr];
+ }
++#endif
+ 
++#if defined(HP_X86_64)
+ bool inject_halt() {
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_HLT);
+ 	BX_CPU(id)->VMwrite32(VMCS_VMEXIT_QUALIFICATION, 0);
+ 	return true;
+ }
++#endif
+ 
+ // INJECTORS
+-bool inject_write(bx_address addr, int size, uint64_t val) {
++bool inject_write(hp_address addr, int size, uint64_t val) {
+ 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
++#if defined (HP_X86_64)
+ 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
+ 
+ 	uint32_t exit_reason =
+-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
++		gpa2hpa(addr, NULL, NULL);
+ 	/* printf("Exit reason: %lx\n", exit_reason); */
+ 	if (!exit_reason)
+ 		return false;
+@@ -169,12 +188,12 @@
+ 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, addr);
+ 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, val);
+ 
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!write%d %lx %lx (reason: %lx)\n", size, addr, val,
+ 		       exit_reason);
+ 	}
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+@@ -183,29 +202,52 @@
+ 	switch (size) {
+ 	case Byte:
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+-		cpu_physical_memory_write(phy, "\x88\x02", 2);
++		cpu0_mem_write_physical_page(phy, 2, (void *)"\x88\x02");
+ 		break;
+ 	case Word:
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+-		cpu_physical_memory_write(phy, "\x66\x89\x02", 3);
++		cpu0_mem_write_physical_page(phy, 3, (void *)"\x66\x89\x02");
+ 		break;
+ 	case Long:
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+-		cpu_physical_memory_write(phy, "\x89\x02", 2);
++		cpu0_mem_write_physical_page(phy, 2, (void *)"\x89\x02");
+ 		break;
+ 	case Quad:
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+-		cpu_physical_memory_write(phy, "\x48\x89\x02", 3);
++		cpu0_mem_write_physical_page(phy, 3, (void *)"\x48\x89\x02");
+ 		break;
+ 	}
++#elif defined(HP_AARCH64)
++	aarch64_set_far_el2(addr && 0xfff);
++	aarch64_set_hpfar_el2(addr && (~(0xfff)));
++	aarch64_set_xreg(1, val);
++	if (cpu0_get_fuzztrace() || log_ops) {
++		printf("!write%d %lx %lx\n", size, addr, val);
++	}
++	switch (size) {
++	case Byte:
++		aarch64_set_esr_el2_for_data_abort(Byte, 1, 1); // question
++		break;
++	case Word:
++		aarch64_set_esr_el2_for_data_abort(Word, 1, 1);
++		break;
++	case Long:
++		aarch64_set_esr_el2_for_data_abort(Long, 1, 1);
++		break;
++	case Quad:
++		aarch64_set_esr_el2_for_data_abort(Quad, 1, 1);
++		break;
++	}
++#endif
+ 	return true;
+ }
+ 
+-bool inject_read(bx_address addr, int size) {
++bool inject_read(hp_address addr, int size) {
+ 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
+ 
++#if defined(HP_X86_64)
+ 	uint32_t exit_reason =
+-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
++		gpa2hpa(addr, NULL, NULL);
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, exit_reason);
+ 
+ 	BX_CPU(id)->VMwrite32(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
+@@ -217,11 +259,11 @@
+ 
+ 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RCX, addr);
+ 
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!read%d %lx\n", size, addr);
+ 	}
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+@@ -229,45 +271,67 @@
+ 	}
+ 	switch (size) {
+ 	case Byte:
+-		cpu_physical_memory_write(phy,
+-					  "\x67\x8a\x01", // mov al,BYTE PTR
++		cpu0_mem_write_physical_page(phy, 3,
++					  (void *)"\x67\x8a\x01" // mov al,BYTE PTR
+ 							  // [ecx]
+-					  3);
++					  );
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+ 		break;
+ 	case Word:
+-		cpu_physical_memory_write(phy,
+-					  "\x67\x66\x8b\x01", // mov ax,WORD PTR
++		cpu0_mem_write_physical_page(phy, 4,
++					  (void *)"\x67\x66\x8b\x01" // mov ax,WORD PTR
+ 							      // [ecx]
+-					  4);
++					  );
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 4);
+ 		break;
+ 	case Long:
+-		cpu_physical_memory_write(phy,
+-					  "\x67\x8b\x01", // mov eax,DWORD PTR
++		cpu0_mem_write_physical_page(phy, 3,
++					  (void *)"\x67\x8b\x01" // mov eax,DWORD PTR
+ 							  // [ecx]
+-					  3);
++					  );
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+ 		break;
+ 	case Quad:
+-		cpu_physical_memory_write(phy,
+-					  "\x48\x8b\x01", // mov rax,QWORD PTR
++		cpu0_mem_write_physical_page(phy, 3,
++					  (void *)"\x48\x8b\x01" // mov rax,QWORD PTR
+ 							  // [rcx]
+-					  3);
++					  );
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+ 		break;
+ 	}
++#elif defined(HP_AARCH64)
++	aarch64_set_far_el2(addr & 0xfff);
++	aarch64_set_hpfar_el2(addr & (~(0xfff)));
++	if (cpu0_get_fuzztrace() || log_ops) {
++		printf("!read%d %lx\n", size, addr);
++	}
++	switch (size) {
++	case Byte:
++		aarch64_set_esr_el2_for_data_abort(Byte, 0, 0);
++		break;
++	case Word:
++		aarch64_set_esr_el2_for_data_abort(Word, 0, 0);
++		break;
++	case Long:
++		aarch64_set_esr_el2_for_data_abort(Long, 0, 0);
++		break;
++	case Quad:
++		aarch64_set_esr_el2_for_data_abort(Quad, 0, 0);
++		break;
++	}
++#endif
+ 	return true;
+ }
+ 
++#if defined(HP_X86_64)
+ bool inject_in(uint16_t addr, uint16_t size) {
+ 	enum Sizes { Byte, Word, Long, end_sizes };
+ 	uint64_t field_64 = 0;
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!in%d %x\n", size, addr);
+ 	}
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+@@ -277,22 +341,22 @@
+ 	case Byte:
+ 		// writes the 'in' instruction with the appropriate size into
+ 		// code
+-		cpu_physical_memory_write(phy, // L0 physical addr of $rip in
++		cpu0_mem_write_physical_page(phy, 1, // L0 physical addr of $rip in
+ 					       // L2, inside the saved VMCS
+ 					  // uses VMREAD to read the VMCS's
+ 					  // $rip, which is a GVA look for
+ 					  // existing code somewhere that
+ 					  // alreaedy does the conversion
+-					  "\xec", 1);
++					  (void *)"\xec");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
+ 		break;
+ 	case Word:
+-		cpu_physical_memory_write(phy, "\x66\xed", 2);
++		cpu0_mem_write_physical_page(phy, 2, (void *)"\x66\xed");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+ 		field_64 |= 1; // access size
+ 		break;
+ 	case Long:
+-		cpu_physical_memory_write(phy, "\xed", 1);
++		cpu0_mem_write_physical_page(phy, 1, (void *)"\xed");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
+ 		field_64 |= 3; // access size
+ 		break;
+@@ -310,11 +374,11 @@
+ bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
+ 	enum Sizes { Byte, Word, Long, end_sizes };
+ 	uint64_t field_64 = 0;
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!out%d %x %x\n", size, addr, value);
+ 	}
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+@@ -322,16 +386,16 @@
+ 	}
+ 	switch (size) {
+ 	case Byte:
+-		cpu_physical_memory_write(phy, "\xee", 1);
++		cpu0_mem_write_physical_page(phy, 1, (void *)"\xee");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
+ 		break;
+ 	case Word:
+-		cpu_physical_memory_write(phy, "\x66\xef", 2);
++		cpu0_mem_write_physical_page(phy, 2, (void *)"\x66\xef");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+ 		field_64 |= 1; // access size
+ 		break;
+ 	case Long:
+-		cpu_physical_memory_write(phy, "\xef", 1);
++		cpu0_mem_write_physical_page(phy, 1, (void *)"\xef");
+ 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
+ 		field_64 |= 3; // access size
+ 		break;
+@@ -371,18 +435,18 @@
+ 	return true;
+ }
+ 
+-bool inject_wrmsr(bx_address msr, uint64_t value) {
++bool inject_wrmsr(hp_address msr, uint64_t value) {
+ 	bx_address phy;
+ 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, value & 0xFFFFFFFF);
+ 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, value >> 32);
+ 
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+ 		return false;
+ 	}
+-	cpu_physical_memory_write(phy, "\x0f\x30", 2);
++	cpu0_mem_write_physical_page(phy, 2, (void *)"\x0f\x30");
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_WRMSR);
+ 
+@@ -391,15 +455,15 @@
+ 	return true;
+ }
+ 
+-uint64_t inject_rdmsr(bx_address msr) {
++uint64_t inject_rdmsr(hp_address msr) {
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+ 		return false;
+ 	}
+-	cpu_physical_memory_write(phy, "\x0f\x32", 2);
++	cpu0_mem_write_physical_page(phy, 2, (void *)"\x0f\x32");
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_RDMSR);
+ 
+@@ -408,6 +472,7 @@
+ 	return (BX_CPU(id)->get_reg64(BX_64BIT_REG_RDX) << 32) |
+ 	       (BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX) & 0xFFFFFFFF);
+ }
++#endif
+ 
+ /* OPERATIONS */
+ 
+@@ -424,7 +489,7 @@
+ 		return false;
+ 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
+ 		return false;
+-	bx_address addr = mmio_region(base);
++	hp_address addr = mmio_region(base);
+ 
+ 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
+ 		return false;
+@@ -475,7 +540,7 @@
+ 		return false;
+ 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
+ 		return false;
+-	bx_address addr = mmio_region(base);
++	hp_address addr = mmio_region(base);
+ 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
+ 		return false;
+ 	addr += offset;
+@@ -487,6 +552,7 @@
+ 	return true;
+ }
+ 
++#if defined(HP_X86_64)
+ bool op_out() {
+ 	enum Sizes { Byte, Word, Long, end_sizes };
+ 	uint8_t size;
+@@ -501,11 +567,11 @@
+ 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
+ 		return false;
+ 
+-	bx_address addr = pio_region(base);
++	hp_address addr = pio_region(base);
+ 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
+ 		return false;
+ 
+-	bx_address phy;
++	hp_address phy;
+ 	addr += offset;
+ 	uint64_t field_64 = 0;
+ 	if (addr == 0x160)
+@@ -550,7 +616,7 @@
+ 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
+ 		return false;
+ 
+-	bx_address addr = pio_region(base);
++	hp_address addr = pio_region(base);
+ 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
+ 		return false;
+ 	addr += offset;
+@@ -596,8 +662,8 @@
+ 						      // around BARS
+ 		return false;
+ 
+-	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	hp_address phy;
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+@@ -621,14 +687,19 @@
+ 	if (ic_ingest64(&value, 0, -1))
+ 		return false;
+ 
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!wrmsr %lx = %lx\n", msr, value);
+ 	}
+ 	return inject_wrmsr(msr, value);
+ }
++#endif
+ 
++#if defined(HP_X86_64)
+ static bx_gen_reg_t vmcall_gpregs[16 + 4];
+ static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
++#elif defined(HP_AARCH64)
++static uint64_t vmcall_gpregs[20]; // TODO
++#endif
+ static uint32_t vmcall_enabled_regs;
+ 
+ void insert_register_value_into_fuzz_input(int idx) {
+@@ -659,10 +730,17 @@
+ 					// before rewriting regs
+ 	size_t local_dma_len; // Used to make a copy of dma data before
+ 			      // rewriting regs
++#if defined(HP_X86_64)
++	// disallow RAX, RSP and RBP to be fuzzed.
+ 	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
++#elif defined(HP_AARCH64)
++	// Only 17 XRegs according to the SMCCC v1.2
++	const uint64_t fuzzable_regs_bitmap = (0b11111111111111111);
++#endif
+ 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
+ 		return false;
+ 
++#if defined(HP_X86_64)
+ 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
+ 
+ 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
+@@ -698,22 +776,36 @@
+ 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+ 
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
+ 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
+ 		return false;
+ 	}
+-	cpu_physical_memory_write(phy, "\x0f\x01\xc1", 3);
++	cpu0_mem_write_physical_page(phy, 3, (void *)"\x0f\x01\xc1");
+ 
+ 	memcpy(BX_CPU(id)->gen_reg, vmcall_gpregs, sizeof(BX_CPU(id)->gen_reg));
+ 	memcpy(BX_CPU(id)->vmm, vmcall_xmmregs, sizeof(BX_CPU(id)->vmm));
+ 
+-	uint8_t *dma_start = ic_get_cursor();
+-
+-	if (BX_CPU(id)->fuzztrace || log_ops) {
++	if (cpu0_get_fuzztrace() || log_ops) {
+ 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
+ 	}
++#elif defined(HP_AARCH64)
++	vmcall_enabled_regs &= fuzzable_regs_bitmap;
++	for (int i = 0; i < 32; i++) { // FIXME : DO I CHECK FUZZ X0 ?
++		if ((vmcall_enabled_regs >> i) & 1) {
++			// NO NEED, X1 to X17 are fuzzable
++			uint64_t val;
++			if (ic_ingest64(&val, 0, -1)) {
++				return false;
++			}
++			aarch64_set_xreg(i, val);
++		}
++	}
++	aarch64_set_esr_el2_for_hvc();
++#endif
++	uint8_t *dma_start = ic_get_cursor();
++
+ 	start_cpu();
+ 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],
+ 	 * BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX)); */
+@@ -741,6 +833,7 @@
+ 	            fuzz_emu_stop_unhealthy();
+ 		}
+ 	}
++#if defined(HP_X86_64)
+ 	for (int i = 0; i < BX_XMM_REGISTERS; i++) {
+ 		if ((vmcall_enabled_regs >> (16 + i)) & 1) {
+ 			if (!ic_append(&vmcall_xmmregs[i],
+@@ -748,7 +841,7 @@
+                 fuzz_emu_stop_unhealthy();
+ 		}
+ 	}
+-
++#endif
+ 	if (!ic_append(local_dma, local_dma_len))
+         fuzz_emu_stop_unhealthy();
+ 	return true;
+@@ -779,10 +872,12 @@
+ 	bool (*ops[])() = {
+ 		[OP_READ] = op_read,
+ 		[OP_WRITE] = op_write,
++	#if defined(HP_X86_64)
+ 		[OP_IN] = op_in,
+ 		[OP_OUT] = op_out,
+ 		[OP_PCI_WRITE] = op_pci_write,
+ 		[OP_MSR_WRITE] = op_msr_write,
++	#endif
+ 		[OP_VMCALL] = op_vmcall,
+ 	};
+ 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
+@@ -795,7 +890,7 @@
+ 		fuzz_legacy = getenv("FUZZ_LEGACY");
+ 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
+ 		end_with_clockstep = getenv("END_WITH_CLOCK_STEP");
+-		log_ops = getenv("LOG_OPS") || BX_CPU(id)->fuzztrace;
++		log_ops = getenv("LOG_OPS") || cpu0_get_fuzztrace();
+ 	}
+ 
+ 	//if (log_ops)
+@@ -808,19 +903,19 @@
+ 		dma_start = ic_get_cursor() - input_start;
+ 		dma_len = 0;
+ 		if (fuzz_legacy) {
+-			if (ic_ingest8(&op, OP_READ, OP_OUT, true)) {
++			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_LEGACY_E, true)) {
+ 				ic_erase_backwards_until_token();
+ 				ic_subtract(4);
+ 				continue;
+ 			}
+ 		} else if (fuzz_hypercalls) {
+-			if (ic_ingest8(&op, OP_MSR_WRITE, OP_VMCALL, true)) {
++			if (ic_ingest8(&op, FUZZ_HYPERCALL_S, FUZZ_HYPERCALL_E, true)) {
+ 				ic_erase_backwards_until_token();
+ 				ic_subtract(4);
+ 				continue;
+ 			}
+ 		} else { /* Fuzz Everything */
+-			if (ic_ingest8(&op, 0, OP_VMCALL, true)) {
++			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_HYPERCALL_E, true)) {
+ 				ic_erase_backwards_until_token();
+ 				ic_subtract(4);
+ 				continue;
+@@ -845,25 +940,33 @@
+ 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
+ }
+ 
++#if defined(HP_X86_64)
+ void add_pio_region(uint16_t addr, uint16_t size) {
+ 	pio_regions[addr] = size;
+ 	printf("pio_regions %d = %lx + %lx\n", pio_regions.size(), addr, size);
+ }
++#endif
++
+ void add_mmio_region(uint64_t addr, uint64_t size) {
+ 	mmio_regions[addr] = size;
+ 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
+ 	       size);
+ }
+-void add_mmio_range_alt(uint64_t addr, uint64_t end) {
++
++void add_mmio_range_all(uint64_t addr, uint64_t end) {
+ 	add_mmio_region(addr, end - addr);
+ }
++
+ void init_regions(const char *path) {
+ 	open_db(path);
+ 	if (getenv("FUZZ_ENUM")) {
++#if defined(HP_X86_64)
+ 		enum_pio_regions();
++#endif
+ 		enum_mmio_regions();
+         exit(0);
+ 	}
++
+ 	if (getenv("MANUAL_RANGES")) {
+ 		load_manual_ranges(getenv("MANUAL_RANGES"),
+ 				   getenv("RANGE_REGEX"), pio_regions,
+--- ../../HyperPill/fuzz.h	2025-04-30 16:58:00.645425407 +0200
++++ fuzz.h	2025-04-30 17:25:12.054412440 +0200
+@@ -2,105 +2,92 @@
+ #define FUZZ_H
+ 
+ #include <stdint.h>
++
++#ifdef __cplusplus
+ #include <map>
+ #include <vector>
+ #include <cstring>
+ #include <tsl/robin_set.h>
++#endif
+ 
++#include <stdbool.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
++#if defined(HP_X86_64)
+ #include "bochs.h"
+ #include "cpu/cpu.h"
+ #include "memory/memory-bochs.h"
++#define NM_PREFIX ""
++#elif defined(HP_AARCH64)
++#include "qemuapi.h"
++#include <libgen.h>
++#define NM_PREFIX "aarch64-linux-gnu-"
++#endif
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
+ 
+-#define PG_PRESENT_BIT  0
+-#define PG_RW_BIT       1
+-#define PG_USER_BIT     2
+-#define PG_PWT_BIT      3
+-#define PG_PCD_BIT      4
+-#define PG_ACCESSED_BIT 5
+-#define PG_DIRTY_BIT    6
+-#define PG_PSE_BIT      7
+-#define PG_GLOBAL_BIT   8
+-#define PG_PSE_PAT_BIT  12
+-#define PG_PKRU_BIT     59
+-#define PG_NX_BIT       63
+-
+-#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+-#define PG_RW_MASK       (1 << PG_RW_BIT)
+-#define PG_USER_MASK     (1 << PG_USER_BIT)
+-#define PG_PWT_MASK      (1 << PG_PWT_BIT)
+-#define PG_PCD_MASK      (1 << PG_PCD_BIT)
+-#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
+-#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
+-#define PG_PSE_MASK      (1 << PG_PSE_BIT)
+-#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+-#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
+-#define PG_ADDRESS_MASK  0x000ffffffffff000LL
+-#define PG_HI_USER_MASK  0x7ff0000000000000LL
+-#define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
+-#define PG_NX_MASK       (1ULL << PG_NX_BIT)
+-
++#if defined(HP_X86_64)
++typedef bx_address hp_address;
++typedef bx_phy_address hp_phy_address;
++typedef bxInstruction_c hp_instruction;
++#elif defined(HP_AARCH64)
++typedef uint64_t hp_address;
++typedef uint64_t hp_phy_address;
++typedef void hp_instruction;
++#endif
+ 
+ extern bool fuzzing;
+-extern tsl::robin_set<bx_address> cur_input;
++extern tsl::robin_set<hp_address> cur_input;
+ extern size_t maxaddr;
+ extern bool master_fuzzer;
+ extern bool verbose;
+-extern std::vector<size_t> guest_page_scratchlist; 
++#if defined(HP_X86_64)
++extern std::vector<size_t> guest_page_scratchlist;
++#endif
+ 
+ #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
+ 
+-enum {
+-  BX_LEVEL_PML4 = 3,
+-  BX_LEVEL_PDPTE = 2,
+-  BX_LEVEL_PDE = 1,
+-  BX_LEVEL_PTE = 0
+-};
+-
+-enum {
+-  BX_EPT_READ    = 0x01,
+-  BX_EPT_WRITE   = 0x02,
+-  BX_EPT_EXECUTE = 0x04,
+-
+-  BX_EPT_MBE_SUPERVISOR_EXECUTE = BX_EPT_EXECUTE,
+-  BX_EPT_MBE_USER_EXECUTE = 0x400
+-};
+-
+-/* EPT access mask */
+-enum {
+-  BX_EPT_ENTRY_NOT_PRESENT        = 0x00,
+-  BX_EPT_ENTRY_READ_ONLY          = 0x01,
+-  BX_EPT_ENTRY_WRITE_ONLY         = 0x02,
+-  BX_EPT_ENTRY_READ_WRITE         = 0x03,
+-  BX_EPT_ENTRY_EXECUTE_ONLY       = 0x04,
+-  BX_EPT_ENTRY_READ_EXECUTE       = 0x05,
+-  BX_EPT_ENTRY_WRITE_EXECUTE      = 0x06,
+-  BX_EPT_ENTRY_READ_WRITE_EXECUTE = 0x07
+-};
+-
++#include "conveyor.h"
+ 
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
+ uint64_t lookup_gpa_by_hpa(uint64_t hpa);
+ 
+-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
+-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
+-void fuzz_identify_l2_pages();
++void hp_cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
++void hp_cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
++void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
++void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
++void cpu0_read_virtual(hp_address start, size_t size, void *data);
++void cpu0_write_virtual(hp_address start, size_t size, void *data);
++bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf);
++void cpu0_tlb_flush(void);
+ void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
+ void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
+-const char *get_memtype_name(BxMemtype memtype);
+-void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
++void add_persistent_memory_range(hp_address start, size_t len);
+ 
+-void icp_init_params();
++void icp_init_backend();
+ void icp_init_mem(const char* filename);
+ void icp_init_regs(const char* filename);
++#if defined(HP_X86_64)
+ void icp_init_shadow_vmcs_layout(const char* filename);
+-void icp_init_vmcs_layout(const char* filename);
+ void icp_set_vmcs(uint64_t vmcs);
++void icp_set_vmcs_map();
+ void bx_init_pc_system();
++#endif
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
+ 
+ void clear_seen_dma();
+-void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void* data);
+-void fuzz_inject_mmio_write(uint64_t addr, uint64_t val);
+-void fuzz_inject_pio_read(uint64_t addr, uint64_t val);
+-void fuzz_inject_vmcall(uint64_t rcx, uint64_t r8, const void* xmm0, const void* xmm3 );
++void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
+ 
+ extern int in_clock_step;
+ enum {
+@@ -112,47 +99,36 @@
+ };
+ bool op_clock_step();
+ 
+-void fuzz_hook_memory_access(bx_address phy, unsigned len, 
++void fuzz_hook_memory_access(hp_address phy, unsigned len,
+                              unsigned memtype, unsigned rw, void* data);
+ void fuzz_hook_exception(unsigned vector, unsigned error_code);
+ void fuzz_hook_hlt();
+-void fuzz_hook_cr3_change(bx_address old, bx_address val);
+-void fuzz_reset_exception_counter();
+-void clear_l2_bitmaps();
+-void restore_l2_bitmaps();
+-void snapshot_l2_bitmaps();
++void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
++#if defined(HP_X86_64)
++bool fuzz_hook_vmlaunch();
++#elif defined(HP_AARCH64)
++bool fuzz_hook_back_to_el1_kernel(void);
++#endif
+ 
++// sysret (x86) -> eret (AARCH64)
+ uint32_t get_sysret_status();
+ void reset_sysret_status();
++void set_sysret_status(uint32_t new_status);
++
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
++size_t init_random_register_data_len();
+ 
+ void fuzz_reset_memory();
+ void fuzz_watch_memory_inc();
+ void fuzz_clear_dirty();
+ 
+-void fuzz_instr_cnear_branch_taken(bx_address branch_rip,
+-                                 bx_address new_rip);
+-void fuzz_instr_cnear_branch_not_taken(bx_address branch_rip);
+-void fuzz_instr_ucnear_branch(unsigned what, bx_address branch_rip,
+-                            bx_address new_rip);
+-void fuzz_instr_far_branch(unsigned what, Bit16u prev_cs,
+-                         bx_address prev_rip, Bit16u new_cs,
+-                         bx_address new_rip);
+-void fuzz_instr_before_execution(bxInstruction_c *i);
+-void fuzz_instr_after_execution(bxInstruction_c *i);
+-void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
+-void add_edge(bx_address prev_rip, bx_address new_rip);
+-void print_stacktrace();
+-bool ignore_pc(bx_address pc);
+-bool found_pc(uint64_t pc);
+-void add_pc_range(size_t base, size_t len);
+-
+-void fuzz_emu_stop_normal();
+-void fuzz_emu_stop_unhealthy();
+-void fuzz_emu_stop_crash(const char *type);
+-
++#if defined(HP_X86_64)
+ extern uint64_t vmcs_addr;
+ void redo_paging();
+ void vmcs_fixup();
++#endif
+ 
+ void add_indicator_value(uint64_t val);
+ void clear_indicator_values();
+@@ -160,55 +136,101 @@
+ void aggregate_indicators();
+ void indicator_cb(void(*cb)(uint64_t));
+ 
+-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
+-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
+-
+-void ept_mark_page_table();
++hp_phy_address cpu0_virt2phy(hp_address addr);
++bool gva2hpa(hp_address laddr, hp_phy_address *phy);
++int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
++void walk_s1_slow(
++    bool guest,
++    void (*page_table_cb)(hp_phy_address address, int level),
++    void (*leaf_pte_cb)(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
++);
++void s2pt_mark_page_table();
+ void ept_locate_pc();
+-void mark_page_not_guest(bx_phy_address addr, int level);
+-bool frame_is_guest(bx_phy_address addr);
++extern void mark_page_not_guest(hp_phy_address addr, int level);
++bool frame_is_guest(hp_phy_address addr);
++
++#if defined(HP_X86_64)
++uint64_t cpu0_get_vmcsptr(void);
++#endif
++bool cpu0_get_user_pl(void);
++uint64_t cpu0_get_pc(void);
++void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
++uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
++void cpu0_set_pc(uint64_t rip);
++bool cpu0_get_fuzztrace(void);
++void cpu0_set_fuzztrace(bool fuzztrace);
++bool cpu0_get_fuzz_executing_input(void);
++void cpu0_set_fuzz_executing_input(bool fuzzing);
++void save_cpu();
++void restore_cpu();
++void cpu0_run_loop();
+ void start_cpu();
+ void dump_regs();
+ unsigned long int get_icount();
++#if defined(HP_X86_64)
+ unsigned long int get_pio_icount();
+-void reset_bx_vm();
+-
+-#include "conveyor.h"
++#endif
++void reset_vm();
+ 
+-void walk_ept(bool enum_mmio);
+-void fuzz_walk_ept();
++void fuzz_walk_slat();
+ void fuzz_walk_cr3();
++
++typedef void (*breakpoint_handler_t)(hp_instruction *);
++hp_address add_breakpoint(hp_address addr, breakpoint_handler_t h);
++void handle_breakpoints(hp_instruction *i);
++void __handle_syscall_hooks(hp_instruction *i);
++void __apply_breakpoints_linux();
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
++
++// core
++void fuzz_instr_before_execution(hp_instruction *i);
++void fuzz_instr_after_execution(hp_instruction *i);
++void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
++void add_edge(hp_address prev_rip, hp_address new_rip);
++void print_stacktrace();
++bool ignore_pc(hp_address pc);
++void add_pc_range(size_t base, size_t len);
++
++void fuzz_emu_stop_normal();
++void fuzz_emu_stop_unhealthy();
++void fuzz_emu_stop_crash(const char *type);
++
++#if defined(HP_X86_64)
+ void enum_pio_regions();
+-void enum_pio_regions_kvm();
+-void enum_pio_regions_macos();
++#endif
+ void enum_mmio_regions();
+-void enum_handle_ept_gap(unsigned int gap_reason,
+-        bx_address gap_start, bx_address gap_end);
++void enum_handle_s2pt_gap(unsigned int gap_reason,
++        hp_address gap_start, hp_address gap_end);
+ 
++#if defined(HP_X86_64)
+ bool inject_in(uint16_t addr, uint16_t size);
+ bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
+-bool inject_read(bx_address addr, int size);
+-bool inject_write(bx_address addr, int size, uint64_t val);
++#endif
++bool inject_read(hp_address addr, int size);
++bool inject_write(hp_address addr, int size, uint64_t val);
++
++#if defined(HP_X86_64)
+ bool inject_halt();
+ uint32_t inject_pci_read(uint8_t device, uint8_t function, uint8_t offset);
+ bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
+-uint64_t inject_rdmsr(bx_address msr);
+-bool inject_wrmsr(bx_address msr, uint64_t value);
++uint64_t inject_rdmsr(hp_address msr);
++bool inject_wrmsr(hp_address msr, uint64_t value);
+ void set_pci_device(uint8_t dev, uint8_t function);
++#endif
+ 
++#if defined(HP_X86_64)
+ void add_pio_region(uint16_t addr, uint16_t size);
++#endif
+ void add_mmio_region(uint64_t addr, uint64_t size);
+-void add_mmio_range_alt(uint64_t addr, uint64_t end);
+-void add_ept_misconfig_range(bx_address start, bx_address end);
+-void add_ept_violation_range(bx_address start, bx_address end);
+-
+-
++void add_mmio_range_all(uint64_t addr, uint64_t end);
+ 
+ void open_db(const char* path);
+ void insert_mmio(uint64_t addr, uint64_t len);
+ void insert_pio(uint16_t addr, uint16_t len);
+-void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions);
+-void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions);
++void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
++void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
+ void init_regions(const char* path);
+ 
+ void init_register_feedback();
+@@ -216,35 +238,33 @@
+ 
+ void fuzz_run_input(const uint8_t* Data, size_t Size);
+ 
+-void cov_notimeout();
+-void dump_timeout_pcs();
+ void reset_op_cov();
+ void reset_cur_cov();
+-void dump_cur_cov();
+ void load_symbolization_files(char* path);
+ void symbolize(size_t pc);
+ 
+ // sym2addr_linux.cc
+ void load_symbol_map(char *path);
+-bx_address sym_to_addr(std::string bin, std::string name);
++hp_address sym_to_addr(std::string bin, std::string name);
+ std::pair<std::string, std::string> addr_to_sym(size_t addr);
+ 
+ // link_map.c
+ void load_link_map(char* map_path, char* obj_regex, size_t base);
+ 
+ // sourcecov.c
+-
+ void write_source_cov();
+ void init_sourcecov(size_t baseaddr);
+ void setup_periodic_coverage();
+ void check_write_coverage();
+ 
+ // breakpoints.cc
+-void handle_breakpoints(bxInstruction_c *i);
+-void handle_syscall_hooks(bxInstruction_c *i);
++void handle_syscall_hooks(hp_instruction *i);
+ void apply_breakpoints_linux();
+ 
+ //stacktrace
+ void fuzz_stacktrace();
++void add_stacktrace(hp_address branch_rip, hp_address new_rip);
++void pop_stacktrace(void);
++bool empty_stacktrace(void);
+ 
+ #endif
+--- ../../HyperPill/main.cc	2025-04-30 16:58:00.645425407 +0200
++++ main.cc	2025-04-30 17:24:02.426607485 +0200
+@@ -13,12 +13,11 @@
+ bool fuzz_should_abort = false;    /* We got a crash. */
+ 
+ bool fuzzing;
+-static bool executing_input;
+-
+-BOCHSAPI BX_CPU_C bx_cpu = BX_CPU_C(0);
+-BOCHSAPI BX_CPU_C shadow_bx_cpu;
+ 
++#if defined(HP_X86_64)
+ uint64_t vmcs_addr;
++#endif
++
+ uint64_t guest_rip; /* Entrypoint. Reset after each op */
+ 
+ static void *log_writes;
+@@ -27,7 +26,10 @@
+ uint64_t icount_limit_floor = 200000;
+ uint64_t icount_limit = 50000000;
+ 
+-static unsigned long int icount, pio_icount;
++static unsigned long int icount;
++#if defined(HP_X86_64)
++static unsigned long int pio_icount;
++#endif
+ 
+ static void dump_hex(const uint8_t *data, size_t len) {
+ 	for (int i = 0; i < len; i++)
+@@ -35,52 +37,34 @@
+ 	printf("\n");
+ }
+ 
+-void dump_regs() {
+-	static const char *general_64bit_regname[17] = {
+-		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
+-		"r9",  "r10", "r11", "r12", "r13", "r14", "r15", "rip"
+-	};
+-	for (int i = 0; i <= BX_GENERAL_REGISTERS; i++) {
+-		printf("REG%d (%s) = %016lx\n", i, general_64bit_regname[i],
+-		       BX_CPU(id)->gen_reg[i].rrx);
+-	}
+-	printf("FLAGS: %x\n", BX_CPU(id)->eflags);
+-	fflush(stdout);
+-	fflush(stderr);
+-}
+-
+-static void init_cpu(void) {
+-	BX_CPU(id)->initialize();
+-	BX_CPU(id)->reset(BX_RESET_HARDWARE);
+-	BX_CPU(id)->sanity_checks();
+-}
+-
+ void start_cpu() {
+ 	if (fuzzing && (fuzz_unhealthy_input || fuzz_do_not_continue))
+ 		return;
+ 
+ 	srand(1); /* rdrand */
+-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip;
++	cpu0_set_pc(guest_rip);
+ 	icount = 0;
++#if defined(HP_X86_64)
+ 	pio_icount = 0;
++#endif
+ 	clear_seen_dma();
+-	if (BX_CPU(id)->fuzztrace) {
++	if (cpu0_get_fuzztrace()) {
+ 		dump_regs();
+ 	}
+ 	reset_op_cov();
+-	BX_CPU(id)->fuzz_executing_input = true;
+-	while (BX_CPU(id)->fuzz_executing_input) {
+-		BX_CPU(id)->cpu_loop();
+-	}
++	cpu0_set_fuzz_executing_input(true);
++	cpu0_run_loop();
+ 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
+ 		return;
+-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip; // reset $RIP
++	cpu0_set_pc(guest_rip); // reset $RIP
+ 
++#if defined(HP_X86_64)
+ 	bx_address phy;
+-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
++	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+ 	if (phy > maxaddr || !res) {
+ 		fuzz_do_not_continue = true;
+ 	}
++#endif
+ }
+ 
+ /*
+@@ -96,7 +80,7 @@
+  */
+ 
+ static void fuzz_emu_stop() {
+-	BX_CPU(id)->fuzz_executing_input = false;
++	cpu0_set_fuzz_executing_input(false);
+ }
+ 
+ void fuzz_emu_stop_normal(){
+@@ -137,14 +121,19 @@
+ 	return icount;
+ }
+ 
++#if defined(HP_X86_64)
+ unsigned long int get_pio_icount() {
+ 	return pio_icount;
+ }
++#endif
+ 
+-void reset_bx_vm() {
+-	bx_cpu = shadow_bx_cpu;
+-	if (BX_CPU(id)->vmcs_map)
+-		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
++void reset_vm() {
++	if (verbose)
++		printf("Resetting VM !\n");
++	restore_cpu();
++#if defined(HP_X86_64)
++	icp_set_vmcs_map();
++#endif
+ 	fuzz_reset_memory();
+ }
+ 
+@@ -154,7 +143,8 @@
+ 	}
+ }
+ 
+-void fuzz_instr_after_execution(bxInstruction_c *i) {
++void fuzz_instr_after_execution(hp_instruction *i) {
++#if defined(X86_64)
+ 	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
+ 		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+ 		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
+@@ -219,9 +209,10 @@
+ 			in_clock_step = CLOCK_STEP_NONE;
+ 		}
+ 	}
++#endif
+ }
+ 
+-void fuzz_instr_before_execution(bxInstruction_c *i) {
++void fuzz_instr_before_execution(hp_instruction *i) {
+ 	handle_breakpoints(i);
+ 	handle_syscall_hooks(i);
+ 	if (!fuzzing && !fuzzenum)
+@@ -233,22 +224,27 @@
+ 	    fuzz_emu_stop_unhealthy();
+ 	}
+     icount++;
++#if defined(HP_X86_64)
+     pio_icount++;
++#endif
++
+ }
+ 
+ static void usage() {
+ 	printf("The following environment variables must be set:\n");
+ 	printf("ICP_MEM_PATH\n");
+ 	printf("ICP_REGS_PATH\n");
++#if defined(HP_X86_64)
+ 	printf("ICP_VMCS_LAYOUT_PATH\n");
+ 	printf("ICP_VMCS_ADDR\n");
++#endif
+ 	exit(-1);
+ }
+ 
+ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
+ 	static void *ic_test = getenv("FUZZ_IC_TEST");
+ 	static int done;
+-	if (BX_CPU(id)->fuzztrace)
++	if (cpu0_get_fuzztrace())
+ 		printf("NEW INPUT\n");
+ 	if (!done) {
+ 		if (!log_writes)
+@@ -279,19 +275,19 @@
+ 	if (len == 0 || fuzz_unhealthy_input || !done) {
+ 		uint8_t *dummy = (uint8_t *)"AAA";
+ 		__fuzzer_set_output(dummy, 1);
+-		reset_bx_vm();
++		reset_vm();
+ 		done = 1;
+ 		return 0;
+ 	}
+ 	done = 1;
+ 
+-	reset_bx_vm();
++	reset_vm();
+ 
+ 	/*
+ 	 * The IC_TEST mode
+ 	 */
+ 	if (ic_test && !fuzz_unhealthy_input) {
+-		tsl::robin_set<bx_address> original_coverage = cur_input;
++		tsl::robin_set<hp_address> original_coverage = cur_input;
+ 		size_t len, len2;
+ 		uint8_t *output = ic_get_output(&len);
+ 		uint8_t *newdata = (uint8_t *)malloc(len);
+@@ -328,7 +324,7 @@
+ 			exit(1);
+ 		}
+ 		free(newdata);
+-		reset_bx_vm();
++		reset_vm();
+ 	}
+ 	return fuzz_unhealthy_input != 0;
+ }
+@@ -340,6 +336,7 @@
+ 	char *icp_db_path = getenv("ICP_DB_PATH");
+ 	verbose = getenv("VERBOSE");
+ 
++#if defined(HP_X86_64)
+ 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
+ 	 * collected, so we also need to load a mapping of VMCS encodings to
+ 	 * offsets
+@@ -356,46 +353,53 @@
+ 	if (!(mem_path && regs_path && vmcs_shadow_layout_path &&
+ 	      vmcs_addr_str))
+ 		usage();
++#elif defined(HP_AARCH64)
++	if (!(mem_path && regs_path))
++		usage();
++#endif
+ 
++#if defined(HP_X86_64)
+ 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
++#endif
++	icp_init_backend();
+ 
+-	/* Bochs-specific initialization. (e.g. CPU version/features). */
+-	if (getenv("GDB")) {
+-		bx_dbg.gdbstub_enabled = 1;
+-	}
+-	icp_init_params();
+-	init_cpu();
+-	bx_init_pc_system();
+-
+-	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
+-	BX_CPU(id)->fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
++	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
++	cpu0_set_fuzztrace(fuzztrace);
+ 
+ 	/* Load the snapshot */
+ 	printf(".loading memory snapshot from %s\n", mem_path);
+ 	icp_init_mem(mem_path);
+ 	fuzz_watch_memory_inc();
+ 
++#if defined(HP_X86_64)
+ 	icp_init_shadow_vmcs_layout(vmcs_shadow_layout_path);
++#endif
+ 	printf(".loading register snapshot from %s\n", regs_path);
+ 	icp_init_regs(regs_path);
+ 
++#if defined(HP_X86_64)
+ 	/* The current VMCS address is part of the CPU-state, but it is not part
+ 	 * of the memory or register snapshot. As such, we load it (and adjacent
+ 	 * internal Bochs pointers) separately.
+ 	 */
+ 	printf(".vmcs addr set  to %lx\n", vmcs_addr);
+ 	icp_set_vmcs(vmcs_addr);
++#endif
+ 
+ 	/* Dump disassembly and CMP hooks? */
+ 
+-	fuzz_walk_ept();
++	// Second Level Address Translation (SLAT)
++	// Intel's implementation of SLAT is Extended Page Table (EPT)
++	// AARCH64's implementation of SLAT is Stage-2 Page Tabels (S2PT)
++	fuzz_walk_slat();
+ 
++#if defined(HP_X86_64)
+ 	/* WIP: Tweak the VMCS/L2 state. E.g. set up our own page-tables for L2
+ 	 * and ensure that the hypervisor thinks L2 is running privileged
+ 	 * code/ring0 code.
+ 	 */
+ 	vmcs_fixup();
+-	/* fuzz_walk_cr3(); */
++#endif
+ 
+ 	/*
+ 	 * Previously, we identified all of L2's pages. However, we want to
+@@ -418,13 +422,15 @@
+ 	 * crash in practice (if the page-table was corrupted by the fuzzer, the
+ 	 * MMIO exit wouldn't have happened in the first place
+ 	 */
+-	ept_mark_page_table();
++	s2pt_mark_page_table();
+ 
++#if defined(HP_X86_64)
+ 	/* Translate the guest's RIP in the VMCS to a physical-address */
+ 	ept_locate_pc();
++#endif
+ 
+ 	/* Save guest RIP so that we can restore it after each fuzzer input */
+-	guest_rip = BX_CPU(id)->get_rip();
++	guest_rip = cpu0_get_pc();
+ 
+ 	/* For addr -> symbol */
+ 	if (getenv("SYMBOLS_DIR"))
+@@ -451,15 +457,18 @@
+ 		}
+ 	}
+ 
+-	BX_CPU(id)->TLB_flush();
+-	fuzz_walk_ept();
++	cpu0_tlb_flush();
++	fuzz_walk_slat();
++#if defined(HP_X86_64)
+ 	vmcs_fixup();
++#endif
+ 	init_register_feedback();
+ 
+ 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
+ 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
+ 			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
+ 
++#if defined(HP_X86_64)
+ 	uint32_t pciid = 0;
+ 	if (getenv("PCI_ID")) {
+ 		pciid = strtol(getenv("PCI_ID"), NULL, 16);
+@@ -474,20 +483,22 @@
+ 				}
+ 			}
+ 	}
++#endif
+ 	if (getenv("KVM")) {
+ 		add_pc_range(0, 0x7fffffffffff);
+ 		apply_breakpoints_linux();
+     }
++
+ 	/*
+-	 * make a copy of the bochs CPU state, which we use to reset the CPU
++	 * make a copy of the CPU state, which we use to reset the CPU
+ 	 * state after each fuzzer input
+ 	 */
+-	shadow_bx_cpu = bx_cpu;
++	save_cpu();
+ 
+ 	/* Start tracking accesses to the memory so we can roll-back changes
+ 	 * after each fuzzer input */
+ 	fuzz_watch_memory_inc();
+-	reset_bx_vm();
++	reset_vm();
+ 
+ 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
+ 	fuzzenum = true;
+--- ../../HyperPill/bochsapi/mem.cc	2025-04-30 16:58:00.644425396 +0200
++++ mem.cc	2025-04-30 17:04:49.697026867 +0200
+@@ -13,12 +13,9 @@
+ 
+ #include <tsl/robin_set.h>
+ #include <tsl/robin_map.h>
+-#include "../fuzz.h"
++#include "fuzz.h"
+ #include <openssl/md5.h>
+ 
+-BX_MEM_C::BX_MEM_C() {}
+-BX_MEM_C::~BX_MEM_C() {}
+-
+ size_t maxaddr = 0;
+ 
+ static uint8_t watch_level = 0;
+@@ -35,21 +32,21 @@
+ uint8_t *cow_bitmap;
+ uint8_t *overlay_map; // 0: from shadowmem 1: from workershadowmem
+ 
+-tsl::robin_set<bx_phy_address> dirtyset;
++tsl::robin_set<hp_phy_address> dirtyset;
+ 
+-tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
+-tsl::robin_map<bx_phy_address, bx_phy_address> hpa_to_gpa;
++tsl::robin_map<hp_phy_address, hp_phy_address> persist_ranges;
++tsl::robin_map<hp_phy_address, hp_phy_address> hpa_to_gpa;
+ 
+-std::vector<std::tuple<bx_address, uint8_t, uint8_t>> fuzzed_guest_pages; // < HPA, pagetable_level, original_val >
++std::vector<std::tuple<hp_address, uint8_t, uint8_t>> fuzzed_guest_pages; // < HPA, pagetable_level, original_val >
+ 
+ static int memory_commit_level;
+ 
+ size_t ndirty=0;
+ 
+-static bx_address prioraccess;
+-void fuzz_hook_memory_access(bx_address phy, unsigned len, 
++static hp_address prioraccess;
++void fuzz_hook_memory_access(hp_address phy, unsigned len, 
+                              unsigned memtype, unsigned rw, void* data) {
+-    bx_address aligned = phy&(~0xFFFLL);
++    hp_address aligned = phy&(~0xFFFLL);
+ 
+     /* printf("Memory access to %lx\n", phy); */
+     // Sometimes we might run instructions during initialization and we
+@@ -60,7 +57,7 @@
+     if(aligned == prioraccess)
+         return;
+ 
+-    if(rw == BX_WRITE || rw == BX_RW) {
++    if(rw == 1 /*BX_WRITE*/ || rw == 3 /*BX_RW*/) {
+         prioraccess = aligned;
+       // This stores the addr in the dirtyset (reset for each input) and makes a
+       // copy of the corresponding page in shadowset/shadowmem (persistent).
+@@ -78,15 +75,15 @@
+     // used to identify DMA accesses in the guest
+     // contains a mapping for each host physical page, for whether it corresponds to a guest page
+     // if an access uses such an address, it is likely a DMA
+-    if (rw == BX_READ && is_l2_page_bitmap[phy >> 12]) {
+-        if(BX_CPU(id)->fuzztrace) {
++    if (rw == 0 /*BX_READ*/ && is_l2_page_bitmap[phy >> 12]) {
++        if(cpu0_get_fuzztrace()) {
+             /* printf(".dma inject: %lx +%lx ",phy, len); */
+         }
+         static void* hv = getenv("HYPERV");
+-        if(BX_CPU(0)->user_pl || hv)
++        if(cpu0_get_user_pl()|| hv)
+             fuzz_dma_read_cb(phy, len, data);
+       uint8_t data[len];
+-      BX_MEM_C::readPhysicalPage(BX_CPU(id), phy, len, data);
++      cpu0_mem_read_physical_page(phy, len, data);
+       prioraccess = -1;
+     }
+ }
+@@ -119,10 +116,12 @@
+  * However, the EPT is reset across fuzz iterations, so have to unmark
+  * the pages that have been marked during the current fuzz iteration
+ */
++#define PG_PRESENT_BIT  0
++#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+ void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
+     uint64_t pg_entry;
+-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
+-    bx_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
++    hp_cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
++    hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
+     uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
+     uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
+ 
+@@ -142,7 +141,7 @@
+ void fuzz_reset_watched_pages() {
+     // printf("[fuzz_reset_watched_pages] reset 0x%lx watched pages\n", fuzzed_guest_pages.size());;
+     for (auto& page : fuzzed_guest_pages) {
+-      bx_address addr = std::get<0>(page);
++      hp_address addr = std::get<0>(page);
+       uint8_t is_pgtable = std::get<1>(page);
+       uint8_t saved_val = std::get<2>(page);
+       if (is_pgtable)
+@@ -153,10 +152,10 @@
+     fuzzed_guest_pages.clear();
+ }
+ 
+-void add_persistent_memory_range(bx_phy_address start, bx_phy_address len) {
++void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
+     /* printf("Add persistent memory range: %lx %lx\n", start, len); */
+-    bx_phy_address page = (start >> 12) << 12;
+-    bx_phy_address startend;
++    hp_phy_address page = (start >> 12) << 12;
++    hp_phy_address startend;
+     assert(((start+len-1)>>12) == (page >> 12));
+ 
+     startend = start-page;
+@@ -193,8 +192,8 @@
+     for(const auto& key : dirtyset) {
+         size_t page = key >> 12;
+         if (persist_ranges.find(key) != persist_ranges.end()){
+-            bx_phy_address start = persist_ranges[key] & 0xFFF;
+-            bx_phy_address end = persist_ranges[key] >> 12;
++            hp_phy_address start = persist_ranges[key] & 0xFFF;
++            hp_phy_address end = persist_ranges[key] >> 12;
+             memcpy(addr_conv(key), backing_addr(key), start);
+             memcpy(addr_conv(key+end), backing_addr(key+end), 0x1000-end);
+         } else {
+@@ -206,57 +205,15 @@
+ }
+ 
+ 
+-void BX_MEM_C::writePhysicalPage(BX_CPU_C *cpu, bx_phy_address addr,
+-    unsigned len, void *data)
+-{
+-
+-    notify_write(addr);
+-    fuzz_hook_memory_access(addr, len, 0, BX_WRITE, NULL) ;
+-
+-    memcpy(addr_conv(addr), data, len);
+-
+-    if (is_l2_pagetable_bitmap[addr >> 12] && watch_level > 1) {
+-      fuzz_mark_l2_guest_page(addr, 0x1000);
+-    }
+-
+-    return;
+-}
+-
+-void BX_MEM_C::readPhysicalPage(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, void *data)
+-{
+-    memcpy(data, addr_conv(addr), len);
+-    return;
+-}
+-
+-void mark_page_not_guest(bx_phy_address addr, int level) {
++void mark_page_not_guest(hp_phy_address addr, int level) {
+     printf("Mark page not present: %lx\n", addr);
+     is_l2_page_bitmap[addr>>12] = 0;
+ }
+ 
+-bool frame_is_guest(bx_phy_address addr) {
++bool frame_is_guest(hp_phy_address addr) {
+     return is_l2_page_bitmap[addr>>12] ;
+ }
+ 
+-Bit8u *BX_MEM_C::getHostMemAddr(BX_CPU_C *cpu, bx_phy_address addr, unsigned rw)
+-{
+-    if(rw!=BX_READ)
+-        notify_write(addr);
+-    return addr_conv(addr);
+-}
+-
+-bool BX_MEM_C::dbg_fetch_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+-{
+-    readPhysicalPage(cpu, addr, len , buf);
+-    return true;
+-}
+-
+-bool BX_MEM_C::dbg_set_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+-{
+-    notify_write(addr);
+-    memcpy(addr_conv(addr), buf, len);
+-    return true;
+-}
+-
+ #if defined(__LP64__)
+ #define ElfW(type) Elf64_ ## type
+ #else
+@@ -354,7 +311,6 @@
+     munmap(ehdr, statbuf.st_size);
+     // finally close the file
+     fclose(file);
+-
+   }
+ }
+ 
+@@ -379,13 +335,146 @@
+     }
+ }
+ 
+-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
++void hp_cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
+     memcpy(dest, addr_conv(addr), len);
+ }
+ 
+-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
++void hp_cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
+     notify_write(addr);
+     memcpy(addr_conv(addr), src, len);
+ }
+ 
+-BOCHSAPI BX_MEM_C bx_mem;
++static uint64_t pow64(uint64_t x, uint64_t y){
++    uint64_t result = 1;
++    while(y--){
++        result*=x;
++    }
++    return result;
++}
++
++void walk_slat(){
++    uint64_t addr = 0;
++    uint64_t phy = 0;
++    int reason;
++    int translation_level;
++
++    uint64_t gap_start = 0;
++    int gap_reason = 0;
++
++    do {
++        phy = 0;
++        reason = gpa2hpa(addr, &phy, &translation_level);
++        if(phy){
++            mark_l2_guest_page(phy, 0x1000*pow64(512, translation_level), addr);
++#if defined(HP_X86_64)
++            if(guest_page_scratchlist.size() < 10) {
++                guest_page_scratchlist.push_back(addr);
++            }
++#endif
++        }
++
++        if(reason != gap_reason){
++            if(gap_reason)
++                enum_handle_s2pt_gap(gap_reason, gap_start, addr-1);
++            gap_reason = reason;
++            gap_start = addr;
++        }
++
++        addr += 0x1000*pow64(512, translation_level);
++        addr &= (~(pow64(512, translation_level)-1));
++    } while(addr!=0 && addr < 0x1000*pow64(512, 4));
++    if(gap_reason)
++        enum_handle_s2pt_gap(gap_reason, gap_start, addr-1);
++}
++
++extern size_t guest_mem_size;
++void fuzz_walk_slat() {
++#if defined(HP_X86_64)
++    printf(".performing ept walk \n");
++#elif defined(HP_AARCH64)
++    printf(".performing s2pt walk \n");
++#endif
++
++    // We walk the ept for 2 reasons:
++    // 1. To identify L0 Pages that are allocated to L1. We want this info so we
++    // can detect DMA-Style reads from L1's memory.
++    /* Our memory snapshot contains the hypervisor and the VM it is running */
++    /* (called L2). At some point the hypervisor might try to read/write from */
++    /* the VM's memory (e.g. DMA virtual devices). We want to be able to hook */
++    /* those memory-accesses so to do that let's identify all of the pages in */
++    /* the snapshot that are dedicated to L2. To do that we can walk the EPT */
++    /* that was set up by the hypervisor for L2, which gives a mapping of */
++    /* guest-physical to host-physical addresses. */
++    // 2. To enumerate potential MMIO Ranges.
++    walk_slat();
++    printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
++}
++#define PG_PRESENT_BIT  0
++#define PG_RW_BIT       1
++#define PG_USER_BIT     2
++#define PG_PWT_BIT      3
++#define PG_PCD_BIT      4
++#define PG_ACCESSED_BIT 5
++#define PG_DIRTY_BIT    6
++#define PG_PSE_BIT      7
++#define PG_GLOBAL_BIT   8
++#define PG_PSE_PAT_BIT  12
++#define PG_PKRU_BIT     59
++#define PG_NX_BIT       63
++
++#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
++#define PG_RW_MASK       (1 << PG_RW_BIT)
++#define PG_USER_MASK     (1 << PG_USER_BIT)
++#define PG_PWT_MASK      (1 << PG_PWT_BIT)
++#define PG_PCD_MASK      (1 << PG_PCD_BIT)
++#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
++#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
++#define PG_PSE_MASK      (1 << PG_PSE_BIT)
++#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
++#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
++#define PG_ADDRESS_MASK  0x000ffffffffff000LL
++#define PG_HI_USER_MASK  0x7ff0000000000000LL
++#define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
++#define PG_NX_MASK       (1ULL << PG_NX_BIT)
++
++static void print_pte(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
++{
++    if (addr & (1ULL << 47)) {
++        addr |= (hp_phy_address)-(1LL << 48);
++    }
++
++    printf("%lx: %lx"
++                   " %c%c%c%c%c%c%c%c%c %c\n",
++                   addr,
++                   pte & mask,
++                   pte & PG_NX_MASK ? 'X' : '-',
++                   pte & PG_GLOBAL_MASK ? 'G' : '-',
++                   pte & PG_PSE_MASK ? 'P' : '-',
++                   pte & PG_DIRTY_MASK ? 'D' : '-',
++                   pte & PG_ACCESSED_MASK ? 'A' : '-',
++                   pte & PG_PCD_MASK ? 'C' : '-',
++                   pte & PG_PWT_MASK ? 'T' : '-',
++                   pte & PG_USER_MASK ? 'U' : '-',
++                   pte & PG_RW_MASK ? 'W' : '-',
++                   frame_is_guest(pte&mask) ? 'g' : '-'
++                   );
++}
++
++void s2pt_mark_page_table() {
++    hp_address phyaddr;
++
++    walk_s1_slow(true, mark_page_not_guest, print_pte);
++
++    // unmark the page containing the current guest RIP
++    // alternatively, check that (addr != guest RIP) in the DMA hook
++#if defined(HP_X86_64)
++    if(gva2hpa(cpu0_vmcs_read_guest_rip(), &phyaddr))
++#elif defined(HP_AARCH64)
++    if(gva2hpa(cpu0_get_pc(), &phyaddr))
++#endif
++        mark_page_not_guest(phyaddr, 0/*LEVEL_PTE*/);
++    else {
++        fprintf(stderr, "GUEST_RIP page not mapped");
++        abort();
++    }
++}
+--- ../../HyperPill/sourcecov.cc	2025-04-30 16:58:00.645425407 +0200
++++ sourcecov.cc	2025-04-28 09:09:41.864990478 +0200
+@@ -47,7 +47,8 @@
+     char addr[100];
+ 
+     char cmd[500];
+-    snprintf(cmd, 500, "nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
++    snprintf(cmd, 500, NM_PREFIX"nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
++
+     fp = popen(cmd, "r");
+     if (fp == NULL) {
+         printf("Failed to run command %s\n", cmd);
+@@ -137,11 +138,11 @@
+ 		while (len) {
+ 			/* printf("Reading pd %lx\n", pd+offset); */
+ 			if(len> 0x1000) {
+-				BX_CPU(0)->access_read_linear(pdstart+offset, 0x1000, 0, BX_READ, 0x0, pd + offset);
++				cpu0_read_virtual(pdstart+offset, 0x1000, pd + offset);
+ 				len -= 0x1000;
+ 				offset += 0x1000;
+ 			} else {
+-				BX_CPU(0)->access_read_linear(pdstart+offset, len, 0, BX_READ, 0x0, pd + offset);
++				cpu0_read_virtual(pdstart+offset, len, pd + offset);
+ 				len = 0;
+ 			}
+ 		}
+@@ -150,11 +151,11 @@
+ 		while (len) {
+ 			/* printf("Reading pn %lx\n", pn+offset); */
+ 			if(len> 0x1000) {
+-				BX_CPU(0)->access_read_linear(pnstart+offset, 0x1000, 0, BX_READ, 0x0, pn + offset);
++				cpu0_read_virtual(pnstart+offset, 0x1000, pn + offset);
+ 				len -= 0x1000;
+ 				offset += 0x1000;
+ 			} else {
+-				BX_CPU(0)->access_read_linear(pnstart+offset, len, 0, BX_READ, 0x0, pn + offset);
++				cpu0_read_virtual(pnstart+offset, len, pn + offset);
+ 				len = 0;
+ 			}
+ 		}
+@@ -166,11 +167,11 @@
+     while (len) {
+         /* printf("Reading pc %lx\n", pc+offset); */
+         if(len> 0x1000) {
+-            BX_CPU(0)->access_read_linear(pcstart+offset, 0x1000, 0, BX_READ, 0x0, pc + offset);
++            cpu0_read_virtual(pcstart+offset, 0x1000, pc + offset);
+             len -= 0x1000;
+             offset += 0x1000;
+         } else {
+-            BX_CPU(0)->access_read_linear(pcstart+offset, len, 0, BX_READ, 0x0, pc + offset);
++            cpu0_read_virtual(pcstart+offset, len, pc + offset);
+             len = 0;
+         }
+     }
+@@ -252,13 +253,11 @@
+         if(pcstop - page < 0x1000)
+             len = pcstop - page;
+ 
+-        Bit32u lpf_mask = 0xfff; // 4K pages
+-        Bit32u pkey = 0;
+-        bx_phy_address phystart = 
+-            BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
++        hp_phy_address phystart =
++            cpu0_virt2phy(start); 
+ 
+-        BX_CPU(0)->access_write_linear(start, len, 0, BX_WRITE, 0x0, pc);
+-        phystart = (phystart & ~((Bit64u) lpf_mask)) | (start & lpf_mask);
++        cpu0_write_virtual(start, len, pc);
++        phystart = (phystart & ~((uint64_t) 0xfff)) | (start & 0xfff);
+         add_persistent_memory_range(phystart, len);
+     }
+ 
+--- ../../HyperPill/sym2addr_linux.cc	2025-04-30 16:58:00.645425407 +0200
++++ sym2addr_linux.cc	2025-04-17 15:34:55.166167170 +0200
+@@ -15,7 +15,7 @@
+ 
+ // todo: dynamic libc symbols for stuff like exit etc
+ // Strategy: Run objdump on the binary. Load the
+-bx_address sym_to_addr(std::string bin, std::string name) {
++hp_address sym_to_addr(std::string bin, std::string name) {
+     for(auto it: bins) {
+         if(it.find(bin) != std::string::npos){
+             return sym2addr[std::make_pair(std::string(it), name)];
+@@ -50,7 +50,7 @@
+ // Function to parse the output of 'nm' command and construct map of addresses to symbol names
+ static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPath) {
+     std::map<std::string, size_t> symbolMap;
+-    std::string nmOutput = executeCommand(("nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
++    std::string nmOutput = executeCommand((NM_PREFIX"nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
+     size_t pos = 0;
+     while ((pos = nmOutput.find("\n")) != std::string::npos) {
+         std::string line = nmOutput.substr(0, pos);
+@@ -63,7 +63,7 @@
+             symbolMap.emplace(name, strtoull(address.c_str(), NULL, 16));
+         }
+     }
+-    nmOutput = executeCommand(("nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
++    nmOutput = executeCommand((NM_PREFIX"nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
+     pos = 0;
+     while ((pos = nmOutput.find("\n")) != std::string::npos) {
+         std::string line = nmOutput.substr(0, pos);
+--- ../../HyperPill/sourcecov.cc	2025-04-30 16:58:00.645425407 +0200
++++ sourcecov.cc	2025-04-28 09:09:41.864990478 +0200
+@@ -47,7 +47,8 @@
+     char addr[100];
+ 
+     char cmd[500];
+-    snprintf(cmd, 500, "nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
++    snprintf(cmd, 500, NM_PREFIX"nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
++
+     fp = popen(cmd, "r");
+     if (fp == NULL) {
+         printf("Failed to run command %s\n", cmd);
+@@ -137,11 +138,11 @@
+ 		while (len) {
+ 			/* printf("Reading pd %lx\n", pd+offset); */
+ 			if(len> 0x1000) {
+-				BX_CPU(0)->access_read_linear(pdstart+offset, 0x1000, 0, BX_READ, 0x0, pd + offset);
++				cpu0_read_virtual(pdstart+offset, 0x1000, pd + offset);
+ 				len -= 0x1000;
+ 				offset += 0x1000;
+ 			} else {
+-				BX_CPU(0)->access_read_linear(pdstart+offset, len, 0, BX_READ, 0x0, pd + offset);
++				cpu0_read_virtual(pdstart+offset, len, pd + offset);
+ 				len = 0;
+ 			}
+ 		}
+@@ -150,11 +151,11 @@
+ 		while (len) {
+ 			/* printf("Reading pn %lx\n", pn+offset); */
+ 			if(len> 0x1000) {
+-				BX_CPU(0)->access_read_linear(pnstart+offset, 0x1000, 0, BX_READ, 0x0, pn + offset);
++				cpu0_read_virtual(pnstart+offset, 0x1000, pn + offset);
+ 				len -= 0x1000;
+ 				offset += 0x1000;
+ 			} else {
+-				BX_CPU(0)->access_read_linear(pnstart+offset, len, 0, BX_READ, 0x0, pn + offset);
++				cpu0_read_virtual(pnstart+offset, len, pn + offset);
+ 				len = 0;
+ 			}
+ 		}
+@@ -166,11 +167,11 @@
+     while (len) {
+         /* printf("Reading pc %lx\n", pc+offset); */
+         if(len> 0x1000) {
+-            BX_CPU(0)->access_read_linear(pcstart+offset, 0x1000, 0, BX_READ, 0x0, pc + offset);
++            cpu0_read_virtual(pcstart+offset, 0x1000, pc + offset);
+             len -= 0x1000;
+             offset += 0x1000;
+         } else {
+-            BX_CPU(0)->access_read_linear(pcstart+offset, len, 0, BX_READ, 0x0, pc + offset);
++            cpu0_read_virtual(pcstart+offset, len, pc + offset);
+             len = 0;
+         }
+     }
+@@ -252,13 +253,11 @@
+         if(pcstop - page < 0x1000)
+             len = pcstop - page;
+ 
+-        Bit32u lpf_mask = 0xfff; // 4K pages
+-        Bit32u pkey = 0;
+-        bx_phy_address phystart = 
+-            BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
++        hp_phy_address phystart =
++            cpu0_virt2phy(start); 
+ 
+-        BX_CPU(0)->access_write_linear(start, len, 0, BX_WRITE, 0x0, pc);
+-        phystart = (phystart & ~((Bit64u) lpf_mask)) | (start & lpf_mask);
++        cpu0_write_virtual(start, len, pc);
++        phystart = (phystart & ~((uint64_t) 0xfff)) | (start & 0xfff);
+         add_persistent_memory_range(phystart, len);
+     }
+ 
+--- ../../HyperPill/symbolize.cc	2025-04-30 16:58:00.645425407 +0200
++++ symbolize.cc	2025-01-01 23:15:25.953030573 +0100
+@@ -81,7 +81,6 @@
+ void symbolize(size_t pc) {
+     if(!enabled)
+         return;
+-    bx_phy_address phy_addr;
+     uint8_t  instr_buf[4096];
+ 
+     for (auto &range: ranges) {                                                               
+@@ -89,12 +88,8 @@
+             return ;
+     }                                                                                         
+     printf("Trying to read from %lx\n", pc&(~0xFFFLL));
+-    /* BX_CPU(0)->access_read_linear(pc&(~0xFFFLL), 0x1000, 0, BX_READ, 0x0, instr_buf); */
+-
+-    bool valid = BX_CPU(0)->dbg_xlate_linear2phy(pc&(~0xFFFLL), &phy_addr);
+-    if (valid)
+-        BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, 4096, instr_buf);
+-    else
++    bool valid = cpu0_read_instr_buf(pc&(~0xFFFLL), instr_buf);
++    if (!valid)
+         abort();
+ 
+     std::string match;
+--- ../../HyperPill/breakpoints.cc	2025-04-30 16:58:00.644425396 +0200
++++ backends/bochs/breakpoints.cc	2025-04-23 11:06:59.871825904 +0200
+@@ -3,38 +3,12 @@
+ #include <utility>
+ #include <vector>
+ 
+-/*
+- * List of capabilities we want:
+- *      Skip a function call. (+ set return value)
+- *      Take a jump (even if we don't want to).
+- *      Teleport the PC.
+- *      Should be based primarily on symbol names
+- *      Hook Syscalls
+- *
+- *  Design. Apis:
+- *      PC Hook.
+- *      Instruction Hook.
+- *      Ctrl-xfer hook?
+- *
+- *  Call hook sideffects:
+- *      Skip the call.
+- *      Change the call destination.
+- *      Change the call return
+- */
+-
+-
+-/*
+- * These breakpoints need to be pretty fast
+- */
+ #define MAX_BPS 16
+-using breakpoint_handler_t = void (*)(bxInstruction_c *);
+ std::pair<bx_address, breakpoint_handler_t> breakpoints[MAX_BPS]; 
+ static unsigned int bp_index;
+ 
+-bx_address min_bp = -1;
+-bx_address max_bp;
+-
+-
++hp_address min_bp = -1;
++hp_address max_bp;
+ 
+ void handle_breakpoints(bxInstruction_c *insn) {
+     auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+@@ -44,8 +18,7 @@
+         if(breakpoints[i].first  == rip)
+             breakpoints[i].second(insn);
+     }
+-}
+-
++}bx_address
+ bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
+     if(!addr)
+         return addr;
+@@ -80,7 +53,7 @@
+     free(msg);
+ }
+ 
+-void apply_breakpoints_linux() {
++void __apply_breakpoints_linux() {
+     // sanitizer stuff
+     // _asan_report_store4
+     // -> __asan::ReportGenericError or __asan::ReportDoubleFree()
+@@ -90,9 +63,6 @@
+     //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
+     //         -> __asan::DescribeThread()
+     //         -> __sanitizer::Die(), abort or exit
+-    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
+-            fuzz_emu_stop_crash("firecracker: panic");
+-            });
+     add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_rdlock"), [](bxInstruction_c *i) {
+             i->execute1 = BX_CPU_C::RETnear64_Iw;
+             i->modRMForm.Iw[0] = 0;
+@@ -107,6 +77,13 @@
+             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+             BX_CPU(id)->async_event = 1;
+             });
++    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](hp_instruction *i) {
++            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
++            // fuzz_emu_stop_crash("page fault");
++    });
++    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
++    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
++    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
+     add_breakpoint(sym_to_addr("firecracker", "__asan::CheckUnwind()"), [](bxInstruction_c *i) {
+             printf("Skipping __asan::CheckUnwind");
+             print_stacktrace();
+@@ -115,18 +92,6 @@
+             i->modRMForm.Iw[1] = 0;
+             BX_CPU(id)->async_event = 1;
+             });
+-    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
+-            // every error through asan should reach this
+-            printf("ASAN error report\n");
+-            fuzz_stacktrace();
+-            });
+-    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
+-    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
+-    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
+-    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
+-            printf("kexec crash\n");
+-            print_stacktrace();
+-    });
+     add_breakpoint(sym_to_addr("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
+             i->execute1 = BX_CPU_C::RETnear64_Iw;
+             i->modRMForm.Iw[0] = 0;
+@@ -134,14 +99,10 @@
+             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
+             BX_CPU(id)->async_event = 1;
+     });
+-    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
+-            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
+-            // fuzz_emu_stop_crash("page fault");
+-    });
+ }
+ 
+ 
+-void handle_syscall_hooks(bxInstruction_c *i)
++void __handle_syscall_hooks(bxInstruction_c *i)
+ {
+     // crashes often go for exit/abort
+     /* Hook Syscalls */
+--- ../../HyperPill/devices.cc	2025-04-30 16:58:00.645425407 +0200
++++ backends/bochs/devices.cc	2025-04-23 11:06:59.871825904 +0200
+@@ -1,5 +1,4 @@
+ #include "fuzz.h"
+-
+ #include "iodev/iodev.h"
+ 
+ bx_devices_c::bx_devices_c() {}
+--- ../../HyperPill/ept.cc	2025-04-17 12:53:20.534890394 +0200
++++ backends/bochs/mem.cc	2025-04-28 09:09:41.862990451 +0200
+@@ -1,395 +1,129 @@
+-#include "config.h"
++#include <sys/mman.h>
++#include <cstdint>
++
++#include <elf.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <errno.h>
++#include <unistd.h>
++
++
++#include <tsl/robin_set.h>
++#include <tsl/robin_map.h>
+ #include "fuzz.h"
+-#include <asm-generic/errno.h>
+-#include <math.h>
++#include <openssl/md5.h>
+ 
+-const Bit64u BX_PAGING_PHY_ADDRESS_RESERVED_BITS = BX_PHY_ADDRESS_RESERVED_BITS & BX_CONST64(0xfffffffffffff);
+-const Bit64u PAGING_EPT_RESERVED_BITS = BX_PAGING_PHY_ADDRESS_RESERVED_BITS;                                  
++BX_MEM_C::BX_MEM_C() {}
++BX_MEM_C::~BX_MEM_C() {}
+ 
+-static uint64_t pow64(uint64_t x, uint64_t y){
+-    uint64_t result = 1;
+-    while(y--){
+-        result*=x;
+-    }
+-    return result;
+-}
+-void walk_ept(){
+-    uint64_t addr = 0;
+-    uint64_t phy = 0;
+-    int reason;
+-    int translation_level;
+-
+-    uint64_t gap_start = 0;
+-    int gap_reason = 0;
+-
+-    do {
+-        phy = 0;
+-        reason = vmcs_translate_guest_physical_ept(addr, &phy, &translation_level);
+-        if(phy){
+-            mark_l2_guest_page(phy, 0x1000*pow64(512, translation_level), addr);
+-            if(guest_page_scratchlist.size() < 10) {
+-                guest_page_scratchlist.push_back(addr);
+-            }
+-        }
+-
+-        if(reason != gap_reason){
+-            if(gap_reason)
+-                enum_handle_ept_gap(gap_reason, gap_start, addr-1);
+-            gap_reason = reason;
+-            gap_start = addr;
+-        }
+-
+-        addr += 0x1000*pow64(512, translation_level);
+-        addr &= (~(pow64(512, translation_level)-1));
+-    } while(addr!=0 && addr < 0x1000*pow64(512, 4));
+-    if(gap_reason)
+-        enum_handle_ept_gap(gap_reason, gap_start, addr-1);
+-}
+-
+-
+-extern size_t guest_mem_size;
+-void fuzz_walk_ept() {
+-    printf(".performing ept walk \n");
+-    uint64_t eptp = BX_CPU(id)->VMread64(VMCS_64BIT_CONTROL_EPTPTR);
+-    printf("EPTP: %lx\n", eptp);
+-    /* printf("EPT Paging Structure Memory Type: %lx\n", eptp&0b111); */
+-    /* printf("EPT Page Walk Length: %lx\n", ((eptp>>3)&0b111) + 1); */
+-    /* printf("EPT Dirty Flags Enabled: %lx\n", (eptp>>6)&0b1); */
+-    /* printf("EPT Enforce access rights for supervisor shadow-stack pages: %lx\n", (eptp>>7)&0b1); */
+-    uint64_t pml4_gpa = (eptp)&(~0xFFF);
+-    /* printf("EPT PML4 Pointer: %lx\n", pml4_gpa); */
+-
+-    // We walk the ept for 2 reasons:
+-    // 1. To identify L0 Pages that are allocated to L1. We want this info so we
+-    // can detect DMA-Style reads from L1's memory.
+-    /* Our memory snapshot contains the hypervisor and the VM it is running */
+-    /* (called L2). At some point the hypervisor might try to read/write from */
+-    /* the VM's memory (e.g. DMA virtual devices). We want to be able to hook */
+-    /* those memory-accesses so to do that let's identify all of the pages in */
+-    /* the snapshot that are dedicated to L2. To do that we can walk the EPT */
+-    /* that was set up by the hypervisor for L2, which gives a mapping of */
+-    /* guest-physical to host-physical addresses. */
+-    // 2. To enumerate potential MMIO Ranges.
+-    walk_ept();
+-    /* walk_ept_kvm(BX_LEVEL_PML4, pml4_gpa, 0); */
+-    printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
+-}
++size_t maxaddr = 0;
+ 
+-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level)
+-{
+-  VMCS_CACHE *vm = &BX_CPU(id)->vmcs;
+-  bx_phy_address pt_address = LPFOf(vm->eptptr) ;//BX_CPU(id)->VMread64(VMCS_64BIT_CONTROL_EPTPTR) & (~0xFFF);
++static uint8_t watch_level = 0;
++static uint8_t* overlays[3];
++uint8_t* is_l2_page_bitmap; /* Page is in L2 */
++uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
++size_t guest_mem_size;
+ 
+-  Bit64u offset_mask = BX_CONST64(0x0000ffffffffffff);
+-  for (int level = 3; level >= 0; --level) {
+-    if(translation_level)
+-        *translation_level = level;
+-    Bit64u pte;
+-    pt_address += ((guest_paddr >> (9 + 9*level)) & 0xff8);
+-    offset_mask >>= 9;
+-    mark_l2_guest_pagetable(pt_address, 0x1000, level);
+-    BX_MEM(0)->readPhysicalPage(BX_CPU_THIS, pt_address, 8, &pte);
+-    /* printf("guest_paddr: %lx pte[%lx]: %lx\n", guest_paddr, pt_address, pte); */
+-    switch(pte & 7) {
+-    case BX_EPT_ENTRY_NOT_PRESENT:
+-      return VMX_VMEXIT_EPT_VIOLATION;
+-    case BX_EPT_ENTRY_WRITE_ONLY:
+-    case BX_EPT_ENTRY_WRITE_EXECUTE:
+-      return VMX_VMEXIT_EPT_MISCONFIGURATION;
+-    }
++int shfd; // for overlay[0]
++char md5sum_chr[33]; // for overlay[0]
++int shm_open(const char *name, int oflag, mode_t mode);
+ 
+-    extern bool isMemTypeValidMTRR(unsigned memtype);
+-    if (! isMemTypeValidMTRR((pte >> 3) & 7)) {
+-      return VMX_VMEXIT_EPT_MISCONFIGURATION;
+-    }
+-    
+-    if (pte & BX_PAGING_PHY_ADDRESS_RESERVED_BITS)
+-      return VMX_VMEXIT_EPT_MISCONFIGURATION;
+ 
+-    pt_address = bx_phy_address(pte & BX_CONST64(0x000ffffffffff000));
++uint8_t *cow_bitmap;
++uint8_t *overlay_map; // 0: from shadowmem 1: from workershadowmem
+ 
+-    if (level == BX_LEVEL_PTE) break;
++tsl::robin_set<bx_phy_address> dirtyset;
+ 
+-    if (pte & 0x80) {
+-        if (level > (BX_LEVEL_PDE + !!BX_CPU(id)->is_cpu_extension_supported(BX_ISA_1G_PAGES)))
+-            return VMX_VMEXIT_EPT_MISCONFIGURATION;
++tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
++tsl::robin_map<bx_phy_address, bx_phy_address> hpa_to_gpa;
+ 
+-        pt_address &= BX_CONST64(0x000fffffffffe000);
+-        if (pt_address & offset_mask) return VMX_VMEXIT_EPT_MISCONFIGURATION;
+-        break;
+-    }
+-    if ((pte >> 3) & 0xf) {
+-      return VMX_VMEXIT_EPT_MISCONFIGURATION;
+-    }
+-  }
+-  if(phy)
+-    *phy = pt_address + (bx_phy_address)(guest_paddr & offset_mask);
+-  return 0;
+-}
++std::vector<std::tuple<bx_address, uint8_t, uint8_t>> fuzzed_guest_pages; // < HPA, pagetable_level, original_val >
++
++static int memory_commit_level;
+ 
+-// Translate GVA -> GPA -> HPA
+-__attribute__((optnone))
+-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
++size_t ndirty=0;
++
++void BX_MEM_C::writePhysicalPage(BX_CPU_C *cpu, bx_phy_address addr,
++    unsigned len, void *data)
+ {
+-  bx_phy_address paddress;
+-  bx_address offset_mask = 0xfff;
+ 
+-  uint64_t cr0 = BX_CPU(id)->VMread64(VMCS_GUEST_CR0);
+-  uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
+-  uint64_t cr4 = BX_CPU(id)->VMread64(VMCS_GUEST_CR4);
+-  uint64_t efer = BX_CPU(id)->VMread64(VMCS_64BIT_GUEST_IA32_EFER);
+-
+-  int long_mode = (efer  >> 10) &1;
+-  if (!((cr0 >> 31) & 1)) { // get_PG
+-    paddress = (bx_phy_address) laddr;
+-  }
+-  else {
+-    // walk guest page table: GVA -> GPA
+-    bx_phy_address pt_address = cr3 & BX_CONST64(0x000ffffffffff000);
+-
+-    if ((cr4 >> 5)&1) { // get_PAE
+-      offset_mask = BX_CONST64(0x0000ffffffffffff);
+-
+-      int level = 3;
+-      if (! long_mode) {
+-        goto page_fault;
+-      }
+-
+-      for (; level >= 0; --level) {
+-        Bit64u pte;
+-        pt_address += ((laddr >> (9 + 9*level)) & 0xff8);
+-        offset_mask >>= 9;
+-        if (vmcs_translate_guest_physical_ept(pt_address, &pt_address, NULL))
+-            goto page_fault;
+-        BX_MEM(0)->readPhysicalPage(BX_CPU(id), pt_address, 8, &pte);
+-        if(!(pte & 1))
+-          goto page_fault;
+-        if (pte & BX_PAGING_PHY_ADDRESS_RESERVED_BITS)
+-          goto page_fault;
+-        pt_address = bx_phy_address(pte & BX_CONST64(0x000ffffffffff000));
+-        if (level == BX_LEVEL_PTE) break;
+-        if (pte & 0x80) {
+-          // large page
+-          pt_address &= BX_CONST64(0x000fffffffffe000);
+-          if (pt_address & offset_mask)
+-            goto page_fault;
+-          if (BX_CPU(id)->is_cpu_extension_supported(BX_ISA_1G_PAGES) && level == BX_LEVEL_PDPTE) break;
+-          if (level == BX_LEVEL_PDE) break;
+-          goto page_fault;
+-        }
+-      }
+-      paddress = pt_address + (bx_phy_address)(laddr & offset_mask);
+-    }
+-    else   // not PAE
+-    {
+-        abort();
++    notify_write(addr);
++    fuzz_hook_memory_access(addr, len, 0, BX_WRITE, NULL) ;
++
++    memcpy(addr_conv(addr), data, len);
++
++    if (is_l2_pagetable_bitmap[addr >> 12] && watch_level > 1) {
++      fuzz_mark_l2_guest_page(addr, 0x1000);
+     }
+-  }
+-  if (vmcs_translate_guest_physical_ept(paddress, &paddress, NULL))
+-      goto page_fault;
+-  *phy = paddress;
+-  return 1;
+-page_fault:
+-  printf("PAGE FAULT ON ADDR: %lx\n", paddress);
+-  fuzz_emu_stop_crash("page fault");
+-  return 0;
++
++    return;
+ }
+ 
++void BX_MEM_C::readPhysicalPage(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, void *data)
++{
++    memcpy(data, addr_conv(addr), len);
++    return;
++}
+ 
+-void ept_locate_pc() {
+-    bx_address phyaddr;
+-    vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr);
+-    printf("%lx -> %lx\n", BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phyaddr);
+-    
+-    vmcs_linear2phy(0, &phyaddr);
+-    printf("%lx -> %lx\n", 0, phyaddr);
+-}
+-
+-// Walk guest page table
+-void iterate_page_table(int level, bx_phy_address pt_address) {
+-    printf("Page table %d at: %lx\n", level, pt_address);
+-    bx_phy_address translated_pt_address;
+-    vmcs_translate_guest_physical_ept(pt_address, &translated_pt_address, NULL);
+-    mark_page_not_guest(translated_pt_address, BX_LEVEL_PTE);
+-    for(int i=0; i<512 && level!=BX_LEVEL_PTE; i++) {
+-        Bit64u pte;
+-        vmcs_translate_guest_physical_ept(pt_address + i*8, &translated_pt_address, NULL);
+-        BX_MEM(0)->readPhysicalPage(BX_CPU(id), translated_pt_address, 8, &pte);
+-        printf("PTE: %lx\n", pte);
+-        if(level != BX_LEVEL_PTE && !(pte & 0x80)) {
+-            iterate_page_table(level -= 1, 
+-                    bx_phy_address(pte & BX_CONST64(0x000ffffffffff000)));
+-        }
+-    }
++Bit8u *BX_MEM_C::getHostMemAddr(BX_CPU_C *cpu, bx_phy_address addr, unsigned rw)
++{
++    if(rw!=BX_READ)
++        notify_write(addr);
++    return addr_conv(addr);
+ }
+ 
+-static void print_pte(bx_phy_address addr, bx_phy_address pte, bx_phy_address mask)
++bool BX_MEM_C::dbg_fetch_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+ {
+-    if (addr & (1ULL << 47)) {
+-        addr |= (bx_phy_address)-(1LL << 48);
+-    }
++    readPhysicalPage(cpu, addr, len , buf);
++    return true;
++}
+ 
+-    printf("%lx: %lx"
+-                   " %c%c%c%c%c%c%c%c%c %c\n",
+-                   addr,
+-                   pte & mask,
+-                   pte & PG_NX_MASK ? 'X' : '-',
+-                   pte & PG_GLOBAL_MASK ? 'G' : '-',
+-                   pte & PG_PSE_MASK ? 'P' : '-',
+-                   pte & PG_DIRTY_MASK ? 'D' : '-',
+-                   pte & PG_ACCESSED_MASK ? 'A' : '-',
+-                   pte & PG_PCD_MASK ? 'C' : '-',
+-                   pte & PG_PWT_MASK ? 'T' : '-',
+-                   pte & PG_USER_MASK ? 'U' : '-',
+-                   pte & PG_RW_MASK ? 'W' : '-',
+-                   frame_is_guest(pte&mask) ? 'g' : '-'
+-                   );
+-}
+-
+-static void page_walk_la48(uint64_t pml4_addr,
+-    bool guest, // Translate guest addresses to host (are we walking the guest's page table ?)
+-    void (*page_table_cb)(bx_phy_address address, int level), // cb for each frame that belongs to the page-table tree
+-    void (*leaf_pte_cb)(bx_phy_address addr, bx_phy_address pte, bx_phy_address mask) // cb for each leaf pte
+-    )
++bool BX_MEM_C::dbg_set_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+ {
+-    printf("Walking page table at %lx\n", pml4_addr);
+-    uint64_t l0 = 0;
+-    uint64_t l1, l2, l3, l4;
+-    uint64_t pml4e, pdpe, pde, pte;
+-    uint64_t pdp_addr, pd_addr, pt_addr;
+-    uint64_t physical_pt_address;
+-
+-    uint64_t prior1, prior2, prior3, prior4;
+-    prior1 = 0;
+-    for (l1 = 0; l1 < 512; l1++) {
+-        if (guest)
+-            vmcs_translate_guest_physical_ept(pml4_addr + l1 * 8, &physical_pt_address, NULL);
+-        else 
+-            physical_pt_address = pml4_addr + l1 * 8;
+-        if (l1 == 0 && page_table_cb) {
+-            page_table_cb(physical_pt_address, BX_LEVEL_PML4);
+-        }
+-        BX_MEM(0)->readPhysicalPage(BX_CPU(id), physical_pt_address, 8, &pml4e);
+-        if (!(pml4e & PG_PRESENT_MASK)) {
+-            continue;
+-        }
+-
+-        if(prior1 == pml4e)
+-            continue;
+-        prior1 = pml4e;
+-
+-        pdp_addr = pml4e & 0x3fffffffff000ULL;
+-        prior2=0;
+-        for (l2 = 0; l2 < 512; l2++) {
+-            if (guest)
+-                vmcs_translate_guest_physical_ept(pdp_addr + l2 * 8, &physical_pt_address, NULL);
+-            else 
+-                physical_pt_address = pdp_addr + l2 * 8;
+-            if (l2 == 0 && page_table_cb) {
+-                page_table_cb(physical_pt_address, BX_LEVEL_PDPTE);
+-            }
+-            BX_MEM(0)->readPhysicalPage(BX_CPU(id), physical_pt_address, 8, &pdpe);
+-            if (!(pdpe & PG_PRESENT_MASK)) {
+-                continue;
+-            }
+-
+-            if(prior2 == pdpe)
+-                continue;
+-            prior2 = pdpe;
+-
+-            if (pdpe & PG_PSE_MASK) {
+-                /* 1G pages, CR4.PSE is ignored */
+-                if(leaf_pte_cb)
+-                    leaf_pte_cb((l0 << 48) + (l1 << 39) + (l2 << 30),
+-                            pdpe, 0x3ffffc0000000ULL);
+-                continue;
+-            }
+-
+-            pd_addr = pdpe & 0x3fffffffff000ULL;
+-            prior3=0;
+-            for (l3 = 0; l3 < 512; l3++) {
+-                if (guest)
+-                    vmcs_translate_guest_physical_ept(pd_addr + l3 * 8, &physical_pt_address, NULL);
+-                else 
+-                    physical_pt_address = pd_addr + l3 * 8;
+-                if (l3 == 0 && page_table_cb) {
+-                    page_table_cb(physical_pt_address, BX_LEVEL_PDE);
+-                }
+-                BX_MEM(0)->readPhysicalPage(BX_CPU(id), physical_pt_address, 8, &pde);
+-                if (!(pde & PG_PRESENT_MASK)) {
+-                    continue;
+-                }
+-
+-                if(prior3 == pde)
+-                    continue;
+-                prior3 = pde;
+-
+-                if (pde & PG_PSE_MASK) {
+-                    /* 2M pages, CR4.PSE is ignored */
+-                    if(leaf_pte_cb)
+-                        leaf_pte_cb((l0 << 48) + (l1 << 39) + (l2 << 30) +
+-                                (l3 << 21), pde, 0x3ffffffe00000ULL);
+-                    continue;
+-                }
+-
+-                pt_addr = pde & 0x3fffffffff000ULL;
+-                for (l4 = 0; l4 < 512; l4++) {
+-                    if (guest)
+-                        vmcs_translate_guest_physical_ept(pt_addr + l4 * 8, &physical_pt_address, NULL);
+-                    else 
+-                        physical_pt_address = pt_addr + l4 * 8;
+-                    if (l4 == 0 && page_table_cb) {
+-                        page_table_cb(physical_pt_address, BX_LEVEL_PTE);
+-                    }
+-                    BX_MEM(0)->readPhysicalPage(BX_CPU(id), physical_pt_address, 8, &pte);
+-                    if (pte & PG_PRESENT_MASK) {
+-                        if(leaf_pte_cb)
+-                            leaf_pte_cb((l0 << 48) + (l1 << 39) +
+-                                    (l2 << 30) + (l3 << 21) + (l4 << 12),
+-                                    pte & ~PG_PSE_MASK, 0x3fffffffff000ULL);
+-                    }
+-                }
+-            }
+-        }
+-    }
++    notify_write(addr);
++    memcpy(addr_conv(addr), buf, len);
++    return true;
+ }
+ 
+-void ept_mark_page_table() {
+-    bx_address phyaddr;
++BOCHSAPI BX_MEM_C bx_mem;
+ 
+-    uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
+-    bx_phy_address pt_address = cr3 & BX_CONST64(0x000ffffffffff000);
+-    page_walk_la48(pt_address, true, mark_page_not_guest, NULL);
+-
+-    /* cr3 = BX_CPU(id)->cr3; */
+-    /* printf("WALKING CR3: %lx\n", cr3); */
+-    /* pt_address = cr3 & BX_CONST64(0x000ffffffffff000); */
+-    /* page_walk_la48(pt_address, false, NULL, print_pte); */
+-
+-    // unmark the page containing the current guest RIP
+-    // alternatively, check that (addr != guest RIP) in the DMA hook
+-    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr))
+-        mark_page_not_guest(phyaddr, BX_LEVEL_PTE);
+-    else {
+-        fprintf(stderr, "GUEST_RIP page not mapped");
+-        abort();
+-    }
++void cpu0_read_virtual(hp_address start, size_t size, void *data) {
++  BX_CPU(0)->access_read_linear(start, size, 0, BX_READ, 0x0, data);
+ }
+ 
+-static void print_page(bx_phy_address entry, int level, bx_phy_address virt ){
+-    uint64_t pte;
+-    return;
+-    for(int i=0; i<512; i++) {
+-        BX_MEM(0)->readPhysicalPage(BX_CPU(id), entry + i*8, 8, &pte);
+-        uint64_t final_virt = virt + ((uint64_t)i << (12 + (level*9)));
+-        if(pte & PG_PRESENT_MASK){
+-            printf("%lx: %d %lx[%d] %lx\n", final_virt, level, entry, i, pte);
+-        }
+-    }
++void cpu0_write_virtual(hp_address start, size_t size, void *data) {
++  BX_CPU(0)->access_write_linear(start, size, 0, BX_WRITE, 0x0, data);
++}
++
++bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
++  bx_phy_address phy_addr;
++  /* BX_CPU(0)->access_read_linear(pc&(~0xFFFLL), 0x1000, 0, BX_READ, 0x0, instr_buf); */
++  bool valid = BX_CPU(0)->dbg_xlate_linear2phy(pc&(~0xFFFLL), &phy_addr);
++  if (valid) {
++    BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, 4096, instr_buf);
++    return true;
++  } else
++    return false;
++}
++
++bx_phy_address cpu0_virt2phy(bx_address start) {
++  Bit32u lpf_mask = 0xfff; // 4K pages
++  Bit32u pkey = 0;
++  bx_phy_address phystart = BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
++  return phystart;
++}
++
++void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
++	BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, (void *)buf);
++}
++
++void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
++	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
+ }
+ 
+-void fuzz_walk_cr3() {
+-    bx_phy_address pt_address = BX_CPU(id)->cr3 & BX_CONST64(0x000ffffffffff000);
+-    pt_address  = BX_CPU(id)->VMread64(VMCS_GUEST_CR3) & 0x000ffffffffff000;
+-    page_walk_la48(pt_address, true, NULL, print_pte);
++void cpu0_tlb_flush(void) {
++	BX_CPU(id)->TLB_flush();
+ }
+--- ../../HyperPill/instrument.cc	2024-08-27 13:48:02.715577754 +0200
++++ backends/bochs/instrument.cc	2025-04-23 11:06:59.871825904 +0200
+@@ -1,6 +1,4 @@
+-#include "bochs.h"
+ #include "fuzz.h"
+-#include "cpu/cpu.h"
+ 
+ void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy,
+                          unsigned len, unsigned memtype, unsigned rw, void *dataptr) {
+@@ -24,16 +22,39 @@
+ void bx_instr_debug_cmd(const char *cmd) {}
+ 
+ void bx_instr_cnear_branch_taken(unsigned cpu, bx_address branch_eip, bx_address new_eip) {
+-    fuzz_instr_cnear_branch_taken(branch_eip, new_eip);
++    add_edge(branch_eip, new_eip);
+ }
+ void bx_instr_cnear_branch_not_taken(unsigned cpu, bx_address branch_eip) {
+-    fuzz_instr_cnear_branch_not_taken(branch_eip);
++    // empty
+ }
+ void bx_instr_ucnear_branch(unsigned cpu, unsigned what, bx_address branch_eip, bx_address new_eip) {
+-    fuzz_instr_ucnear_branch(what, branch_eip, new_eip);
++    if (what == BX_INSTR_IS_SYSRET) {
++        uint32_t status = get_sysret_status();
++        set_sysret_status(status |= 1); // sysret
++    }
++    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl ) {
++        add_stacktrace(branch_eip, new_eip);
++        /* fuzz_stacktrace(); */
++    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl&& !empty_stacktrace()) {
++        pop_stacktrace();
++        /* fuzz_stacktrace(); */
++    }
++    add_edge(branch_eip, new_eip);
+ }
+ void bx_instr_far_branch(unsigned cpu, unsigned what, Bit16u prev_cs, bx_address prev_eip, Bit16u new_cs, bx_address new_eip) {
+-    fuzz_instr_far_branch(what, prev_cs, prev_eip, new_cs, new_eip);
++    if (what == BX_INSTR_IS_SYSRET) {
++        uint32_t status = get_sysret_status();
++        set_sysret_status(status |= 1); // sysret
++    }
++    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl) {
++        add_stacktrace(prev_eip, new_eip);
++        /* fuzz_stacktrace(); */
++    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl && !empty_stacktrace()) {
++        pop_stacktrace();
++        /* fuzz_stacktrace(); */
++    }
++    if (what == BX_INSTR_IS_IRET && (new_eip >> 63) == 0)
++        add_edge(prev_eip, new_eip);
+ }
+ 
+ void bx_instr_opcode(unsigned cpu, bxInstruction_c *i, const Bit8u *opcode, unsigned len, bool is32, bool is64) {}
+--- ../../HyperPill/bochsapi/mem.cc	2025-04-30 16:58:00.644425396 +0200
++++ backends/bochs/mem.cc	2025-04-28 09:09:41.862990451 +0200
+@@ -13,7 +13,7 @@
+ 
+ #include <tsl/robin_set.h>
+ #include <tsl/robin_map.h>
+-#include "../fuzz.h"
++#include "fuzz.h"
+ #include <openssl/md5.h>
+ 
+ BX_MEM_C::BX_MEM_C() {}
+@@ -46,166 +46,6 @@
+ 
+ size_t ndirty=0;
+ 
+-static bx_address prioraccess;
+-void fuzz_hook_memory_access(bx_address phy, unsigned len, 
+-                             unsigned memtype, unsigned rw, void* data) {
+-    bx_address aligned = phy&(~0xFFFLL);
+-
+-    /* printf("Memory access to %lx\n", phy); */
+-    // Sometimes we might run instructions during initialization and we
+-    // want them to be part of the snapshot.
+-    if(watch_level<=1 || phy >= maxaddr)
+-        return;
+-
+-    if(aligned == prioraccess)
+-        return;
+-
+-    if(rw == BX_WRITE || rw == BX_RW) {
+-        prioraccess = aligned;
+-      // This stores the addr in the dirtyset (reset for each input) and makes a
+-      // copy of the corresponding page in shadowset/shadowmem (persistent).
+-      // Otherwise I run out of RAM on my machine :')
+-      // When we do the actual fuzzing runs on beefier hardware, we should just
+-      // make a complete shadow-copy on startup.
+-      if (dirtyset.emplace(aligned).second) {
+-          if(ndirty++>10000){
+-              printf("Too many dirty pages. Early stop\n");
+-              fuzz_emu_stop_unhealthy();
+-          }
+-      }
+-    }
+-
+-    // used to identify DMA accesses in the guest
+-    // contains a mapping for each host physical page, for whether it corresponds to a guest page
+-    // if an access uses such an address, it is likely a DMA
+-    if (rw == BX_READ && is_l2_page_bitmap[phy >> 12]) {
+-        if(BX_CPU(id)->fuzztrace) {
+-            /* printf(".dma inject: %lx +%lx ",phy, len); */
+-        }
+-        static void* hv = getenv("HYPERV");
+-        if(BX_CPU(0)->user_pl || hv)
+-            fuzz_dma_read_cb(phy, len, data);
+-      uint8_t data[len];
+-      BX_MEM_C::readPhysicalPage(BX_CPU(id), phy, len, data);
+-      prioraccess = -1;
+-    }
+-}
+-
+-void fuzz_clear_dirty() {
+-    ndirty = 0;
+-    dirtyset.clear();
+-}
+-
+-void fuzz_watch_memory_inc() {
+-    watch_level++;
+-}
+-
+-
+-uint64_t lookup_gpa_by_hpa(uint64_t hpa){
+-    uint64_t page = hpa;
+-    uint64_t offset;
+-    int i = 0;
+-    while (hpa_to_gpa.find(page) == hpa_to_gpa.end() && page){
+-        i++;
+-        page = ((page >> i) << i);
+-    }
+-    if(!page)
+-        printf("Error looking up GPA for HPA: %lx\n", hpa);
+-    return hpa_to_gpa[page] | (hpa&(~(((uint64_t)(-1)>>i)<<i)));
+-}
+-/**
+- * During fuzzing, there is a chance that new guest addresses get paged in.
+- * The corresponding HPAs have not been marked as guest pages, so we mark them.
+- * However, the EPT is reset across fuzz iterations, so have to unmark
+- * the pages that have been marked during the current fuzz iteration
+-*/
+-void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
+-    uint64_t pg_entry;
+-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
+-    bx_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
+-    uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
+-    uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
+-
+-    if (!pg_present || new_addr >= maxaddr)
+-      return;
+-
+-    // store all updates made for the current fuzzing iteration
+-    fuzzed_guest_pages.push_back(std::make_tuple(new_addr, new_pgtable_lvl, is_l2_pagetable_bitmap[new_addr>>12]));
+-    //printf("!fuzz_mark_l2_guest_page Mark 0x%lx lvl %x as tmp guest page\n", new_addr, new_pgtable_lvl);
+-    if (new_pgtable_lvl) {
+-        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl - 1);
+-    } else {
+-        mark_l2_guest_page(new_addr, len, 0);
+-    }
+-}
+-
+-void fuzz_reset_watched_pages() {
+-    // printf("[fuzz_reset_watched_pages] reset 0x%lx watched pages\n", fuzzed_guest_pages.size());;
+-    for (auto& page : fuzzed_guest_pages) {
+-      bx_address addr = std::get<0>(page);
+-      uint8_t is_pgtable = std::get<1>(page);
+-      uint8_t saved_val = std::get<2>(page);
+-      if (is_pgtable)
+-        is_l2_pagetable_bitmap[addr >> 12] = saved_val;
+-      else // normal guest page
+-        is_l2_page_bitmap[addr >> 12] = saved_val;
+-    }
+-    fuzzed_guest_pages.clear();
+-}
+-
+-void add_persistent_memory_range(bx_phy_address start, bx_phy_address len) {
+-    /* printf("Add persistent memory range: %lx %lx\n", start, len); */
+-    bx_phy_address page = (start >> 12) << 12;
+-    bx_phy_address startend;
+-    assert(((start+len-1)>>12) == (page >> 12));
+-
+-    startend = start-page;
+-    startend |= (start+len - page) << 12;
+-    persist_ranges[page] = startend;
+-    
+-}
+-
+-static void notify_write(uint64_t addr){
+-    size_t page = addr >> 12;
+-    size_t aligned_addr = page << 12;
+-    if(cow_bitmap[page] != watch_level) {
+-        cow_bitmap[page] = watch_level;
+-        memcpy(overlays[cow_bitmap[page]] + aligned_addr, overlays[overlay_map[page]]+aligned_addr, 0x1000);
+-        if(watch_level < 2){
+-            overlay_map[page] = watch_level;
+-        }
+-    }
+-    /* printf("Page %lx now lives at %lx and is backed by %lx\n", page, cow_bitmap[page], overlay_map[page]); */
+-}
+-
+-uint8_t* addr_conv(uint64_t addr){
+-    /* printf("ADDR_CONV: %lx -> %lx [%d]\n", addr,overlays[cow_bitmap[addr>>12]]+addr, cow_bitmap[addr>>12]); */
+-    return overlays[cow_bitmap[addr>>12]]+addr;
+-}
+-uint8_t* backing_addr(uint64_t addr){
+-    return overlays[overlay_map[addr>>12]]+addr;
+-}
+-
+-void fuzz_reset_memory() {
+-    if(watch_level<=1)
+-        return;
+-    prioraccess=0;
+-    for(const auto& key : dirtyset) {
+-        size_t page = key >> 12;
+-        if (persist_ranges.find(key) != persist_ranges.end()){
+-            bx_phy_address start = persist_ranges[key] & 0xFFF;
+-            bx_phy_address end = persist_ranges[key] >> 12;
+-            memcpy(addr_conv(key), backing_addr(key), start);
+-            memcpy(addr_conv(key+end), backing_addr(key+end), 0x1000-end);
+-        } else {
+-            memcpy(addr_conv(key), backing_addr(key), 0x1000);
+-        }
+-    }
+-    fuzz_clear_dirty();
+-    fuzz_reset_watched_pages();
+-}
+-
+-
+ void BX_MEM_C::writePhysicalPage(BX_CPU_C *cpu, bx_phy_address addr,
+     unsigned len, void *data)
+ {
+@@ -228,15 +68,6 @@
+     return;
+ }
+ 
+-void mark_page_not_guest(bx_phy_address addr, int level) {
+-    printf("Mark page not present: %lx\n", addr);
+-    is_l2_page_bitmap[addr>>12] = 0;
+-}
+-
+-bool frame_is_guest(bx_phy_address addr) {
+-    return is_l2_page_bitmap[addr>>12] ;
+-}
+-
+ Bit8u *BX_MEM_C::getHostMemAddr(BX_CPU_C *cpu, bx_phy_address addr, unsigned rw)
+ {
+     if(rw!=BX_READ)
+@@ -257,135 +88,42 @@
+     return true;
+ }
+ 
+-#if defined(__LP64__)
+-#define ElfW(type) Elf64_ ## type
+-#else
+-#define ElfW(type) Elf32_ ## type
+-#endif
+-
+-void _shm_unlink(void) {
+-    if (shm_unlink(md5sum_chr) == -1) {
+-        perror("shm_unlink");
+-    } else {
+-        printf("shm '%s' has been unlinked.\n", md5sum_chr);
+-    }
+-    close(shfd);
+-}
++BOCHSAPI BX_MEM_C bx_mem;
+ 
+-void icp_init_mem(const char *filename) {
+-  // Either Elf64_Ehdr or Elf32_Ehdr depending on architecture.
+-  struct stat statbuf;
+-  ElfW(Ehdr) * ehdr;
+-  ElfW(Phdr) *phdr = 0;
+-  ElfW(Nhdr) *nhdr = 0;
+-  unsigned char md5sum_hex[MD5_DIGEST_LENGTH];
+-
+-  FILE *file = fopen(filename, "rb");
+-  if (file) {
+-    fstat(fileno(file), &statbuf);
+-
+-    ehdr = (ElfW(Ehdr) *)mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
+-                              MAP_PRIVATE, fileno(file), 0);
+-
+-    phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
+-    for (int i = 0; i < ehdr->e_phnum; i++) {
+-      if (phdr->p_vaddr + phdr->p_memsz > maxaddr && phdr->p_type == 1) {
+-        maxaddr = phdr->p_vaddr + phdr->p_memsz;
+-      }
+-      ++phdr;
+-    }
+-    verbose_printf("Max Addr: %lx\n", maxaddr);
+-    assert(maxaddr % 4096 == 0);
++void cpu0_read_virtual(hp_address start, size_t size, void *data) {
++  BX_CPU(0)->access_read_linear(start, size, 0, BX_READ, 0x0, data);
++}
+ 
+-    // Now that we know how much memory we need, do THREE mmaps:
+-    // 3 layers 3 mmaps
+-    // The first layer is shadowmem: this will contain the verbatim contents of the snapshot. This is mmapped from a shared file which is shared by all the workers. It is mapped read-only and should never be changed
+-    // The second layer is workershadowmem: this is the per-worker memory that differs from shadowmem (i.e. dirtied by writes) but which should be persisted between writes
+-    // The third layer is mem: this is the per-worker dirty memory which is used during fuzzing and should be reset after each input
+-    overlays[2] = (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+-                          MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+-    overlays[1]= (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+-                          MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+-
+-    char *saved_md5sum_chr = getenv("ICP_MEM_MD5SUM");
+-    if (saved_md5sum_chr) {
+-        memcpy(md5sum_chr, saved_md5sum_chr, 32);
+-    } else {
+-        MD5((unsigned char*)ehdr, statbuf.st_size, md5sum_hex);
+-        for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+-            sprintf(md5sum_chr + (i * 2), "%02x", md5sum_hex[i]);
+-        }
+-    }
+-    md5sum_chr[32] = '\0';
+-    shfd = shm_open((const char*)md5sum_chr, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+-    
+-    if(lseek(shfd, 0L, SEEK_END) == 0){
+-        lseek(shfd, 0L, SEEK_SET);
+-        ftruncate(shfd, maxaddr);
+-        overlays[0]= (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+-                MAP_SHARED, shfd, 0);
+-
+-        phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
+-        for (int i = 0; i < ehdr->e_phnum; i++) {
+-            if (phdr->p_type == 1) {
+-                memcpy(overlays[0] + phdr->p_vaddr, (uint8_t *)ehdr + phdr->p_offset,
+-                        phdr->p_filesz);
+-            }
+-            ++phdr;
+-        }
+-    } else {
+-        lseek(shfd, 0L, SEEK_SET);
+-        overlays[0] = (uint8_t *)mmap(NULL, maxaddr, PROT_READ|PROT_WRITE,
+-                MAP_SHARED, shfd, 0);
+-    }
++void cpu0_write_virtual(hp_address start, size_t size, void *data) {
++  BX_CPU(0)->access_write_linear(start, size, 0, BX_WRITE, 0x0, data);
++}
+ 
+-    cow_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+-    memset(cow_bitmap, 0, maxaddr >> 12);
+-    
+-    overlay_map = (uint8_t *)malloc(maxaddr >> 12);
+-    memset(overlay_map, 0, maxaddr >> 12);
+-
+-    is_l2_page_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+-    memset(is_l2_page_bitmap, 0, maxaddr >> 12);
+-
+-    is_l2_pagetable_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+-    memset(is_l2_pagetable_bitmap, 0, maxaddr >> 12);
+-
+-    munmap(ehdr, statbuf.st_size);
+-    // finally close the file
+-    fclose(file);
+-
+-  }
+-}
+-
+-void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr){
+-    hpa_to_gpa[paddr] = addr;
+-    while(paddr < maxaddr && len) {
+-        is_l2_page_bitmap[paddr>>12]++;
+-        len -= 0x1000;
+-        paddr += 0x1000;
+-        guest_mem_size += 0x1000;
+-    }
++bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
++  bx_phy_address phy_addr;
++  /* BX_CPU(0)->access_read_linear(pc&(~0xFFFLL), 0x1000, 0, BX_READ, 0x0, instr_buf); */
++  bool valid = BX_CPU(0)->dbg_xlate_linear2phy(pc&(~0xFFFLL), &phy_addr);
++  if (valid) {
++    BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, 4096, instr_buf);
++    return true;
++  } else
++    return false;
+ }
+ 
+-void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level) {
+-    if(paddr < maxaddr) {
+-        // we use page level values of >=1 to facilitate checking the bitmap
+-        // bitmap value of 0 will indicate that the page is not present
+-        // a non-zero bitmap value will indicate the page level, with
+-        // level 1 mapped to BX_LEVEL_PTE and level 4 mapped to BX_LEVEL_PML4
+-        is_l2_pagetable_bitmap[paddr>>12] = level + 1;
+-        assert(level >= 0 && level <= 3);
+-    }
++bx_phy_address cpu0_virt2phy(bx_address start) {
++  Bit32u lpf_mask = 0xfff; // 4K pages
++  Bit32u pkey = 0;
++  bx_phy_address phystart = BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
++  return phystart;
+ }
+ 
+-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
+-    memcpy(dest, addr_conv(addr), len);
++void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
++	BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, (void *)buf);
+ }
+ 
+-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
+-    notify_write(addr);
+-    memcpy(addr_conv(addr), src, len);
++void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
++	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
+ }
+ 
+-BOCHSAPI BX_MEM_C bx_mem;
++void cpu0_tlb_flush(void) {
++	BX_CPU(id)->TLB_flush();
++}
+--- ../../HyperPill/regs.cc	2025-03-25 14:20:33.689312687 +0100
++++ backends/bochs/regs.cc	2025-04-28 09:09:41.863990465 +0200
+@@ -10,6 +10,8 @@
+ #include "cpu/cpu.h"
+ #include "cpu/vmx.h"
+ 
++BX_CPU_C bx_cpu = BX_CPU_C(0);
++BX_CPU_C shadow_bx_cpu;
+ 
+ //std::cout << "  submatch " << i << ": " << piece << '\n';
+ #define GETREG32(REG) \
+@@ -191,9 +193,6 @@
+     BX_CPU(id)->cr2 = GETREG64(CR2);
+     BX_CPU(id)->cr3 = GETREG64(CR3);
+     BX_CPU(id)->cr4.set32(GETREG32(CR4));
+-    if (!getenv("NOCOV")) {
+-        BX_CPU(id)->cr4.set_SMAP(false);
+-    }
+     
+     BX_CPU(id)->xcr0.set32(0b11100111);
+ 
+@@ -210,7 +209,7 @@
+     BX_CPU(id)->set_TSC(GETREG64(tsc_deadline));
+     BX_CPU(id)->msr.tsc_aux = GETREG64(tsc_aux);
+     
+-    BX_CPU(id)->msr.pat._u64 = GETREG64(pat);
++    BX_CPU(id)->msr.pat._uint64_t = GETREG64(pat);
+     BX_CPU(id)->msr.apicbase = GETREG64(apicbase);
+     
+ 
+@@ -252,6 +251,67 @@
+     BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
+ }
+ 
++void icp_set_vmcs_map() {
++    if (BX_CPU(id)->vmcs_map)
++        BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
++}
++
++void dump_regs() {
++	static const char *general_64bit_regname[17] = {
++		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
++		"r9",  "r10", "r11", "r12", "r13", "r14", "r15", "rip"
++	};
++	for (int i = 0; i <= BX_GENERAL_REGISTERS; i++) {
++		printf("REG%d (%s) = %016lx\n", i, general_64bit_regname[i],
++		       BX_CPU(id)->gen_reg[i].rrx);
++	}
++	printf("FLAGS: %x\n", BX_CPU(id)->eflags);
++	fflush(stdout);
++	fflush(stderr);
++}
++
++uint64_t cpu0_vmcs_read_guest_rip() {
++    return BX_CPU(id)->VMread64(VMCS_GUEST_RIP);
++}
++
++uint64_t cpu0_get_pc(void) {
++  return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
++}
++
++void cpu0_set_pc(uint64_t rip) {
++	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
++}
++
++size_t init_random_register_data_len(void) {
++    return 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
++}
+ 
+-void fuzz_reset_registers() {
++uint64_t cpu0_get_vmcsptr(void) {
++    return BX_CPU(id)->vmcsptr;
+ }
++
++bool cpu0_get_user_pl(void) {
++    return BX_CPU(id)->user_pl;
++}
++
++void save_cpu() {
++    shadow_bx_cpu = bx_cpu;
++}
++
++void restore_cpu() {
++    bx_cpu = shadow_bx_cpu;
++}
++
++void init_cpu() {
++	BX_CPU(id)->initialize();
++	BX_CPU(id)->reset(BX_RESET_HARDWARE);
++	BX_CPU(id)->sanity_checks();
++}
++
++void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
++    BX_CPU(id)->set_reg64(i, value);
++}
++
++uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
++    return BX_CPU(id)->get_reg64(i);
++}
+\ No newline at end of file
+--- ../../HyperPill/vmcs.cc	2025-04-30 16:58:00.646425419 +0200
++++ backends/bochs/vmcs.cc	2025-04-28 09:09:41.863990465 +0200
+@@ -110,7 +110,7 @@
+ 
+     if(!fuzzing) {
+         uint64_t phy;
+-        if(!vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
++        if(!gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
+             fflush(stdout);
+             printf("failed to redo paging\n");
+             abort();
