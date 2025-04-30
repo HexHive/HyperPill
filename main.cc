@@ -213,8 +213,10 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 }
 
 void fuzz_instr_before_execution(hp_instruction *i) {
+#if defined(HP_BACKEND_BOCHS)
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);
+#endif
 	if (!fuzzing && !fuzzenum)
 		return;
 

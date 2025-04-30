@@ -174,9 +174,6 @@ void aarch64_set_xreg(uint64_t index, uint64_t value) {
     env->xregs[index] = value;
 }
 
-bool qemu_reload_vm() {
-}
-
 void save_pre_hyp_pc() {
     CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     pre_hyp_pc = env->elr_el[2];
@@ -228,7 +225,7 @@ static void hp_vcpu_mem_access(
         // printf("load, 0x%08"PRIx64", %lx\n", addr, size);
         // if (is_l2_page_bitmap[hwaddr >> 12]) {
         if (0) {
-             if (__cpu0_get_fuzztrace()) {
+             if (cpu0_get_fuzztrace()) {
                  /* printf(".dma inject: %lx +%lx ",phy, len); */
              }
              fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
@@ -268,26 +265,6 @@ static void hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
     }
     qemu_plugin_register_vcpu_tb_exec_cb(
         tb, hp_vcpu_tb_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
-}
-
-void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2,
-                     uint64_t a3, uint64_t a4, uint64_t a5,
-                     uint64_t a6, uint64_t a7, uint64_t a8)
-{
-    switch (num) {
-    case 93: /* exit */
-    case 94: /* exit_group */
-        __fuzz_emu_stop_normal();
-        abort();
-        break;
-    case 129: /* kill */
-    case 130: /* tkill */
-        if (a1 == 6) { /* sigabrt */
-            __fuzz_emu_stop_normal();
-            abort();
-        }
-        break;
-    }
 }
 
 int hp_qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info) {

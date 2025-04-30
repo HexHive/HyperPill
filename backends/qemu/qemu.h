@@ -37,7 +37,6 @@ extern CPUState shadow_qemu_cpu;
 
 extern QemuMutex barrier_mutex;
 extern QemuCond barrier_cond;
-bool qemu_reload_vm(char *tag);
 
 /* AARCH64 cpu related functions */
 void aarch64_set_xregs(uint64_t xregs[32]);

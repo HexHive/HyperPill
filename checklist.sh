@@ -1,6 +1,5 @@
 export PATH_TO_HYPERPILL_MAIN=../../HyperPill
 
-diff -au $PATH_TO_HYPERPILL_MAIN/breakpoints.cc breakpoints.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/conveyor.cc conveyor.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/cov.cc cov.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/db.cc db.cc

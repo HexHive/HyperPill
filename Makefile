@@ -54,7 +54,6 @@ CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \
-			  breakpoints.o \
 			  conveyor.o \
 			  cov.o \
 			  db.o \

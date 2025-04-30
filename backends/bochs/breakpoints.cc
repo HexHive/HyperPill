@@ -3,12 +3,38 @@
 #include <utility>
 #include <vector>
 
+/*
+ * List of capabilities we want:
+ *      Skip a function call. (+ set return value)
+ *      Take a jump (even if we don't want to).
+ *      Teleport the PC.
+ *      Should be based primarily on symbol names
+ *      Hook Syscalls
+ *
+ *  Design. Apis:
+ *      PC Hook.
+ *      Instruction Hook.
+ *      Ctrl-xfer hook?
+ *
+ *  Call hook sideffects:
+ *      Skip the call.
+ *      Change the call destination.
+ *      Change the call return
+ */
+
+
+/*
+ * These breakpoints need to be pretty fast
+ */
 #define MAX_BPS 16
+using breakpoint_handler_t = void (*)(bxInstruction_c *);
 std::pair<bx_address, breakpoint_handler_t> breakpoints[MAX_BPS]; 
 static unsigned int bp_index;
 
-hp_address min_bp = -1;
-hp_address max_bp;
+bx_address min_bp = -1;
+bx_address max_bp;
+
+
 
 void handle_breakpoints(bxInstruction_c *insn) {
     auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
@@ -18,7 +44,8 @@ void handle_breakpoints(bxInstruction_c *insn) {
         if(breakpoints[i].first  == rip)
             breakpoints[i].second(insn);
     }
-}bx_address
+}
+
 bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
     if(!addr)
         return addr;
@@ -53,7 +80,7 @@ static void bp__stdio_write(bxInstruction_c *i){
     free(msg);
 }
 
-void __apply_breakpoints_linux() {
+void apply_breakpoints_linux() {
     // sanitizer stuff
     // _asan_report_store4
     // -> __asan::ReportGenericError or __asan::ReportDoubleFree()
@@ -63,6 +90,9 @@ void __apply_breakpoints_linux() {
     //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
     //         -> __asan::DescribeThread()
     //         -> __sanitizer::Die(), abort or exit
+    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
+            fuzz_emu_stop_crash("firecracker: panic");
+            });
     add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_rdlock"), [](bxInstruction_c *i) {
             i->execute1 = BX_CPU_C::RETnear64_Iw;
             i->modRMForm.Iw[0] = 0;
@@ -77,13 +107,6 @@ void __apply_breakpoints_linux() {
             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
             BX_CPU(id)->async_event = 1;
             });
-    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](hp_instruction *i) {
-            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
-            // fuzz_emu_stop_crash("page fault");
-    });
-    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
-    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
-    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
     add_breakpoint(sym_to_addr("firecracker", "__asan::CheckUnwind()"), [](bxInstruction_c *i) {
             printf("Skipping __asan::CheckUnwind");
             print_stacktrace();
@@ -92,6 +115,18 @@ void __apply_breakpoints_linux() {
             i->modRMForm.Iw[1] = 0;
             BX_CPU(id)->async_event = 1;
             });
+    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
+            // every error through asan should reach this
+            fuzz_stacktrace();
+		    fuzz_emu_stop_crash("ASAN error report\n");
+            });
+    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
+    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
+    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
+    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
+            printf("kexec crash\n");
+            print_stacktrace();
+    });
     add_breakpoint(sym_to_addr("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
             i->execute1 = BX_CPU_C::RETnear64_Iw;
             i->modRMForm.Iw[0] = 0;
@@ -99,10 +134,14 @@ void __apply_breakpoints_linux() {
             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
             BX_CPU(id)->async_event = 1;
     });
+    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
+            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
+            // fuzz_emu_stop_crash("page fault");
+    });
 }
 
 
-void __handle_syscall_hooks(bxInstruction_c *i)
+void handle_syscall_hooks(bxInstruction_c *i)
 {
     // crashes often go for exit/abort
     /* Hook Syscalls */

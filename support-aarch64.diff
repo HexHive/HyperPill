@@ -1,180 +1,3 @@
---- ../../HyperPill/breakpoints.cc	2025-04-30 16:58:00.644425396 +0200
-+++ breakpoints.cc	2025-04-23 11:06:59.873825927 +0200
-@@ -1,5 +1,4 @@
- #include "fuzz.h"
--#include <tsl/robin_map.h>
- #include <utility>
- #include <vector>
- 
-@@ -26,59 +25,6 @@
- /*
-  * These breakpoints need to be pretty fast
-  */
--#define MAX_BPS 16
--using breakpoint_handler_t = void (*)(bxInstruction_c *);
--std::pair<bx_address, breakpoint_handler_t> breakpoints[MAX_BPS]; 
--static unsigned int bp_index;
--
--bx_address min_bp = -1;
--bx_address max_bp;
--
--
--
--void handle_breakpoints(bxInstruction_c *insn) {
--    auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
--    if(rip < min_bp || rip > max_bp)
--        return;
--    for (unsigned int i =1; i<bp_index; i++){
--        if(breakpoints[i].first  == rip)
--            breakpoints[i].second(insn);
--    }
--}
--
--bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
--    if(!addr)
--        return addr;
--    assert(bp_index < MAX_BPS);
--    printf("Applying breakpoint to: %lx %s\n", addr, addr_to_sym(addr).second.c_str());
--    breakpoints[bp_index++] = std::make_pair(addr, h);
--    if(addr > max_bp)
--        max_bp = addr;
--    if(addr< min_bp)
--        min_bp = addr;
--    return addr;
--}
--
--static char* copy_string_from_vm(bx_address addr, size_t len) {
--    len = len&0xFFF;
--    char *buf = (char*)malloc(len);
--    BX_CPU(0)->access_read_linear(addr, len, 3, BX_READ, 0x0, buf);
--    buf[len-1] = 0;
--    return buf;
--}
--
--static void bp__stdio_write(bxInstruction_c *i){
--    i->execute1 = BX_CPU_C::RETnear64_Iw;
--    i->modRMForm.Iw[0] = 0;
--    i->modRMForm.Iw[1] = 0;
--    BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
--    BX_CPU(id)->async_event = 1;
--
--    char* msg = copy_string_from_vm(BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx,
--            BX_CPU(id)->gen_reg[BX_64BIT_REG_RDX].rrx);
--    printf("__stdio_write: %s\n", msg);
--    free(msg);
--}
- 
- void apply_breakpoints_linux() {
-     // sanitizer stuff
-@@ -90,95 +36,31 @@
-     //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
-     //         -> __asan::DescribeThread()
-     //         -> __sanitizer::Die(), abort or exit
--    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
-+    __apply_breakpoints_linux();
-+    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](hp_instruction *i) {
-             fuzz_emu_stop_crash("firecracker: panic");
-             });
--    add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_rdlock"), [](bxInstruction_c *i) {
--            i->execute1 = BX_CPU_C::RETnear64_Iw;
--            i->modRMForm.Iw[0] = 0;
--            i->modRMForm.Iw[1] = 0;
--            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
--            BX_CPU(id)->async_event = 1;
--            });
--    add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_unlock"), [](bxInstruction_c *i) {
--            i->execute1 = BX_CPU_C::RETnear64_Iw;
--            i->modRMForm.Iw[0] = 0;
--            i->modRMForm.Iw[1] = 0;
--            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
--            BX_CPU(id)->async_event = 1;
--            });
--    add_breakpoint(sym_to_addr("firecracker", "__asan::CheckUnwind()"), [](bxInstruction_c *i) {
--            printf("Skipping __asan::CheckUnwind");
--            print_stacktrace();
--            i->execute1 = BX_CPU_C::RETnear64_Iw;
--            i->modRMForm.Iw[0] = 0;
--            i->modRMForm.Iw[1] = 0;
--            BX_CPU(id)->async_event = 1;
--            });
--    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
-+    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](hp_instruction *i) {
-             // every error through asan should reach this
-             printf("ASAN error report\n");
-             fuzz_stacktrace();
-             });
--    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
--    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
--    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
--    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
-+    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](hp_instruction *i) { 
-             printf("kexec crash\n");
-             print_stacktrace();
-     });
--    add_breakpoint(sym_to_addr("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
--            i->execute1 = BX_CPU_C::RETnear64_Iw;
--            i->modRMForm.Iw[0] = 0;
--            i->modRMForm.Iw[1] = 0;
--            BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
--            BX_CPU(id)->async_event = 1;
-+    add_breakpoint(sym_to_addr("vmlinux", "hyp_panic"), [](hp_instruction *i) {
-+        fuzz_emu_stop_crash("vmlinux: hyp_panic");
-     });
--    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
--            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
--            // fuzz_emu_stop_crash("page fault");
-+    add_breakpoint(sym_to_addr("vmlinux", "panic"), [](hp_instruction *i) {
-+        fuzz_emu_stop_crash("vmlinux: panic");
-+    });
-+    add_breakpoint(sym_to_addr("vmlinux", "__guest_exit_panic"), [](hp_instruction *i) {
-+        fuzz_emu_stop_crash("vmlinux: __guest_exit_panic");
-     });
- }
- 
--
--void handle_syscall_hooks(bxInstruction_c *i)
-+void handle_syscall_hooks(hp_instruction *i)
- {
--    // crashes often go for exit/abort
--    /* Hook Syscalls */
--    if (i->getIaOpcode() == 0x471) {
--        switch(BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx) {
--            case 231:
--            case 60:    // exit
--                fuzz_emu_stop_crash("exit syscall");
--                return;
--                break;
--            case 62:    // kill
--            case 200:   // tkill
--                if (BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx == 6) { // SIGABRT
--                    fuzz_emu_stop_crash("kill syscall");
--                    return;
--                }
--                break;
--            case 1:     // write
--                if (BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx == 1 ||
--                        BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx == 2) {
--                    i->execute1 = BX_CPU_C::NOP;
--                    size_t len = BX_CPU(id)
--                        ->gen_reg[BX_64BIT_REG_RDX]
--                        .rrx &
--                        0xFFF;
--                    char *buf = (char *)malloc(len + 1);
--                    BX_CPU(0)->access_read_linear(
--                            BX_CPU(id)
--                            ->gen_reg[BX_64BIT_REG_RSI]
--                            .rrx,
--                            len, 3, BX_READ, 0x0, buf);
--                    buf[len] = 0;
--                    printf("write: %s\n", buf);
--                    BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = len;
--                    return;
--                }
--                break;
--        }
--    }
-+    __handle_syscall_hooks(i);
- }
 --- ../../HyperPill/conveyor.cc	2024-08-27 13:48:02.715577754 +0200
 +++ conveyor.cc	2024-12-12 11:17:56.908932890 +0100
 @@ -2,7 +2,6 @@
@@ -1201,7 +1024,7 @@
  		load_manual_ranges(getenv("MANUAL_RANGES"),
  				   getenv("RANGE_REGEX"), pio_regions,
 --- ../../HyperPill/fuzz.h	2025-04-30 16:58:00.645425407 +0200
-+++ fuzz.h	2025-04-30 17:25:12.054412440 +0200
++++ fuzz.h	2025-04-30 19:33:14.318988153 +0200
 @@ -2,105 +2,92 @@
  #define FUZZ_H
  
@@ -1213,13 +1036,13 @@
  #include <cstring>
  #include <tsl/robin_set.h>
 +#endif
- 
++
 +#include <stdbool.h>
 +#include <unistd.h>
 +#include <fcntl.h>
 +#include <sys/types.h>
 +#include <sys/stat.h>
-+
+ 
 +#if defined(HP_BACKEND_QEMU)
 +extern "C" {
 +#endif
@@ -1472,25 +1295,19 @@
 +#if defined(HP_X86_64)
  unsigned long int get_pio_icount();
 -void reset_bx_vm();
--
--#include "conveyor.h"
 +#endif
 +void reset_vm();
  
--void walk_ept(bool enum_mmio);
--void fuzz_walk_ept();
+-#include "conveyor.h"
 +void fuzz_walk_slat();
- void fuzz_walk_cr3();
 +
-+typedef void (*breakpoint_handler_t)(hp_instruction *);
-+hp_address add_breakpoint(hp_address addr, breakpoint_handler_t h);
-+void handle_breakpoints(hp_instruction *i);
-+void __handle_syscall_hooks(hp_instruction *i);
-+void __apply_breakpoints_linux();
 +#if defined(HP_BACKEND_QEMU)
 +}
 +#endif
-+
+ 
+-void walk_ept(bool enum_mmio);
+-void fuzz_walk_ept();
+-void fuzz_walk_cr3();
 +// core
 +void fuzz_instr_before_execution(hp_instruction *i);
 +void fuzz_instr_after_execution(hp_instruction *i);
@@ -1500,9 +1317,15 @@
 +bool ignore_pc(hp_address pc);
 +void add_pc_range(size_t base, size_t len);
 +
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
 +void fuzz_emu_stop_normal();
 +void fuzz_emu_stop_unhealthy();
 +void fuzz_emu_stop_crash(const char *type);
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
 +
 +#if defined(HP_X86_64)
  void enum_pio_regions();
@@ -1556,7 +1379,7 @@
  void init_regions(const char* path);
  
  void init_register_feedback();
-@@ -216,35 +238,33 @@
+@@ -216,35 +238,51 @@
  
  void fuzz_run_input(const uint8_t* Data, size_t Size);
  
@@ -1571,7 +1394,13 @@
  // sym2addr_linux.cc
  void load_symbol_map(char *path);
 -bx_address sym_to_addr(std::string bin, std::string name);
-+hp_address sym_to_addr(std::string bin, std::string name);
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
++uint64_t sym_to_addr(const char *bin, const char *name);
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
  std::pair<std::string, std::string> addr_to_sym(size_t addr);
  
  // link_map.c
@@ -1588,17 +1417,29 @@
 -void handle_breakpoints(bxInstruction_c *i);
 -void handle_syscall_hooks(bxInstruction_c *i);
 +void handle_syscall_hooks(hp_instruction *i);
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
  void apply_breakpoints_linux();
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
  
  //stacktrace
++#if defined(HP_BACKEND_QEMU)
++extern "C" {
++#endif
  void fuzz_stacktrace();
 +void add_stacktrace(hp_address branch_rip, hp_address new_rip);
 +void pop_stacktrace(void);
 +bool empty_stacktrace(void);
++#if defined(HP_BACKEND_QEMU)
++}
++#endif
  
  #endif
 --- ../../HyperPill/main.cc	2025-04-30 16:58:00.645425407 +0200
-+++ main.cc	2025-04-30 17:24:02.426607485 +0200
++++ main.cc	2025-04-30 19:06:03.240815447 +0200
 @@ -13,12 +13,11 @@
  bool fuzz_should_abort = false;    /* We got a crash. */
  
@@ -1733,7 +1574,7 @@
  	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
  		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
  		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
-@@ -219,9 +209,10 @@
+@@ -219,11 +209,14 @@
  			in_clock_step = CLOCK_STEP_NONE;
  		}
  	}
@@ -1742,10 +1583,14 @@
  
 -void fuzz_instr_before_execution(bxInstruction_c *i) {
 +void fuzz_instr_before_execution(hp_instruction *i) {
++#if defined(HP_BACKEND_BOCHS)
  	handle_breakpoints(i);
  	handle_syscall_hooks(i);
++#endif
  	if (!fuzzing && !fuzzenum)
-@@ -233,22 +224,27 @@
+ 		return;
+ 
+@@ -233,22 +226,27 @@
  	    fuzz_emu_stop_unhealthy();
  	}
      icount++;
@@ -1774,7 +1619,7 @@
  		printf("NEW INPUT\n");
  	if (!done) {
  		if (!log_writes)
-@@ -279,19 +275,19 @@
+@@ -279,19 +277,19 @@
  	if (len == 0 || fuzz_unhealthy_input || !done) {
  		uint8_t *dummy = (uint8_t *)"AAA";
  		__fuzzer_set_output(dummy, 1);
@@ -1797,7 +1642,7 @@
  		size_t len, len2;
  		uint8_t *output = ic_get_output(&len);
  		uint8_t *newdata = (uint8_t *)malloc(len);
-@@ -328,7 +324,7 @@
+@@ -328,7 +326,7 @@
  			exit(1);
  		}
  		free(newdata);
@@ -1806,7 +1651,7 @@
  	}
  	return fuzz_unhealthy_input != 0;
  }
-@@ -340,6 +336,7 @@
+@@ -340,6 +338,7 @@
  	char *icp_db_path = getenv("ICP_DB_PATH");
  	verbose = getenv("VERBOSE");
  
@@ -1814,7 +1659,7 @@
  	/* The Layout of the VMCS is specific to the CPU where the snapshot was
  	 * collected, so we also need to load a mapping of VMCS encodings to
  	 * offsets
-@@ -356,46 +353,53 @@
+@@ -356,46 +355,53 @@
  	if (!(mem_path && regs_path && vmcs_shadow_layout_path &&
  	      vmcs_addr_str))
  		usage();
@@ -1880,12 +1725,12 @@
  
  	/*
  	 * Previously, we identified all of L2's pages. However, we want to
-@@ -418,13 +422,15 @@
+@@ -418,13 +424,15 @@
  	 * crash in practice (if the page-table was corrupted by the fuzzer, the
  	 * MMIO exit wouldn't have happened in the first place
  	 */
 -	ept_mark_page_table();
-+	s2pt_mark_page_table();
++	// s2pt_mark_page_table();
  
 +#if defined(HP_X86_64)
  	/* Translate the guest's RIP in the VMCS to a physical-address */
@@ -1898,7 +1743,7 @@
  
  	/* For addr -> symbol */
  	if (getenv("SYMBOLS_DIR"))
-@@ -451,15 +457,18 @@
+@@ -451,15 +459,18 @@
  		}
  	}
  
@@ -1919,7 +1764,7 @@
  	uint32_t pciid = 0;
  	if (getenv("PCI_ID")) {
  		pciid = strtol(getenv("PCI_ID"), NULL, 16);
-@@ -474,20 +483,22 @@
+@@ -474,20 +485,22 @@
  				}
  			}
  	}
@@ -2359,17 +2204,19 @@
      }
  
 --- ../../HyperPill/sym2addr_linux.cc	2025-04-30 16:58:00.645425407 +0200
-+++ sym2addr_linux.cc	2025-04-17 15:34:55.166167170 +0200
-@@ -15,7 +15,7 @@
++++ sym2addr_linux.cc	2025-04-30 19:15:26.971629051 +0200
+@@ -15,7 +15,9 @@
  
  // todo: dynamic libc symbols for stuff like exit etc
  // Strategy: Run objdump on the binary. Load the
 -bx_address sym_to_addr(std::string bin, std::string name) {
-+hp_address sym_to_addr(std::string bin, std::string name) {
++hp_address sym_to_addr(const char *__bin, const char *__name) {
++    std::string bin(__bin);
++    std::string name(__name);
      for(auto it: bins) {
          if(it.find(bin) != std::string::npos){
              return sym2addr[std::make_pair(std::string(it), name)];
-@@ -50,7 +50,7 @@
+@@ -50,7 +52,7 @@
  // Function to parse the output of 'nm' command and construct map of addresses to symbol names
  static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPath) {
      std::map<std::string, size_t> symbolMap;
@@ -2378,7 +2225,7 @@
      size_t pos = 0;
      while ((pos = nmOutput.find("\n")) != std::string::npos) {
          std::string line = nmOutput.substr(0, pos);
-@@ -63,7 +63,7 @@
+@@ -63,7 +65,7 @@
              symbolMap.emplace(name, strtoull(address.c_str(), NULL, 16));
          }
      }
@@ -2485,126 +2332,17 @@
  
      std::string match;
 --- ../../HyperPill/breakpoints.cc	2025-04-30 16:58:00.644425396 +0200
-+++ backends/bochs/breakpoints.cc	2025-04-23 11:06:59.871825904 +0200
-@@ -3,38 +3,12 @@
- #include <utility>
- #include <vector>
- 
--/*
-- * List of capabilities we want:
-- *      Skip a function call. (+ set return value)
-- *      Take a jump (even if we don't want to).
-- *      Teleport the PC.
-- *      Should be based primarily on symbol names
-- *      Hook Syscalls
-- *
-- *  Design. Apis:
-- *      PC Hook.
-- *      Instruction Hook.
-- *      Ctrl-xfer hook?
-- *
-- *  Call hook sideffects:
-- *      Skip the call.
-- *      Change the call destination.
-- *      Change the call return
-- */
--
--
--/*
-- * These breakpoints need to be pretty fast
-- */
- #define MAX_BPS 16
--using breakpoint_handler_t = void (*)(bxInstruction_c *);
- std::pair<bx_address, breakpoint_handler_t> breakpoints[MAX_BPS]; 
- static unsigned int bp_index;
- 
--bx_address min_bp = -1;
--bx_address max_bp;
--
--
-+hp_address min_bp = -1;
-+hp_address max_bp;
- 
- void handle_breakpoints(bxInstruction_c *insn) {
-     auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
-@@ -44,8 +18,7 @@
-         if(breakpoints[i].first  == rip)
-             breakpoints[i].second(insn);
-     }
--}
--
-+}bx_address
- bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
-     if(!addr)
-         return addr;
-@@ -80,7 +53,7 @@
-     free(msg);
- }
- 
--void apply_breakpoints_linux() {
-+void __apply_breakpoints_linux() {
-     // sanitizer stuff
-     // _asan_report_store4
-     // -> __asan::ReportGenericError or __asan::ReportDoubleFree()
-@@ -90,9 +63,6 @@
-     //     -> __asan::ScopedInErrorReport::~ScopedInErrorReport()
-     //         -> __asan::DescribeThread()
-     //         -> __sanitizer::Die(), abort or exit
--    add_breakpoint(sym_to_addr("firecracker", "core::panicking::panic_fmt"), [](bxInstruction_c *i) {
--            fuzz_emu_stop_crash("firecracker: panic");
--            });
-     add_breakpoint(sym_to_addr("vmm", "pthread_rwlock_rdlock"), [](bxInstruction_c *i) {
-             i->execute1 = BX_CPU_C::RETnear64_Iw;
-             i->modRMForm.Iw[0] = 0;
-@@ -107,6 +77,13 @@
-             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
-             BX_CPU(id)->async_event = 1;
++++ backends/bochs/breakpoints.cc	2025-04-30 19:02:47.657463116 +0200
+@@ -117,8 +117,8 @@
              });
-+    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](hp_instruction *i) {
-+            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
-+            // fuzz_emu_stop_crash("page fault");
-+    });
-+    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
-+    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
-+    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
-     add_breakpoint(sym_to_addr("firecracker", "__asan::CheckUnwind()"), [](bxInstruction_c *i) {
-             printf("Skipping __asan::CheckUnwind");
-             print_stacktrace();
-@@ -115,18 +92,6 @@
-             i->modRMForm.Iw[1] = 0;
-             BX_CPU(id)->async_event = 1;
-             });
--    add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
--            // every error through asan should reach this
+     add_breakpoint(sym_to_addr("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
+             // every error through asan should reach this
 -            printf("ASAN error report\n");
--            fuzz_stacktrace();
--            });
--    add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
--    add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
--    //add_breakpoint(sym_to_addr("ld-musl", "out"), bp__stdio_write);
--    add_breakpoint(sym_to_addr("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
--            printf("kexec crash\n");
--            print_stacktrace();
--    });
-     add_breakpoint(sym_to_addr("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
-             i->execute1 = BX_CPU_C::RETnear64_Iw;
-             i->modRMForm.Iw[0] = 0;
-@@ -134,14 +99,10 @@
-             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
-             BX_CPU(id)->async_event = 1;
-     });
--    add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
--            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
--            // fuzz_emu_stop_crash("page fault");
--    });
- }
- 
- 
--void handle_syscall_hooks(bxInstruction_c *i)
-+void __handle_syscall_hooks(bxInstruction_c *i)
- {
-     // crashes often go for exit/abort
-     /* Hook Syscalls */
+             fuzz_stacktrace();
++		    fuzz_emu_stop_crash("ASAN error report\n");
+             });
+     add_breakpoint(sym_to_addr("vmm", "__stdio_write"), bp__stdio_write);
+     add_breakpoint(sym_to_addr("ld-musl", "__stdio_write"), bp__stdio_write);
 --- ../../HyperPill/devices.cc	2025-04-30 16:58:00.645425407 +0200
 +++ backends/bochs/devices.cc	2025-04-23 11:06:59.871825904 +0200
 @@ -1,5 +1,4 @@

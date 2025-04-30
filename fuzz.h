@@ -173,13 +173,7 @@ unsigned long int get_pio_icount();
 void reset_vm();
 
 void fuzz_walk_slat();
-void fuzz_walk_cr3();
 
-typedef void (*breakpoint_handler_t)(hp_instruction *);
-hp_address add_breakpoint(hp_address addr, breakpoint_handler_t h);
-void handle_breakpoints(hp_instruction *i);
-void __handle_syscall_hooks(hp_instruction *i);
-void __apply_breakpoints_linux();
 #if defined(HP_BACKEND_QEMU)
 }
 #endif
@@ -193,9 +187,15 @@ void print_stacktrace();
 bool ignore_pc(hp_address pc);
 void add_pc_range(size_t base, size_t len);
 
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
+#endif
 void fuzz_emu_stop_normal();
 void fuzz_emu_stop_unhealthy();
 void fuzz_emu_stop_crash(const char *type);
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 
 #if defined(HP_X86_64)
 void enum_pio_regions();
@@ -245,7 +245,13 @@ void symbolize(size_t pc);
 
 // sym2addr_linux.cc
 void load_symbol_map(char *path);
-hp_address sym_to_addr(std::string bin, std::string name);
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
+#endif
+uint64_t sym_to_addr(const char *bin, const char *name);
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 std::pair<std::string, std::string> addr_to_sym(size_t addr);
 
 // link_map.c
@@ -259,12 +265,24 @@ void check_write_coverage();
 
 // breakpoints.cc
 void handle_syscall_hooks(hp_instruction *i);
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
+#endif
 void apply_breakpoints_linux();
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 
 //stacktrace
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
+#endif
 void fuzz_stacktrace();
 void add_stacktrace(hp_address branch_rip, hp_address new_rip);
 void pop_stacktrace(void);
 bool empty_stacktrace(void);
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 
 #endif
