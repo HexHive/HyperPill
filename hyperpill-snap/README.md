@@ -498,9 +498,6 @@ following files:
 
 where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
 
-P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
-make your life easy.
-
 ## [Optional] Obtain Symbols for Debugging
 
 Adjust the kernel version and architecture accordingly.

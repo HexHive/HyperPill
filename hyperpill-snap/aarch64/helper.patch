@@ -1,8 +1,26 @@
+From 88ed5dd300dc5fc8f6c58f70113a364f6082cc6d Mon Sep 17 00:00:00 2001
+From: Qiang Liu <cyruscyliu@gmail.com>
+Date: Thu, 1 May 2025 10:21:40 +0200
+Subject: [PATCH] stop vm at hvc
+
+---
+ target/arm/helper.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
 diff --git a/target/arm/helper.c b/target/arm/helper.c
-index 2746d3fda..c780d4bc7 100644
+index 9ff266a23..d6bc9f3d6 100644
 --- a/target/arm/helper.c
 +++ b/target/arm/helper.c
-@@ -11074,6 +11074,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+@@ -11092,6 +11092,8 @@ static bool syndrome_is_sync_extabt(uint32_t syndrome)
+     }
+ }
+ 
++extern int vm_stop(RunState state);
++
+ /* Handle exception entry to a target EL which is using AArch64 */
+ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+ {
+@@ -11103,6 +11105,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
      unsigned int old_mode;
      unsigned int cur_el = arm_current_el(env);
      int rt;
@@ -10,15 +28,16 @@ index 2746d3fda..c780d4bc7 100644
  
      if (tcg_enabled()) {
          /*
-@@ -11141,6 +11142,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+@@ -11170,6 +11173,8 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
      case EXCP_UDEF:
      case EXCP_SWI:
      case EXCP_HVC:
-+	is_hvc = true;
++        is_hvc = true;
++        /* fall through */
      case EXCP_HYP_TRAP:
      case EXCP_SMC:
          switch (syn_get_ec(env->exception.syndrome)) {
-@@ -11262,6 +11264,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+@@ -11291,6 +11296,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
  
      qemu_log_mask(CPU_LOG_INT, "...to EL%d PC 0x%" PRIx64 " PSTATE 0x%x\n",
                    new_el, env->pc, pstate_read(env));
@@ -32,3 +51,6 @@ index 2746d3fda..c780d4bc7 100644
  }
  
  /*
+-- 
+2.43.0
+
