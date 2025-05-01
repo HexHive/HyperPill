@@ -123,6 +123,7 @@ void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 }
 
 unsigned int num_mmio_regions() {
+	assert(mmio_regions.size());
 	return mmio_regions.size();
 }
 

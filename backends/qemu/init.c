@@ -6,9 +6,10 @@ extern void before_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 extern void after_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 
 void icp_init_backend() {
-	int qemu_argc = 21;
+	int qemu_argc = 22;
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
+		"-nographic",
 		"-smp", "1",
 		"-m", "8192", // TODO: we assume at most 8G?
 		"-cpu", "max",

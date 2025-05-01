@@ -37,11 +37,7 @@ bool cpu0_get_user_pl(void) {
 }
 
 void save_cpu() {
-    int saved_vm_running = runstate_is_running();
-    if (saved_vm_running) {
-        vm_stop(RUN_STATE_RESTORE_VM);
-    }
-	// shadow_qemu_cpu = *(ARM_CPU(QEMU_CPU(0)));
+    assert(!runstate_is_running());
 }
 
 void restore_cpu() {

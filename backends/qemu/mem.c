@@ -15,6 +15,7 @@ void fuzz_clear_dirty() {
 		}
 		uint64_t pages = ram_block->used_length >> 12;
 		bitmap_set(ram_block->bmap, 0, pages);
+		break;
 	}
 }
 
@@ -29,6 +30,7 @@ void fuzz_watch_memory_inc() {
 			uint64_t pages = ram_block->used_length >> 12;
 			ram_block->bmap = bitmap_new(pages);
 			bitmap_set(ram_block->bmap, 0, pages);
+			break;
 		}
 		memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
 		break;
@@ -77,6 +79,7 @@ void icp_init_mem(const char *filename) {
 		}
 		ram = qemu_ram_get_host_addr(ram_block);
 		ramsize = qemu_ram_get_used_length(ram_block);
+		break;
 	}
 
 	// shadowram = (uint8_t *)malloc(ramsize);
