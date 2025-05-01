@@ -62,4 +62,5 @@ static uint64_t icount_limit = 50000000;
 static unsigned long int icount;
 
 void qemu_tb_after_execution(TranslationBlock *tb) {
+
 }
