@@ -4,7 +4,7 @@
 #define GENMASK_64(high, low) (((1ULL << ((high) - (low) + 1)) - 1) << (low))
 
 struct s2_walk_info {
-	int (*read_desc)(uint64_t pa, uint64_t *desc);
+	void (*read_desc)(uint64_t pa, uint64_t *desc);
 	uint64_t baddr;
 	unsigned int max_oa_bits;
 	unsigned int pgshift;
@@ -170,7 +170,7 @@ static int walk_s2(uint64_t ipa, struct s2_walk_info *wi,
 			(addr_bottom - 3);
 
 		paddr = base_addr | index;
-		ret = wi->read_desc(paddr, &desc);
+		wi->read_desc(paddr, &desc);
 
 		/*
 		 * Handle reversedescriptors if endianness differs between the
@@ -241,13 +241,8 @@ static int walk_s2(uint64_t ipa, struct s2_walk_info *wi,
 	return 0;
 }
 
-void hp_cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
-static int read_guest_s2_desc(uint64_t pa, uint64_t *desc) {
-	uint64_t desc1, desc2;
-	hp_cpu_physical_memory_read(pa, &desc1, sizeof(desc1));
-	cpu_physical_memory_read(pa, &desc2, sizeof(desc2));
-	assert(desc1 == desc2);
-	*desc = desc2;
+static void read_guest_s2_desc(uint64_t pa, uint64_t *desc) {
+	cpu_physical_memory_read(pa, desc, sizeof(*desc));
 }
 
 #define TCR_EL2_PS_SHIFT 16

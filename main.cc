@@ -364,6 +364,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
 #endif
 	icp_init_backend();
+	icp_init_gdb();
 
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
 	cpu0_set_fuzztrace(fuzztrace);

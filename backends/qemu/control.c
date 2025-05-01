@@ -83,6 +83,8 @@ void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
 
         if (new_el == 1) {
             fuzz_hook_back_to_el1_kernel();
+            // this will send a request
+            vm_stop(RUN_STATE_RESTORE_VM);
         }
     }
 }
@@ -247,12 +249,10 @@ int hp_qemu_plugin_load() {
 
 void cpu0_run_loop() {
     vm_start();
-    if (qemu_mutex_iothread_locked()) {
-        qemu_mutex_unlock_iothread();
-    }
 
-    while (cpu0_get_fuzz_executing_input()) {}
+    int status;
 
-    qemu_mutex_lock_iothread();
-    vm_stop(RUN_STATE_RESTORE_VM);
+    assert(qemu_mutex_iothread_locked());
+    status = qemu_main_loop();
+    // qemu_cleanup(status);
 }

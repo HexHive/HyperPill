@@ -15,6 +15,7 @@ extern "C" {
 #include "sysemu/cpus.h"
 #include "exec/hwaddr.h"
 #include "exec/gdbstub.h"
+#include "exec/ramblock.h"
 #include "gdbstub/internals.h"
 
 #include "hw/registerfields.h"

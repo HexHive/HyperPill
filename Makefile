@@ -106,6 +106,7 @@ OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/mem.o \
 			  backends/qemu/regs.o \
 			  backends/qemu/s2pt.o \
+			  backends/qemu/dbg.o \
 			  $(OBJS_GENERIC)
 else
     $(error Unsupported architecture: $(ARCH))
