@@ -250,9 +250,7 @@ int hp_qemu_plugin_load() {
 void cpu0_run_loop() {
     vm_start();
 
-    int status;
-
-    assert(qemu_mutex_iothread_locked());
-    status = qemu_main_loop();
-    // qemu_cleanup(status);
+    while (cpu0_get_fuzz_executing_input()) {
+        main_loop_wait(false);
+    }
 }

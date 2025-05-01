@@ -45,13 +45,14 @@ void save_cpu() {
 }
 
 void restore_cpu() {
+    if (!qemu_mutex_iothread_locked())
+        qemu_mutex_lock_iothread();
     int saved_vm_running = runstate_is_running();
     if (saved_vm_running) {
         vm_stop(RUN_STATE_RESTORE_VM);
     }
 	char *regs_path = getenv("ICP_REGS_PATH");
     icp_init_regs(regs_path);
-    // *(ARM_CPU(QEMU_CPU(0))) = shadow_qemu_cpu;
 }
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
