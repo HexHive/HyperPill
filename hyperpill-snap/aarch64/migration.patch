@@ -1,7 +1,7 @@
-From 39e07ba83cc50514d207f9f5c2c93114b6fd49f7 Mon Sep 17 00:00:00 2001
+From 064b7289380955ccd8b5a5c01c9c100bd20fba74 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Sat, 26 Apr 2025 13:57:25 +0200
-Subject: [PATCH] Enable saving/restoring devices state except ram
+Subject: [PATCH] Enable saving/restoring devices state
 
 A few options must be enabled. For example,
 
@@ -11,21 +11,22 @@ A few options must be enabled. For example,
         -global migration.store-global-state=off \
         -global migration.send-section-footer=off
 
-To debug, turn on the vmdesc, redump regs, and run
-`./scripts/analyze-migration.py -f /tmp/regs`
+To debug, turn on the vmdesc, redump regs/mem, and run
+`./scripts/analyze-migration.py -f /tmp/dump -x`
 ---
- hmp-commands.hx                | 32 +++++++++++++
- include/migration/snapshot.h   |  3 ++
- include/monitor/hmp.h          |  2 +
- migration/migration-hmp-cmds.c | 18 ++++++++
- migration/savevm.c             | 84 +++++++++++++++++++++++++++++++++-
- 5 files changed, 138 insertions(+), 1 deletion(-)
+ hmp-commands.hx                |  36 ++++++++-
+ include/migration/snapshot.h   |   3 +
+ include/monitor/hmp.h          |   2 +
+ migration/migration-hmp-cmds.c |  19 +++++
+ migration/migration.h          |   3 +
+ migration/savevm.c             | 137 ++++++++++++++++++++++++++++++++-
+ 6 files changed, 196 insertions(+), 4 deletions(-)
 
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 765349e..07f8967 100644
+index 765349ed1..828957ab1 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -325,6 +325,38 @@ ERST
+@@ -325,6 +325,40 @@ ERST
  SRST
  ``log`` *item1*\ [,...]
    Activate logging of the specified items.
@@ -33,17 +34,19 @@ index 765349e..07f8967 100644
 +
 +    {
 +        .name       = "hp-save-devices-state",
-+        .args_type  = "filename:F",
++        .args_type  = "ramonly:-r,filename:F",
 +        .params     = "filename",
-+        .help       = "save devices state into file 'filename'.\n\t\n\t",
++        .help       = "save devices state into file 'filename' (use -r to save ram only).\n\t\n\t",
 +        .cmd        = hmp_hp_save_devices_state,
 +    },
 +
 +SRST
-+``hp-save-devices-state`` *filename*
++``hp-save-devices-state [-r]`` *filename*
 +
 +  *filename*
 +    the file to save the state of the devices to as binary data.
++
++  Use -r to save ram only.
 +
 +ERST
 +
@@ -64,22 +67,31 @@ index 765349e..07f8967 100644
  ERST
  
      {
+@@ -1106,7 +1140,7 @@ ERST
+ 
+ SRST
+ ``dump-guest-memory [-p]`` *filename* *begin* *length*
+-  \ 
++  \
+ ``dump-guest-memory [-z|-l|-s|-w]`` *filename*
+   Dump guest memory to *protocol*. The file can be processed with crash or
+   gdb. Without ``-z|-l|-s|-w``, the dump format is ELF.
 diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
-index e72083b..7a93065 100644
+index e72083b11..00a87ec65 100644
 --- a/include/migration/snapshot.h
 +++ b/include/migration/snapshot.h
 @@ -17,6 +17,9 @@
  
  #include "qapi/qapi-builtin-types.h"
  
-+void hp_save_devices_state(const char *name, Error **errp);
++void hp_save_devices_state(const char *name, bool ramonly, Error **errp);
 +void hp_load_devices_state(const char *name, Error **errp);
 +
  /**
   * save_snapshot: Save an internal snapshot.
   * @name: name of internal snapshot
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index 13f9a2d..e834a4f 100644
+index 13f9a2ded..e834a4f0b 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
 @@ -59,6 +59,8 @@ void hmp_nmi(Monitor *mon, const QDict *qdict);
@@ -92,19 +104,20 @@ index 13f9a2d..e834a4f 100644
  void hmp_savevm(Monitor *mon, const QDict *qdict);
  void hmp_delvm(Monitor *mon, const QDict *qdict);
 diff --git a/migration/migration-hmp-cmds.c b/migration/migration-hmp-cmds.c
-index 2faa5ca..2be8677 100644
+index 2faa5cad4..ee8a8723a 100644
 --- a/migration/migration-hmp-cmds.c
 +++ b/migration/migration-hmp-cmds.c
-@@ -397,6 +397,24 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
+@@ -397,6 +397,25 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
      qapi_free_MigrationParameters(params);
  }
  
 +void hmp_hp_save_devices_state(Monitor *mon, const QDict *qdict)
 +{
 +    Error *err = NULL;
++    bool ramonly = qdict_get_try_bool(qdict, "ramonly", false);
 +    const char *filename = qdict_get_str(qdict, "filename");
 +
-+    hp_save_devices_state(filename, &err);
++    hp_save_devices_state(filename, ramonly, &err);
 +    hmp_handle_error(mon, err);
 +}
 +
@@ -120,11 +133,54 @@ index 2faa5ca..2be8677 100644
  void hmp_loadvm(Monitor *mon, const QDict *qdict)
  {
      int saved_vm_running  = runstate_is_running();
+diff --git a/migration/migration.h b/migration/migration.h
+index cf2c9c88e..f1c60df27 100644
+--- a/migration/migration.h
++++ b/migration/migration.h
+@@ -470,6 +470,9 @@ struct MigrationState {
+     bool switchover_acked;
+     /* Is this a rdma migration */
+     bool rdma_migration;
++
++    /* Save ram exclusively? */
++    bool ramonly;
+ };
+ 
+ void migrate_set_state(int *state, int old_state, int new_state);
 diff --git a/migration/savevm.c b/migration/savevm.c
-index f374da8..e0a5d1a 100644
+index f374da85b..32e7081e4 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
-@@ -1318,6 +1318,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
+@@ -668,6 +668,18 @@ void dump_vmstate_json_to_file(FILE *out_file)
+     g_slist_free(list);
+ }
+ 
++static bool skip_due_to_ramonly(SaveStateEntry *se) {
++    MigrationState *ms = migrate_get_current();
++
++    if ((!ms->ramonly) && (!strncmp(se->idstr, "ram", strlen("ram")))) {
++        return true;
++    }
++    if ((ms->ramonly) && (strncmp(se->idstr, "ram", strlen("ram")))) {
++        return true;
++    }
++    return false;
++}
++
+ static uint32_t calculate_new_instance_id(const char *idstr)
+ {
+     SaveStateEntry *se;
+@@ -951,6 +963,9 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se)
+ {
+     trace_vmstate_load(se->idstr, se->vmsd ? se->vmsd->name : "(old)");
+     if (!se->vmsd) {         /* Old style */
++        if (skip_due_to_ramonly(se)) {
++            return 0;
++        }
+         return se->ops->load_state(f, se->opaque, se->load_version_id);
+     }
+     return vmstate_load_state(f, se->vmsd, se->opaque, se->load_version_id);
+@@ -1318,11 +1333,15 @@ void qemu_savevm_state_setup(QEMUFile *f)
      Error *local_err = NULL;
      int ret;
  
@@ -132,7 +188,108 @@ index f374da8..e0a5d1a 100644
      json_writer_int64(ms->vmdesc, "page_size", qemu_target_page_size());
      json_writer_start_array(ms->vmdesc, "devices");
  
-@@ -1763,6 +1764,8 @@ void qemu_savevm_live_state(QEMUFile *f)
+     trace_savevm_state_setup();
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (se->vmsd && se->vmsd->early_setup) {
+             ret = vmstate_save(f, se, ms->vmdesc);
+             if (ret) {
+@@ -1363,6 +1382,9 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
+     trace_savevm_state_resume_prepare();
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->resume_prepare) {
+             continue;
+         }
+@@ -1393,6 +1415,9 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
+ 
+     trace_savevm_state_iterate();
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->save_live_iterate) {
+             continue;
+         }
+@@ -1462,6 +1487,9 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
+     int ret;
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->save_live_complete_postcopy) {
+             continue;
+         }
+@@ -1496,6 +1524,9 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
+     int ret;
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops ||
+             (in_postcopy && se->ops->has_postcopy &&
+              se->ops->has_postcopy(se->opaque)) ||
+@@ -1543,6 +1574,9 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
+     int ret;
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (se->vmsd && se->vmsd->early_setup) {
+             /* Already saved during qemu_savevm_state_setup(). */
+             continue;
+@@ -1648,6 +1682,9 @@ void qemu_savevm_state_pending_estimate(uint64_t *must_precopy,
+     *can_postcopy = 0;
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->state_pending_estimate) {
+             continue;
+         }
+@@ -1669,6 +1706,9 @@ void qemu_savevm_state_pending_exact(uint64_t *must_precopy,
+     *can_postcopy = 0;
+ 
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->state_pending_exact) {
+             continue;
+         }
+@@ -1692,17 +1732,21 @@ void qemu_savevm_state_cleanup(void)
+ 
+     trace_savevm_state_cleanup();
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (se->ops && se->ops->save_cleanup) {
+             se->ops->save_cleanup(se->opaque);
+         }
+     }
+ }
+ 
+-static int qemu_savevm_state(QEMUFile *f, Error **errp)
++static int qemu_savevm_state(QEMUFile *f, bool ramonly, Error **errp)
+ {
+     int ret;
+     MigrationState *ms = migrate_get_current();
+     MigrationStatus status;
++    ms->ramonly = ramonly;
+ 
+     if (migration_is_running(ms->state)) {
+         error_setg(errp, QERR_MIGRATION_ACTIVE);
+@@ -1763,6 +1807,8 @@ void qemu_savevm_live_state(QEMUFile *f)
  int qemu_save_device_state(QEMUFile *f)
  {
      SaveStateEntry *se;
@@ -141,7 +298,7 @@ index f374da8..e0a5d1a 100644
  
      if (!migration_in_colo_state()) {
          qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
-@@ -1770,13 +1773,17 @@ int qemu_save_device_state(QEMUFile *f)
+@@ -1770,13 +1816,17 @@ int qemu_save_device_state(QEMUFile *f)
      }
      cpu_synchronize_all_states();
  
@@ -160,7 +317,7 @@ index f374da8..e0a5d1a 100644
          if (ret) {
              return ret;
          }
-@@ -1784,6 +1791,18 @@ int qemu_save_device_state(QEMUFile *f)
+@@ -1784,6 +1834,18 @@ int qemu_save_device_state(QEMUFile *f)
  
      qemu_put_byte(f, QEMU_VM_EOF);
  
@@ -179,11 +336,40 @@ index f374da8..e0a5d1a 100644
      return qemu_file_get_error(f);
  }
  
-@@ -3190,6 +3209,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
+@@ -2768,6 +2830,9 @@ static int qemu_loadvm_state_setup(QEMUFile *f)
+ 
+     trace_loadvm_state_setup();
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (!se->ops || !se->ops->load_setup) {
+             continue;
+         }
+@@ -2793,6 +2858,9 @@ void qemu_loadvm_state_cleanup(void)
+ 
+     trace_loadvm_state_cleanup();
+     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
++        if (skip_due_to_ramonly(se)) {
++            continue;
++        }
+         if (se->ops && se->ops->load_cleanup) {
+             se->ops->load_cleanup(se->opaque);
+         }
+@@ -3149,7 +3217,7 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
+         error_setg(errp, "Could not open VM state file");
+         goto the_end;
+     }
+-    ret = qemu_savevm_state(f, errp);
++    ret = qemu_savevm_state(f, false, errp);
+     vm_state_size = qemu_file_transferred(f);
+     ret2 = qemu_fclose(f);
+     if (ret < 0) {
+@@ -3190,6 +3258,69 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
      return ret == 0;
  }
  
-+void hp_save_devices_state(const char *filename, Error **errp)
++void hp_save_devices_state(const char *filename, bool ramonly, Error **errp)
 +{
 +    QEMUFile *f;
 +    QIOChannelFile *ioc;
@@ -204,7 +390,7 @@ index f374da8..e0a5d1a 100644
 +    qio_channel_set_name(QIO_CHANNEL(ioc), "hp-save-devices-state");
 +    f = qemu_file_new_output(QIO_CHANNEL(ioc));
 +    object_unref(OBJECT(ioc));
-+    ret = qemu_savevm_state(f, errp);
++    ret = qemu_savevm_state(f, ramonly, errp);
 +    if (ret < 0 || qemu_fclose(f) < 0) {
 +        error_setg(errp, QERR_IO_ERROR);
 +    }
@@ -250,5 +436,5 @@ index f374da8..e0a5d1a 100644
                                  Error **errp)
  {
 -- 
-2.34.1
+2.43.0
 

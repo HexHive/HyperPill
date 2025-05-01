@@ -481,7 +481,7 @@ monitor :
 # it is not necessary to run dump-guest-memory anymore if using qemu
 # as the backend because hp-save-devices-state -r will save all the ram blocks
 # [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
-[L0 qemu-monitor] hp-save-devices-state -r /path/to/snapshots/dir/mem2
+[L0 qemu-monitor] hp-save-devices-state -r /path/to/snapshots/dir/mem
 [L0 qemu-monitor] hp-save-devices-state /path/to/snapshots/dir/regs
 [L0] cp efi.img /path/to/snapshots/dir/efi.img
 [L0] cp varstore.qcow2 /path/to/snapshots/dir/varstore.qcow2
