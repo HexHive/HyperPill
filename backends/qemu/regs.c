@@ -176,9 +176,3 @@ uint64_t aarch64_get_hpfar_el2(void) {
     CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     return env->cp15.hpfar_el2;
 }
-
-void aarch64_set_xreg(uint64_t index, uint64_t value) {
-    assert(index < 32);
-    CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
-    env->xregs[index] = value;
-}

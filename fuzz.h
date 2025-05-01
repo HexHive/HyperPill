@@ -1,6 +1,13 @@
 #ifndef FUZZ_H
 #define FUZZ_H
 
+#ifndef HP_BACKEND_QEMU
+#define HP_BACKEND_QEMU
+#endif
+#ifndef HP_AARCH64
+#define HP_AARCH64
+#endif
+
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -16,78 +23,64 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-#if defined(HP_X86_64)
-#include "bochs.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
-#define NM_PREFIX ""
-#elif defined(HP_AARCH64)
-#include "qemuapi.h"
-#include <libgen.h>
-#define NM_PREFIX "aarch64-linux-gnu-"
-#endif
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
-
-#if defined(HP_X86_64)
-typedef bx_address hp_address;
-typedef bx_phy_address hp_phy_address;
-typedef bxInstruction_c hp_instruction;
-#elif defined(HP_AARCH64)
-typedef uint64_t hp_address;
-typedef uint64_t hp_phy_address;
-typedef void hp_instruction;
-#endif
+#include "fuzzc.h"
 
 extern bool fuzzing;
-extern tsl::robin_set<hp_address> cur_input;
 extern size_t maxaddr;
-extern bool master_fuzzer;
-extern bool verbose;
 #if defined(HP_X86_64)
 extern std::vector<size_t> guest_page_scratchlist;
 #endif
 
+extern tsl::robin_set<hp_address> cur_input;
+extern bool master_fuzzer;
+extern bool verbose;
+
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 
-#include "conveyor.h"
+// backends/bochs/system.cc
+void bx_init_pc_system();
 
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-static uint64_t lookup_gpa_by_hpa(uint64_t hpa) {};
-
-void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
-void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
-void cpu0_read_virtual(hp_address start, size_t size, void *data);
-void cpu0_write_virtual(hp_address start, size_t size, void *data);
-bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf);
-void cpu0_tlb_flush(void);
-void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
-void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
-void add_persistent_memory_range(hp_address start, size_t len);
-
-void icp_init_backend();
-void icp_init_gdb();
-void icp_init_mem(const char* filename);
-void icp_init_regs(const char* filename);
+// backends/bochs/vmcs.cc
 #if defined(HP_X86_64)
+extern uint64_t vmcs_addr;
 void icp_init_shadow_vmcs_layout(const char* filename);
 void icp_set_vmcs(uint64_t vmcs);
 void icp_set_vmcs_map();
-void bx_init_pc_system();
-#endif
-#if defined(HP_BACKEND_QEMU)
-}
+void redo_paging();
+void vmcs_fixup();
 #endif
 
+static void fuzz_walk_slat() {};
+static uint64_t lookup_gpa_by_hpa(uint64_t hpa) {};
+
+
+// fuzz.cc
 void clear_seen_dma();
-void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
-
+unsigned int num_mmio_regions();
+#if defined(HP_X86_64)
+bool inject_halt();
+#endif
+bool inject_write(hp_address addr, int size, uint64_t val);
+bool inject_read(hp_address addr, int size);
+#if defined(HP_X86_64)
+bool inject_in(uint16_t addr, uint16_t size);
+bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
+uint32_t inject_pci_read(uint9_t device, uint8_t function, uint8_t offset);
+bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
+uint64_t inject_rdmsr(hp_address msr);
+bool inject_wrmsr(hp_address msr, uint64_t value);
+#endif
+bool op_write();
+bool op_read();
+#if defined(HP_X86_64)
+bool op_out();
+bool op_in();
+void set_pci_device(uint8_t dev, uint8_t function);
+bool op_pci_write();
+bool op_msr_write();
+#endif
+void insert_register_value_into_fuzz_input(int idx);
+bool op_vmcall();
 extern int in_clock_step;
 enum {
 	CLOCK_STEP_NONE,
@@ -97,204 +90,70 @@ enum {
 	CLOCK_STEP_DONE
 };
 bool op_clock_step();
-
-void fuzz_hook_memory_access(hp_address phy, unsigned len,
-                             unsigned memtype, unsigned rw, void* data);
-void fuzz_hook_exception(unsigned vector, unsigned error_code);
-void fuzz_hook_hlt();
-void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
-#if defined(HP_X86_64)
-bool fuzz_hook_vmlaunch();
-#elif defined(HP_AARCH64)
-bool fuzz_hook_back_to_el1_kernel(void);
-#endif
-
-// sysret (x86) -> eret (AARCH64)
-uint32_t get_sysret_status();
-void reset_sysret_status();
-void set_sysret_status(uint32_t new_status);
-
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-size_t init_random_register_data_len();
-
-void fuzz_reset_memory();
-void fuzz_watch_memory_inc();
-void fuzz_clear_dirty();
-
-#if defined(HP_X86_64)
-extern uint64_t vmcs_addr;
-void redo_paging();
-void vmcs_fixup();
-#endif
-
-void add_indicator_value(uint64_t val);
-void clear_indicator_values();
-void dump_indicators();
-void aggregate_indicators();
-void indicator_cb(void(*cb)(uint64_t));
-
-hp_phy_address cpu0_virt2phy(hp_address addr);
-bool gva2hpa(hp_address laddr, hp_phy_address *phy);
-int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
-void walk_s1_slow(
-    bool guest,
-    void (*page_table_cb)(hp_phy_address address, int level),
-    void (*leaf_pte_cb)(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
-);
-void s2pt_mark_page_table();
-void ept_locate_pc();
-extern void mark_page_not_guest(hp_phy_address addr, int level);
-bool frame_is_guest(hp_phy_address addr);
-
-#if defined(HP_X86_64)
-uint64_t cpu0_get_vmcsptr(void);
-#endif
-bool cpu0_get_user_pl(void);
-uint64_t cpu0_get_pc(void);
-void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
-uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
-void cpu0_set_pc(uint64_t rip);
-bool cpu0_get_fuzztrace(void);
-void cpu0_set_fuzztrace(bool fuzztrace);
-bool cpu0_get_fuzz_executing_input(void);
-void cpu0_set_fuzz_executing_input(bool fuzzing);
-void save_cpu();
-void restore_cpu();
-void cpu0_run_loop();
-void start_cpu();
-void dump_regs();
-unsigned long int get_icount();
-#if defined(HP_X86_64)
-unsigned long int get_pio_icount();
-#endif
-void reset_vm();
-
-static void fuzz_walk_slat() {};
-
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
-
-// core
-void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-
-typedef struct eudata {
-    // put necessary info
-    uint64_t icount;
-    void *opaque; 
-} eudata; 
-
-void fuzz_instr_before_execution(eudata i);
-void fuzz_instr_after_execution(hp_instruction *i);
-void add_edge(uint64_t prev_rip, uint64_t new_rip);
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
-void print_stacktrace();
-bool ignore_pc(hp_address pc);
-void add_pc_range(size_t base, size_t len);
-
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-void fuzz_emu_stop_normal();
-void fuzz_emu_stop_unhealthy();
-void fuzz_emu_stop_crash(const char *type);
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
-
-#if defined(HP_X86_64)
-void enum_pio_regions();
-#endif
-void enum_mmio_regions();
-void enum_handle_s2pt_gap(unsigned int gap_reason,
-        hp_address gap_start, hp_address gap_end);
-
-#if defined(HP_X86_64)
-bool inject_in(uint16_t addr, uint16_t size);
-bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
-#endif
-bool inject_read(hp_address addr, int size);
-bool inject_write(hp_address addr, int size, uint64_t val);
-
-#if defined(HP_X86_64)
-bool inject_halt();
-uint32_t inject_pci_read(uint8_t device, uint8_t function, uint8_t offset);
-bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
-uint64_t inject_rdmsr(hp_address msr);
-bool inject_wrmsr(hp_address msr, uint64_t value);
-void set_pci_device(uint8_t dev, uint8_t function);
-#endif
-
+void fuzz_run_input(const uint8_t* Data, size_t Size);
 #if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size);
 #endif
 void add_mmio_region(uint64_t addr, uint64_t size);
 void add_mmio_range_all(uint64_t addr, uint64_t end);
+void init_regions(const char* path);
 
+// main.cc
+unsigned long int get_icount();
+#if defined(HP_X86_64)
+unsigned long int get_pio_icount();
+#endif
+void start_cpu();
+#if defined(HP_X86_64)
+unsigned long int get_pio_icount();
+#endif
+void reset_vm();
+
+#include "conveyor.h"
+
+// cov.cc
+void add_pc_range(size_t base, size_t len);
+bool ignore_pc(hp_address pc);
+void reset_op_cov();
+void reset_cur_cov();
+
+// db.cc
 void open_db(const char* path);
 void insert_mmio(uint64_t addr, uint64_t len);
 void insert_pio(uint16_t addr, uint16_t len);
 void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
 void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
-void init_regions(const char* path);
 
+// enum.cc
+#if defined(HP_X86_64)
+void enum_pio_regions();
+#endif
+void enum_handle_slat_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end);
+void enum_mmio_regions();
+
+// feedback.cc
+void add_indicator_value(uint64_t val);
+void clear_indicator_values();
+void aggregate_indicators();
+void dump_indicators();
+void indicator_cb(void(*cb)(uint64_t));
 void init_register_feedback();
-void insert_register_value_into_fuzz_input(int idx);
-
-void fuzz_run_input(const uint8_t* Data, size_t Size);
-
-void reset_op_cov();
-void reset_cur_cov();
-void load_symbolization_files(char* path);
-void symbolize(size_t pc);
-
-// sym2addr_linux.cc
-void load_symbol_map(char *path);
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-uint64_t sym_to_addr(const char *bin, const char *name);
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
-std::pair<std::string, std::string> addr_to_sym(size_t addr);
 
 // link_map.c
 void load_link_map(char* map_path, char* obj_regex, size_t base);
 
-// sourcecov.c
+// sourcecov.cc
 void write_source_cov();
+void check_write_coverage();
 void init_sourcecov(size_t baseaddr);
 void setup_periodic_coverage();
-void check_write_coverage();
 
-// breakpoints.cc
-void handle_syscall_hooks(hp_instruction *i);
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-void apply_breakpoints_linux();
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
+// sym2addr_linux.cc
+void load_symbol_map(char *path);
 
-//stacktrace
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
-#endif
-void fuzz_stacktrace();
-void add_stacktrace(hp_address branch_rip, hp_address new_rip);
-void pop_stacktrace(void);
-bool empty_stacktrace(void);
-#if defined(HP_BACKEND_QEMU)
-}
-#endif
+// symbolize.cc
+void load_symbolization_files(char* path);
+void symbolize(size_t pc);
 
 #endif

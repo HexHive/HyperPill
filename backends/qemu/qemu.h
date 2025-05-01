@@ -41,10 +41,10 @@ typedef enum aa64_syndrom {
     RW,
 } aa64_syndrom;
 
-#include "qemuapi.h"
-
 #ifdef __cplusplus
 }
 #endif
+
+#include "fuzzc.h"
 
 #endif

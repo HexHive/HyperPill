@@ -32,8 +32,6 @@ void write_pcs_execution(uint64_t pc, uint64_t pc_last) {
 //     fflush(file_pcs_covered);
 }
 
-void add_edge(uint64_t prev_rip, uint64_t new_rip);
-void add_stacktrace(uint64_t branch_rip, uint64_t new_rip);
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc) {
     add_edge(branch_pc, new_pc);
     add_stacktrace(branch_pc, new_pc);
@@ -48,18 +46,12 @@ void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc) {
 // }
 
 // void qemu_tb_interrupt(unsigned cpu, unsigned vector) {
-//     fuzz_instr_interrupt(cpu, vector);
+//     fuzz_interrupt(cpu, vector);
 // }
 
-void qemu_tb_before_execution(void *i) {
-//     // this is an approximation
-//     fuzz_instr_before_execution(i);
+void qemu_tb_before_execution(TranslationBlock *tb) {
+    fuzz_before_execution(tb->icount);
 }
-
-static uint64_t icount_limit_floor = 200000;
-static uint64_t icount_limit = 50000000;
-
-static unsigned long int icount;
 
 void qemu_tb_after_execution(TranslationBlock *tb) {
 

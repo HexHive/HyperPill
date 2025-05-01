@@ -1,8 +1,5 @@
 #include "qemu.h"
-void fuzz_stacktrace();
-void fuzz_emu_stop_crash(const char *type);
 
-uint64_t sym_to_addr(const char *bin, const char *name);
 uint64_t add_breakpoint(uint64_t addr, int (*h)(void)) {
 	if (!addr)
 		return addr;
@@ -20,14 +17,15 @@ static int libasan_crash(void) {
 static int page_fault_crash(void) {
 	printf("page fault");
 	// fuzz_emu_stop_crash("page fault");
+	return 0;
 }
 
 void apply_breakpoints_linux() {
 	add_breakpoint(
-		sym_to_addr("libasan.so",
+		sym_to_addr2("libasan.so",
 			    "__asan::ScopedInErrorReport::~ScopedInErrorReport"),
 		libasan_crash);
-	add_breakpoint(sym_to_addr("vmlinux", "asm_exc_page_fault"), page_fault_crash);
+	add_breakpoint(sym_to_addr2("vmlinux", "asm_exc_page_fault"), page_fault_crash);
 }
 
 void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,

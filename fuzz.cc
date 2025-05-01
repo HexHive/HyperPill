@@ -218,9 +218,9 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_far_el2(addr && 0xfff);
-	aarch64_set_hpfar_el2(addr && (~(0xfff)));
-	aarch64_set_xreg(1, val);
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	cpu0_set_general_purpose_reg64(1, val);
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!write%d %lx %lx\n", size, addr, val);
 	}
@@ -698,7 +698,7 @@ bool op_msr_write() {
 static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
 #elif defined(HP_AARCH64)
-static uint64_t vmcall_gpregs[20]; // TODO
+static uint64_t vmcall_gpregs[31];
 #endif
 static uint32_t vmcall_enabled_regs;
 
@@ -799,7 +799,7 @@ bool op_vmcall() {
 			if (ic_ingest64(&val, 0, -1)) {
 				return false;
 			}
-			aarch64_set_xreg(i, val);
+			cpu0_set_general_purpose_reg64(i, val);
 		}
 	}
 	aarch64_set_esr_el2_for_hvc();

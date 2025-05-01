@@ -59,7 +59,7 @@ void bx_instr_far_branch(unsigned cpu, unsigned what, Bit16u prev_cs, bx_address
 
 void bx_instr_opcode(unsigned cpu, bxInstruction_c *i, const Bit8u *opcode, unsigned len, bool is32, bool is64) {}
 
-void bx_instr_interrupt(unsigned cpu, unsigned vector) { fuzz_instr_interrupt(cpu, vector);}
+void bx_instr_interrupt(unsigned cpu, unsigned vector) { fuzz_interrupt(cpu, vector);}
 
 void bx_instr_exception(unsigned cpu, unsigned vector, unsigned error_code) {
     fuzz_hook_exception(vector, error_code);
@@ -72,10 +72,12 @@ void bx_instr_cache_cntrl(unsigned cpu, unsigned what) {}
 void bx_instr_prefetch_hint(unsigned cpu, unsigned what, unsigned seg, bx_address offset) {}
 
 void bx_instr_before_execution(unsigned cpu, bxInstruction_c *i) {
-    fuzz_instr_before_execution(i);
+	handle_breakpoints(i);
+	handle_syscall_hooks(i);
+    fuzz_before_execution(i);
 }
 void bx_instr_after_execution(unsigned cpu, bxInstruction_c *i) {
-    fuzz_instr_after_execution(i);
+    fuzz_after_execution(i);
 }
 void bx_instr_repeat_iteration(unsigned cpu, bxInstruction_c *i) {}
 

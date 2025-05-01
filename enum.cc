@@ -15,6 +15,7 @@
 std::vector<std::tuple<hp_address, hp_address, unsigned int>> s2pt_exit_ranges; // Start, Base, Reason
 
 #if defined(HP_X86_64)
+static
 std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -55,6 +56,7 @@ std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icoun
     return pio_regions;
 }
 
+static
 std::vector<bool> identify_ports_by_icount_distribution(
         std::vector<uint32_t> icounts) {
     std::vector<bool> pio_regions(0xFFFF+1, 0);
@@ -80,6 +82,7 @@ std::vector<bool> identify_ports_by_icount_distribution(
     return pio_regions;
 }
 
+static
 std::vector<uint32_t> get_pio_icounts() {
     // idealy, we sum the icounts of injected pio read and write
     // however, out to port 0x20 in KVM results in an infinite loop
@@ -106,6 +109,7 @@ std::vector<uint32_t> get_pio_icounts() {
     return pio_icounts;
 }
 
+static
 std::map<uint16_t, uint16_t> merge_pio_regions(std::vector<bool> pio_regions) {
     std::map<uint16_t, uint16_t> regions;
 
@@ -141,7 +145,7 @@ void enum_pio_regions() {
 }
 #endif
 
-void enum_handle_s2pt_gap(unsigned int gap_reason,
+void enum_handle_slat_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end) {
     s2pt_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
 #if defined(HP_X86_64)

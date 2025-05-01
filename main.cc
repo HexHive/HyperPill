@@ -108,8 +108,7 @@ void fuzz_emu_stop_crash(const char *type){
 }
 
 void fuzz_hook_exception(unsigned vector, unsigned error_code) {
-	if (verbose)
-		printf("Exception: 0x%x 0x%x\n", vector, error_code);
+	verbose_printf("Exception: 0x%x 0x%x\n", vector, error_code);
 }
 
 void fuzz_hook_hlt() {
@@ -128,8 +127,7 @@ unsigned long int get_pio_icount() {
 #endif
 
 void reset_vm() {
-	if (verbose)
-		printf("Resetting VM !\n");
+	verbose_printf("Resetting VM !\n");
 	restore_cpu();
 #if defined(HP_X86_64)
 	icp_set_vmcs_map();
@@ -137,14 +135,16 @@ void reset_vm() {
 	fuzz_reset_memory();
 }
 
-void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
+void fuzz_interrupt(unsigned cpu, unsigned vector) {
 	if (vector == 3) {
         fuzz_emu_stop_crash("debug interrupt");
 	}
 }
 
-void fuzz_instr_after_execution(hp_instruction *i) {
+void fuzz_after_execution(hp_instruction *i) {
 #if defined(X86_64)
+	addr_bin_name addr_bin_name;
+	addr_bin_name.bin = "qemu-system";
 	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
 		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
@@ -176,7 +176,7 @@ void fuzz_instr_after_execution(hp_instruction *i) {
  			current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
 			// printf("get_current()=0x%lx\n", current);
 			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
+				uint64_t qtest_allowed = sym_to_addr2("qemu-system", "qtest_allowed");
 				bool __qtest_allowed = 1;
 				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
 			}
@@ -197,7 +197,7 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 				return;
 			}
 			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
+				uint64_t qtest_allowed = sym_to_addr2("qemu-system", "qtest_allowed");
 				bool __qtest_allowed = 0;
 				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
 			}
@@ -212,11 +212,7 @@ void fuzz_instr_after_execution(hp_instruction *i) {
 #endif
 }
 
-void fuzz_instr_before_execution(hp_instruction *i) {
-#if defined(HP_BACKEND_BOCHS)
-	handle_breakpoints(i);
-	handle_syscall_hooks(i);
-#endif
+void fuzz_before_execution(uint64_t ic) {
 	if (!fuzzing && !fuzzenum)
 		return;
 
@@ -225,9 +221,9 @@ void fuzz_instr_before_execution(hp_instruction *i) {
 		printf("icount abort %d\n", icount);
 	    fuzz_emu_stop_unhealthy();
 	}
-    icount++;
+    icount += ic;
 #if defined(HP_X86_64)
-    pio_icount++;
+    pio_icount += ic;
 #endif
 
 }
@@ -444,13 +440,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
 		if (getenv("END_WITH_CLOCK_STEP")) {
 			// see kvm_cpu_exe() in accel/kvm/kvm-all.c
-			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu-system", "address_space_rw");
-			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr("qemu-system", "qemu_clock_deadline_ns_all");
-			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr("qemu-system", "qemu_clock_get_ns");
+			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr2("qemu-system", "address_space_rw");
+			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr2("qemu-system", "qemu_clock_deadline_ns_all");
+			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr2("qemu-system", "qemu_clock_get_ns");
 			// since qemu-v9.1.0-rc0
-			clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu-system", "qemu_clock_advance_virtual_time");
+			clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr2("qemu-system", "qemu_clock_advance_virtual_time");
 			if (!clock_step_rip[CLOCK_STEP_WARP]) {
-				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu-system", "qtest_clock_warp");
+				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr2("qemu-system", "qtest_clock_warp");
 				hack_qtest_allowed = true;
 			}
 			clock_step_rip[CLOCK_STEP_DONE] = 0;

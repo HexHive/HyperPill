@@ -19,9 +19,9 @@ void fuzz_clear_dirty() {
 }
 
 void fuzz_watch_memory_inc() {
+	RAMBlock *ram_block;
 	switch (watch_level) {
 	case 0:
-		RAMBlock *ram_block;
 		RAMBLOCK_FOREACH(ram_block) {
 			if (strcmp(ram_block->idstr, "mach-virt.ram")) {
 				continue;
@@ -30,7 +30,7 @@ void fuzz_watch_memory_inc() {
 			ram_block->bmap = bitmap_new(pages);
 			bitmap_set(ram_block->bmap, 0, pages);
 		}
-		// memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
+		memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
 		break;
 	default:
 		break;
