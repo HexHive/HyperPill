@@ -59,7 +59,7 @@ extern std::vector<size_t> guest_page_scratchlist;
 #if defined(HP_BACKEND_QEMU)
 extern "C" {
 #endif
-uint64_t lookup_gpa_by_hpa(uint64_t hpa);
+static uint64_t lookup_gpa_by_hpa(uint64_t hpa) {};
 
 void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
@@ -171,17 +171,30 @@ unsigned long int get_pio_icount();
 #endif
 void reset_vm();
 
-void fuzz_walk_slat();
+static void fuzz_walk_slat() {};
 
 #if defined(HP_BACKEND_QEMU)
 }
 #endif
 
 // core
-void fuzz_instr_before_execution(hp_instruction *i);
-void fuzz_instr_after_execution(hp_instruction *i);
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-void add_edge(hp_address prev_rip, hp_address new_rip);
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
+#endif
+
+typedef struct eudata {
+    // put necessary info
+    uint64_t icount;
+    void *opaque; 
+} eudata; 
+
+void fuzz_instr_before_execution(eudata i);
+void fuzz_instr_after_execution(hp_instruction *i);
+void add_edge(uint64_t prev_rip, uint64_t new_rip);
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 void print_stacktrace();
 bool ignore_pc(hp_address pc);
 void add_pc_range(size_t base, size_t len);

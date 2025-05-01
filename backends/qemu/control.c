@@ -112,7 +112,7 @@ void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
 
     qemu_ctrl_flow_insn(prev_pc, tb->pc);
     prev_pc = tb->pc;
-    qemu_tb_after_execution(NULL);
+    qemu_tb_after_execution(tb);
     write_pcs_execution(tb->pc, tb->pc_last);
 }
 
