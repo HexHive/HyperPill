@@ -24,7 +24,11 @@ static void *log_writes;
 static bool fuzzenum;
 
 uint64_t icount_limit_floor = 200000;
+#if defined(HP_BACKEND_BOCHS)
 uint64_t icount_limit = 50000000;
+#elif defined(HP_BACKEND_QEMU)
+uint64_t icount_limit = 500000;
+#endif
 
 static unsigned long int icount;
 #if defined(HP_X86_64)

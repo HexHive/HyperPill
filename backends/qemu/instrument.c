@@ -53,6 +53,36 @@ void qemu_tb_before_execution(TranslationBlock *tb) {
     fuzz_before_execution(tb->icount);
 }
 
+void before_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
+    if(tb == NULL)
+        return;
+    qemu_tb_before_execution(tb);
+    if (!cpu0_get_fuzz_executing_input()) {
+        vm_stop(RUN_STATE_RESTORE_VM);
+    }
+}
+
 void qemu_tb_after_execution(TranslationBlock *tb) {
 
 }
+
+void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
+    static uint64_t prev_pc = 0;
+
+    if(tb == NULL || QEMU_CPU(0)->cpu_index != cpu_index)
+        return;
+
+    // printf("TB executed: cpu_index=%d pc=0x%"PRIxPTR" pc_end=0x%"PRIxPTR "\n",
+    //    cpu_index, tb->pc, tb->pc_last);
+
+    if (prev_pc == 0) {
+        prev_pc = tb->pc;
+        return;
+    }
+
+    qemu_ctrl_flow_insn(prev_pc, tb->pc);
+    prev_pc = tb->pc;
+    qemu_tb_after_execution(tb);
+    write_pcs_execution(tb->pc, tb->pc_last);
+}
+

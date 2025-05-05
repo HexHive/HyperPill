@@ -89,33 +89,6 @@ void pre_el_change_fn(ARMCPU *cpu, void *opaque) {
     }
 }
 
-void before_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
-    if(tb == NULL || QEMU_CPU(0)->cpu_index != cpu_index)
-        return;
-
-    qemu_tb_before_execution(NULL);
-}
-
-void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
-    static uint64_t prev_pc = 0;
-
-    if(tb == NULL || QEMU_CPU(0)->cpu_index != cpu_index)
-        return;
-
-    // printf("TB executed: cpu_index=%d pc=0x%"PRIxPTR" pc_end=0x%"PRIxPTR "\n",
-    //    cpu_index, tb->pc, tb->pc_last);
-
-    if (prev_pc == 0) {
-        prev_pc = tb->pc;
-        return;
-    }
-
-    qemu_ctrl_flow_insn(prev_pc, tb->pc);
-    prev_pc = tb->pc;
-    qemu_tb_after_execution(tb);
-    write_pcs_execution(tb->pc, tb->pc_last);
-}
-
 typedef struct {
     uint64_t addr;
 } InsnData;
