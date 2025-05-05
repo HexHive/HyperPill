@@ -488,7 +488,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	}
 #endif
 	if (getenv("KVM")) {
+#if defined(HP_X86_64)
 		add_pc_range(0, 0x7fffffffffff);
+#endif
 		apply_breakpoints_linux();
     }
 

@@ -150,6 +150,7 @@ typedef struct addr_bin_name {
     size_t addr;
     const char *bin;
     const char *name;
+    int off;
 } addr_bin_name;
 bool addr_to_sym(addr_bin_name *addr_bin_name);
 bool sym_to_addr(addr_bin_name *addr_bin_name);

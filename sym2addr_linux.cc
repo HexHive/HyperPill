@@ -36,23 +36,25 @@ uint64_t sym_to_addr2(const char *bin, const char *name) {
     return addr_bin_name.addr;
 }
 
-// std::pair<std::string, std::string> 
 bool addr_to_sym(addr_bin_name *addr_bin_name) {
     size_t addr = addr_bin_name->addr;
     if(addr2sym.find(addr) != addr2sym.end()) {
         addr_bin_name->bin = addr2sym[addr][0].first.c_str();
         addr_bin_name->name = addr2sym[addr][0].second.c_str();
+        addr_bin_name->off = 0;
         return true;
     }
     for(int i =0; i<0x1000; i++){
         if(addr2sym.find(addr-i) != addr2sym.end()){
             addr_bin_name->bin = addr2sym[addr-i][0].first.c_str();
-            addr_bin_name->name = (addr2sym[addr-i][0].second + " +"+std::to_string(i)).c_str();
+            addr_bin_name->name = addr2sym[addr-i][0].second.c_str();
+            addr_bin_name->off = i;
             return true;
         }
     }
     addr_bin_name->bin = NULL;
     addr_bin_name->name = NULL;
+    addr_bin_name->off = 0;
     return false;
 }
 

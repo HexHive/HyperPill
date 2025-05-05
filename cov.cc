@@ -81,7 +81,7 @@ void add_edge(hp_address prev_rip, hp_address new_rip) {
         addr_bin_name addr_bin_name;
         addr_bin_name.addr = new_rip;
         addr_to_sym(&addr_bin_name);
-        printf("[%d] NEW_PC: %lx %s (%s)\n", t, new_rip, addr_bin_name.bin, addr_bin_name.name);
+        printf("[%d] NEW_PC: %lx %s (%s +%d)\n", t, new_rip, addr_bin_name.bin, addr_bin_name.name, addr_bin_name.off);
         status |= (1 << 1); // new pc
     }
 }
