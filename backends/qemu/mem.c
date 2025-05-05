@@ -82,8 +82,8 @@ void icp_init_mem(const char *filename) {
 		break;
 	}
 
-	// shadowram = (uint8_t *)malloc(ramsize);
-	// memcpy(shadowram, (void *)ram, ramsize);
+	shadowram = (uint8_t *)malloc(ramsize);
+	memcpy(shadowram, (void *)ram, ramsize);
 }
 
 void cpu0_read_virtual(hp_address start, size_t size, void *data) {

@@ -52,12 +52,12 @@ void restore_cpu() {
 }
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
-    assert(reg < 31);
+    assert(reg < 32);
     (ARM_CPU(QEMU_CPU(0))->env).xregs[reg] = value;
 }
 
 uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
-    assert(reg < 31);
+    assert(reg < 32);
     return (ARM_CPU(QEMU_CPU(0))->env).xregs[reg];
 }
 

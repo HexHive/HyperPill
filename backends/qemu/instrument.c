@@ -72,16 +72,8 @@ void after_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
     if(tb == NULL || QEMU_CPU(0)->cpu_index != cpu_index)
         return;
 
-    // printf("TB executed: cpu_index=%d pc=0x%"PRIxPTR" pc_end=0x%"PRIxPTR "\n",
-    //    cpu_index, tb->pc, tb->pc_last);
-
-    if (prev_pc == 0) {
-        prev_pc = tb->pc;
-        return;
-    }
-
-    qemu_ctrl_flow_insn(prev_pc, tb->pc);
     prev_pc = tb->pc;
+    qemu_ctrl_flow_insn(prev_pc, tb->pc);
     qemu_tb_after_execution(tb);
     write_pcs_execution(tb->pc, tb->pc_last);
 }
