@@ -25,6 +25,7 @@ extern "C" {
 
 #include "accel/tcg/internal-target.h"
 
+#include "qemu/plugin.h"
 #include "qemu/qemu-plugin.h"
 #include "qemu/plugin-memory.h"
 #include "plugin.h"
@@ -33,13 +34,18 @@ typedef uint64_t hp_address;
 typedef uint64_t hp_phy_address;
 typedef void hp_instruction;
 
-extern ARMCPU shadow_qemu_cpu;
 #define QEMU_CPU(x) first_cpu
 
-typedef enum aa64_syndrom {
-    HVC = 0,
-    RW,
-} aa64_syndrom;
+int hp_qemu_plugin_load();
+extern struct qemu_plugin_state plugin;
+void hp_vcpu_mem_access(
+        unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+        uint64_t vaddr, void *userdata, enum qemu_plugin_pos pos, uint32_t size);
+
+void el_change_fn(ARMCPU *cpu, void *opaque);
+void pre_el_change_fn(ARMCPU *cpu, void *opaque);
+void before_exec_tb_fn(int cpu_index, TranslationBlock *tb);
+void after_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,87 @@ static uint8_t watch_level = 0;
 static size_t ramsize;
 static uint8_t *ram;
 static uint8_t *shadowram;
+static uint64_t prioraccess = 0;
+
+enum Sizes { Byte, Word, Long, Quad, end_sizes };
+void hp_vcpu_mem_access(
+        unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+        uint64_t vaddr, void *userdata, enum qemu_plugin_pos pos, uint32_t size) {
+    if (QEMU_CPU(0)->cpu_index != cpu_index) {
+        return;
+    }
+	if (watch_level<=1) {
+		return;
+	}
+
+    if (pos == QEMU_PLUGIN_UNKNOW_POS) {
+        abort();
+    }
+	enum qemu_plugin_mem_rw rw;
+    rw = get_plugin_meminfo_rw(meminfo);
+	if (pos == QEMU_PLUGIN_BEFORE && (!((rw == QEMU_PLUGIN_MEM_R) || (rw == QEMU_PLUGIN_MEM_RW)))) {
+		return;
+	}
+	if (pos == QEMU_PLUGIN_AFTER && (!((rw == QEMU_PLUGIN_MEM_W) || (rw == QEMU_PLUGIN_MEM_RW)))) {
+		return;
+	}
+
+    struct qemu_plugin_hwaddr *hwaddr;
+    hwaddr = qemu_plugin_get_hwaddr(meminfo, vaddr);
+    if (hwaddr && qemu_plugin_hwaddr_is_io(hwaddr)) {
+        return;
+    }
+	uint64_t addr = qemu_plugin_hwaddr_phys_addr(hwaddr);
+
+	if (addr >= ramsize) {
+		return;
+	}
+	uint64_t aligned = addr & (~0xFFFLL);
+
+	if (aligned == prioraccess) {
+		return;
+	}
+
+	const char *name = qemu_plugin_hwaddr_device_name(hwaddr);
+	if (strncmp("RAM", name, strlen("RAM")) != 0) {
+		return;
+	}
+    
+    if (rw == QEMU_PLUGIN_MEM_W || rw == QEMU_PLUGIN_MEM_RW ) {
+		prioraccess = aligned;
+		RAMBlock *ram_block;
+		RAMBLOCK_FOREACH(ram_block) {
+			if (strcmp(ram_block->idstr, "mach-virt.ram")) {
+				continue;
+			}
+			uint64_t pages = addr >> 12;
+			test_and_set_bit(pages, ram_block->bmap);
+			break;
+		}
+    } 
+
+	if (rw == QEMU_PLUGIN_MEM_R) {
+		size_t __size = 0;
+		switch (size) {
+			case Byte: __size = 1; break;
+			case Word: __size = 2; break;
+			case Long: __size = 4; break;
+			case Quad: __size = 8; break;
+			case end_sizes: __size = 16; break;
+			default: abort();
+		}
+		uint8_t data[__size];
+		// printf("load, 0x%08"PRIx64", %lx\n", addr, size);
+		// if (is_l2_page_bitmap[hwaddr >> 12]) {
+		if (0) {
+				if (cpu0_get_fuzztrace()) {
+					/* printf(".dma inject: %lx +%lx ",phy, len); */
+				}
+				fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
+			}
+		// __cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
+	}
+}
 
 void fuzz_clear_dirty() {
 	RAMBlock *ram_block;
@@ -14,7 +95,7 @@ void fuzz_clear_dirty() {
 			continue;
 		}
 		uint64_t pages = ram_block->used_length >> 12;
-		bitmap_set(ram_block->bmap, 0, pages);
+		bitmap_clear(ram_block->bmap, 0, pages);
 		break;
 	}
 }
@@ -29,10 +110,9 @@ void fuzz_watch_memory_inc() {
 			}
 			uint64_t pages = ram_block->used_length >> 12;
 			ram_block->bmap = bitmap_new(pages);
-			bitmap_set(ram_block->bmap, 0, pages);
+			bitmap_clear(ram_block->bmap, 0, pages);
 			break;
 		}
-		memory_global_dirty_log_start(GLOBAL_DIRTY_MIGRATION);
 		break;
 	default:
 		break;
@@ -40,12 +120,20 @@ void fuzz_watch_memory_inc() {
 	watch_level++;
 }
 
+ssize_t find_diff(const void *a, const void *b, size_t n) {
+    const uint64_t *pa = (const uint64_t *)a;
+    const uint64_t *pb = (const uint64_t *)b;
+
+    for (size_t i = 0; i < n / 8; i++) {
+        if (pa[i] != pb[i]) {
+			printf("diffat 0x%016lx\n", i * 8);
+        }
+    }
+}
+
 void fuzz_reset_memory() {
-	return;
 	if (watch_level <= 1)
 		return;
-
-	// memory_global_dirty_log_stop(GLOBAL_DIRTY_MIGRATION);
 
 	RAMBlock *ram_block;
 	RAMBLOCK_FOREACH(ram_block) {
@@ -58,9 +146,10 @@ void fuzz_reset_memory() {
 		while (dirty < pages) {
 			memcpy(ram + (dirty << 12), shadowram + (dirty << 12),
 			       1 << 12);
-			dirty = find_next_bit(ram_block->bmap, pages, dirty);
-			break;
+			dirty = find_next_bit(ram_block->bmap, pages, dirty + 1);
 		}
+		memcpy(ram + 0xc0000000, shadowram + 0xc0000000, 0x10000000);
+		break;
 	}
 	fuzz_clear_dirty();
 }

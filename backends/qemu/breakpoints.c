@@ -11,13 +11,29 @@ static int libasan_crash(void) {
 	// every error through asan should reach this
 	fuzz_stacktrace();
 	fuzz_emu_stop_crash("ASAN error report\n");
-	return EXCP_DEBUG;
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
 }
 
 static int page_fault_crash(void) {
-	printf("page fault");
-	// fuzz_emu_stop_crash("page fault");
-	return 0;
+	fuzz_stacktrace();
+	fuzz_emu_stop_crash("page fault report\n");
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
+}
+
+static int stack_chk_fail_crash(void) {
+	fuzz_stacktrace();
+	fuzz_emu_stop_crash("stack chk fail report\n");
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
+}
+
+static int do_idle_crash(void) {
+	fuzz_stacktrace();
+	fuzz_emu_stop_crash("stack chk fail report\n");
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
 }
 
 void apply_breakpoints_linux() {
@@ -26,6 +42,8 @@ void apply_breakpoints_linux() {
 			    "__asan::ScopedInErrorReport::~ScopedInErrorReport"),
 		libasan_crash);
 	add_breakpoint(sym_to_addr2("vmlinux", "asm_exc_page_fault"), page_fault_crash);
+	add_breakpoint(sym_to_addr2("vmlinux", "__stack_chk_fail"), stack_chk_fail_crash);
+	add_breakpoint(sym_to_addr2("vmlinux", "do_idle"), do_idle_crash);
 }
 
 void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
