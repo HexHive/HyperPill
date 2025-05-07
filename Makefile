@@ -156,7 +156,6 @@ else ifeq ($(BACKEND), qemu)
 			--branch v8.2.7 --depth=1; \
 		cd vendor/qemu; \
 		git am ../../Makefile.qemu.patch; \
-		patch -p1 < ../../hyperpill-snap/aarch64/migration.patch; \
 		cd ../..; \
 	fi
 	rm -rf vendor/lib vendor/include

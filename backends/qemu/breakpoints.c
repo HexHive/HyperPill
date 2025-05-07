@@ -29,6 +29,20 @@ static int stack_chk_fail_crash(void) {
 	return EXCP_HALTED;
 }
 
+static int idle_crash(void) {
+	fuzz_stacktrace();
+	fuzz_emu_stop_crash("idle report\n");
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
+}
+
+static int die_crash(void) {
+	fuzz_stacktrace();
+	fuzz_emu_stop_crash("die report\n");
+	vm_stop(RUN_STATE_RESTORE_VM);
+	return EXCP_HALTED;
+}
+
 static int skip(void) {
 	fuzz_emu_stop_unhealthy();
 	vm_stop(RUN_STATE_RESTORE_VM);
@@ -42,7 +56,8 @@ void apply_breakpoints_linux() {
 		libasan_crash);
 	add_breakpoint(sym_to_addr2("vmlinux", "asm_exc_page_fault"), page_fault_crash);
 	add_breakpoint(sym_to_addr2("vmlinux", "__stack_chk_fail"), stack_chk_fail_crash);
-	add_breakpoint(sym_to_addr2("vmlinux", "do_idle"), skip);
+	add_breakpoint(sym_to_addr2("vmlinux", "do_idle"), idle_crash);
+	add_breakpoint(sym_to_addr2("vmlinux", "die"), die_crash);
 }
 
 void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,

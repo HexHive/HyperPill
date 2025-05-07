@@ -465,7 +465,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #if defined(HP_X86_64)
 	vmcs_fixup();
 #endif
-	// init_register_feedback();
+	init_register_feedback();
 
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))
 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),

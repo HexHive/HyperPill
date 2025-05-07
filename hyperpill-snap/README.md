@@ -339,7 +339,7 @@ hypervisor running inside.
 ```bash
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
 libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
-build-essential libslirp-dev
+build-essential libslirp-dev binutils-aarch64-linux-gnu
 [L0] wget https://download.qemu.org/qemu-8.2.7.tar.bz2
 [L0] tar xf qemu-8.2.7.tar.bz2
 [L0] cd qemu-8.2.7

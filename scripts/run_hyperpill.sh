@@ -12,7 +12,7 @@ fi
 export ASAN_OPTIONS=use_sigaltstack=false
 if [ -z $crash ]; then
 LIBFUZZER_FLAGS="-max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 -reload=60 \
-    -dict=$PROJECT_ROOT/data/dict -len_control=0 \
+    -dict=$PROJECT_ROOT/data/dict \
     $LIBFUZZER_ARGS $CORPUS_DIR
     "
 else
