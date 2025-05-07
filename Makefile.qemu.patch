@@ -1,4 +1,4 @@
-From 8b8a91f50b7e5792e3cdec58a07d469b7d6c61a7 Mon Sep 17 00:00:00 2001
+From e81dcf6998d3c221f23c5ac2a35c7581071822c7 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Wed, 7 May 2025 09:30:54 +0200
 Subject: [PATCH] Patch QEMU for HyperARM
@@ -27,7 +27,7 @@ Subject: [PATCH] Patch QEMU for HyperARM
  gdbstub/system.c                      |   4 +-
  gdbstub/user.c                        |   4 +-
  hmp-commands.hx                       |  32 ++++++++
- hw/block/pflash_cfi01.c               |   4 +-
+ hw/block/pflash_cfi01.c               |   2 +-
  include/exec/memory.h                 |  14 ----
  include/exec/memory_ldst_cached.h.inc |   3 -
  include/exec/plugin-gen.h             |   4 +-
@@ -63,7 +63,7 @@ Subject: [PATCH] Patch QEMU for HyperARM
  tcg/tcg-op.c                          |   2 +-
  tests/plugin/mem.c                    |   2 +-
  tests/qtest/fuzz/generic_fuzz.c       | 108 --------------------------
- 59 files changed, 337 insertions(+), 243 deletions(-)
+ 59 files changed, 335 insertions(+), 243 deletions(-)
 
 diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
 index abe7adf..35a0436 100644
@@ -814,20 +814,18 @@ index 765349e..07f8967 100644
  
      {
 diff --git a/hw/block/pflash_cfi01.c b/hw/block/pflash_cfi01.c
-index 5e848a9..dbbad08 100644
+index 5e848a9..424e817 100644
 --- a/hw/block/pflash_cfi01.c
 +++ b/hw/block/pflash_cfi01.c
-@@ -1034,7 +1034,9 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
+@@ -1045,7 +1045,7 @@ static int pflash_post_load(void *opaque, int version_id)
+ {
      PFlashCFI01 *pfl = opaque;
  
-     /* This is called after bdrv_activate_all.  */
--    qemu_del_vm_change_state_handler(pfl->vmstate);
-+    if (pfl->vmstate) {
-+        qemu_del_vm_change_state_handler(pfl->vmstate);
-+    }
-     pfl->vmstate = NULL;
- 
-     trace_pflash_postload_cb(pfl->name);
+-    if (!pfl->ro) {
++    if (!pfl->ro && !pfl->vmstate) {
+         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
+                                                         pfl);
+     }
 diff --git a/include/exec/memory.h b/include/exec/memory.h
 index 831f7c9..0e73fe0 100644
 --- a/include/exec/memory.h
@@ -1800,5 +1798,5 @@ index ec842e0..44b7bc2 100644
   * Here we want to convert a fuzzer-provided [io-region-index, offset] to
   * a physical address. To do this, we iterate over all of the matched
 -- 
-2.43.0
+2.34.1
 

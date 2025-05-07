@@ -16,7 +16,7 @@ LIBFUZZER_FLAGS="-max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profi
     $LIBFUZZER_ARGS $CORPUS_DIR
     "
 else
-LIBFUZZER_FLAGS="$crash"
+LIBFUZZER_FLAGS="-rss_limit_mb=-1 -detect_leaks=0 $crash"
 fi
 
 if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then

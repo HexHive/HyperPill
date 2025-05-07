@@ -50,7 +50,7 @@ endif
 else
     $(error Unsupported architecture: $(ARCH))
 endif
-CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \
@@ -162,7 +162,7 @@ else ifeq ($(BACKEND), qemu)
 	mkdir -p vendor/qemu-build
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
 		--disable-vnc --disable-sdl --disable-bpf --enable-slirp \
-		--enable-capstone --target-list=aarch64-softmmu --enable-debug
+		--enable-capstone --target-list=aarch64-softmmu
 	cd vendor/qemu-build; ninja -j $(NPROCS)
 
 	# cd vendor/qemu; meson subprojects download dtc
