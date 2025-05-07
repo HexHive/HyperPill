@@ -19,13 +19,8 @@
 BX_MEM_C::BX_MEM_C() {}
 BX_MEM_C::~BX_MEM_C() {}
 
-size_t maxaddr = 0;
-
 static uint8_t watch_level = 0;
 static uint8_t* overlays[3];
-uint8_t* is_l2_page_bitmap; /* Page is in L2 */
-uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
-size_t guest_mem_size;
 
 int shfd; // for overlay[0]
 char md5sum_chr[33]; // for overlay[0]
@@ -38,17 +33,15 @@ uint8_t *overlay_map; // 0: from shadowmem 1: from workershadowmem
 tsl::robin_set<bx_phy_address> dirtyset;
 
 tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
-tsl::robin_map<bx_phy_address, bx_phy_address> hpa_to_gpa;
-
-std::vector<std::tuple<bx_address, uint8_t, uint8_t>> fuzzed_guest_pages; // < HPA, pagetable_level, original_val >
 
 static int memory_commit_level;
 
 size_t ndirty=0;
 
-void fuzz_hook_memory_access(hp_address phy, unsigned len, 
+static bx_address prioraccess;
+void fuzz_hook_memory_access(bx_address phy, unsigned len, 
                              unsigned memtype, unsigned rw, void* data) {
-    hp_address aligned = phy&(~0xFFFLL);
+    bx_address aligned = phy&(~0xFFFLL);
 
     /* printf("Memory access to %lx\n", phy); */
     // Sometimes we might run instructions during initialization and we
@@ -59,7 +52,7 @@ void fuzz_hook_memory_access(hp_address phy, unsigned len,
     if(aligned == prioraccess)
         return;
 
-    if(rw == 1 /*BX_WRITE*/ || rw == 3 /*BX_RW*/) {
+    if(rw == BX_WRITE || rw == BX_RW) {
         prioraccess = aligned;
       // This stores the addr in the dirtyset (reset for each input) and makes a
       // copy of the corresponding page in shadowset/shadowmem (persistent).
@@ -77,7 +70,7 @@ void fuzz_hook_memory_access(hp_address phy, unsigned len,
     // used to identify DMA accesses in the guest
     // contains a mapping for each host physical page, for whether it corresponds to a guest page
     // if an access uses such an address, it is likely a DMA
-    if (rw == 0 /*BX_READ*/ && is_l2_page_bitmap[phy >> 12]) {
+    if (rw == BX_READ && is_l2_page_bitmap[phy >> 12]) {
         if(cpu0_get_fuzztrace()) {
             /* printf(".dma inject: %lx +%lx ",phy, len); */
         }
@@ -98,6 +91,7 @@ void fuzz_clear_dirty() {
 void fuzz_watch_memory_inc() {
     watch_level++;
 }
+
 
 /**
  * During fuzzing, there is a chance that new guest addresses get paged in.
@@ -125,20 +119,6 @@ void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     } else {
         mark_l2_guest_page(new_addr, len, 0);
     }
-}
-
-void fuzz_reset_watched_pages() {
-    // printf("[fuzz_reset_watched_pages] reset 0x%lx watched pages\n", fuzzed_guest_pages.size());;
-    for (auto& page : fuzzed_guest_pages) {
-      bx_address addr = std::get<0>(page);
-      uint8_t is_pgtable = std::get<1>(page);
-      uint8_t saved_val = std::get<2>(page);
-      if (is_pgtable)
-        is_l2_pagetable_bitmap[addr >> 12] = saved_val;
-      else // normal guest page
-        is_l2_page_bitmap[addr >> 12] = saved_val;
-    }
-    fuzzed_guest_pages.clear();
 }
 
 void add_persistent_memory_range(bx_phy_address start, bx_phy_address len) {
@@ -215,7 +195,6 @@ void BX_MEM_C::readPhysicalPage(BX_CPU_C *cpu, bx_phy_address addr, unsigned len
     memcpy(data, addr_conv(addr), len);
     return;
 }
-
 
 Bit8u *BX_MEM_C::getHostMemAddr(BX_CPU_C *cpu, bx_phy_address addr, unsigned rw)
 {
@@ -336,17 +315,6 @@ void icp_init_mem(const char *filename) {
     fclose(file);
 
   }
-}
-
-void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level) {
-    if(paddr < maxaddr) {
-        // we use page level values of >=1 to facilitate checking the bitmap
-        // bitmap value of 0 will indicate that the page is not present
-        // a non-zero bitmap value will indicate the page level, with
-        // level 1 mapped to BX_LEVEL_PTE and level 4 mapped to BX_LEVEL_PML4
-        is_l2_pagetable_bitmap[paddr>>12] = level + 1;
-        assert(level >= 0 && level <= 3);
-    }
 }
 
 void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){

@@ -50,10 +50,6 @@ void redo_paging();
 void vmcs_fixup();
 #endif
 
-static void fuzz_walk_slat() {};
-static uint64_t lookup_gpa_by_hpa(uint64_t hpa) {};
-
-
 // fuzz.cc
 void clear_seen_dma();
 unsigned int num_mmio_regions();
@@ -140,8 +136,13 @@ void dump_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 void init_register_feedback();
 
-// link_map.c
+// link_map.cc
 void load_link_map(char* map_path, char* obj_regex, size_t base);
+
+// slat.cc
+void walk_slat();
+void fuzz_walk_slat();
+void slat_mark_page_table();
 
 // sourcecov.cc
 void write_source_cov();

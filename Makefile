@@ -62,6 +62,8 @@ OBJS_GENERIC= \
 			  feedback.o \
 			  link_map.o \
 			  main.o \
+			  mem.o \
+			  slat.o \
 			  sourcecov.o \
 			  sym2addr_linux.o \
 			  symbolize.o \
@@ -105,6 +107,8 @@ OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/mem.o \
 			  backends/qemu/regs.o \
 			  backends/qemu/s2pt.o \
+			  backends/qemu/at.o \
+			  backends/qemu/nested.o \
 			  backends/qemu/dbg.o \
 			  $(OBJS_GENERIC)
 else

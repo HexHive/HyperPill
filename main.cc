@@ -425,7 +425,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * crash in practice (if the page-table was corrupted by the fuzzer, the
 	 * MMIO exit wouldn't have happened in the first place
 	 */
-	// s2pt_mark_page_table();
+	slat_mark_page_table();
 
 #if defined(HP_X86_64)
 	/* Translate the guest's RIP in the VMCS to a physical-address */

@@ -104,12 +104,12 @@ void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
-void walk_s1_slow(
-    bool guest,
-    void (*page_table_cb)(hp_phy_address address, int level),
-    void (*leaf_pte_cb)(hp_phy_address addr, hp_phy_address pte, hp_phy_address mask)
-);
 hp_phy_address cpu0_virt2phy(hp_address addr);
+#if defined(HP_X86_64)
+void ept_mark_page_table();
+#elif defined(HP_AARCH64)
+void s2pt_mark_page_table();
+#endif
 
 // fuzz.cc
 void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
@@ -144,6 +144,13 @@ bool fuzz_hook_vmlaunch();
 bool fuzz_hook_back_to_el1_kernel(void);
 #endif
 void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
+
+// mem.cc
+extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
+extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
+void hpa_to_gpa_get(uint64_t hpa, uint64_t *gpa);
+void hpa_to_gpa_set(uint64_t hpa, uint64_t *gpa);
+void fuzzed_guest_paged_push_back(uint64_t hpa, uint8_t pagetable_level, uint8_t original_val);
 
 // sym2addr_linux.cc
 typedef struct addr_bin_name {

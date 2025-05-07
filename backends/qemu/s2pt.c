@@ -3,6 +3,7 @@
 // code from the Linux kernel: 5bc10186 (Ari 26, 2025)
 #define GENMASK_64(high, low) (((1ULL << ((high) - (low) + 1)) - 1) << (low))
 
+// s2 walk (gpa->hpa)
 struct s2_walk_info {
 	void (*read_desc)(uint64_t pa, uint64_t *desc);
 	uint64_t baddr;
@@ -329,23 +330,4 @@ int gpa2hpa(uint64_t gipa, uint64_t *phy, int *translation_level) {
 		*translation_level = 3 - output.level;
 		return output.esr;
 	}
-}
-
-bool gva2hpa(hp_address laddr, hp_phy_address *phy) {
-	GetPhysAddrResult result;
-	ARMMMUFaultInfo fi;
-	// get_phys_addr(&(ARM_CPU(QEMU_CPU(0))->env), gipa, 0, ARMMMUIdx_Stage2, &result, &fi);
-	return true;
-}
-
-void walk_s1_slow(
-    bool guest, // Translate guest addresses to host (are we walking the guest's page table ?)
-    void (*page_table_cb)(uint64_t address, int level), // cb for each frame that belongs to the page-table tree
-    void (*leaf_pte_cb)(uint64_t addr, uint64_t pte, uint64_t mask) // cb for each leaf pte
-    ) {
-
-	}
-
-uint64_t cpu0_virt2phy(uint64_t addr) {
-
 }

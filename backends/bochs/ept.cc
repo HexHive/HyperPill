@@ -150,6 +150,7 @@ bool gva2hpa(bx_address laddr, bx_phy_address *phy)
   return 1;
 page_fault:
   printf("PAGE FAULT ON ADDR: %lx\n", paddress);
+  fuzz_emu_stop_crash("page fault");
   return 0;
 }
 
@@ -181,15 +182,35 @@ void iterate_page_table(int level, bx_phy_address pt_address) {
     }
 }
 
-void walk_s1_slow(
+static void print_pte(bx_phy_address addr, bx_phy_address pte, bx_phy_address mask)
+{
+    if (addr & (1ULL << 47)) {
+        addr |= (bx_phy_address)-(1LL << 48);
+    }
+
+    printf("%lx: %lx"
+                   " %c%c%c%c%c%c%c%c%c %c\n",
+                   addr,
+                   pte & mask,
+                   pte & PG_NX_MASK ? 'X' : '-',
+                   pte & PG_GLOBAL_MASK ? 'G' : '-',
+                   pte & PG_PSE_MASK ? 'P' : '-',
+                   pte & PG_DIRTY_MASK ? 'D' : '-',
+                   pte & PG_ACCESSED_MASK ? 'A' : '-',
+                   pte & PG_PCD_MASK ? 'C' : '-',
+                   pte & PG_PWT_MASK ? 'T' : '-',
+                   pte & PG_USER_MASK ? 'U' : '-',
+                   pte & PG_RW_MASK ? 'W' : '-',
+                   frame_is_guest(pte&mask) ? 'g' : '-'
+                   );
+}
+
+static void page_walk_la48(uint64_t pml4_addr,
     bool guest, // Translate guest addresses to host (are we walking the guest's page table ?)
     void (*page_table_cb)(bx_phy_address address, int level), // cb for each frame that belongs to the page-table tree
     void (*leaf_pte_cb)(bx_phy_address addr, bx_phy_address pte, bx_phy_address mask) // cb for each leaf pte
     )
 {
-    uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
-    uint64_t pml4_addr = cr3 & BX_CONST64(0x000ffffffffff000);
-
     printf("Walking page table at %lx\n", pml4_addr);
     uint64_t l0 = 0;
     uint64_t l1, l2, l3, l4;
@@ -290,4 +311,44 @@ void walk_s1_slow(
             }
         }
     }
+}
+
+void ept_mark_page_table() {
+    bx_address phyaddr;
+
+    uint64_t cr3 = BX_CPU(id)->VMread64(VMCS_GUEST_CR3);
+    bx_phy_address pt_address = cr3 & BX_CONST64(0x000ffffffffff000);
+    page_walk_la48(pt_address, true, mark_page_not_guest, NULL);
+
+    /* cr3 = BX_CPU(id)->cr3; */
+    /* printf("WALKING CR3: %lx\n", cr3); */
+    /* pt_address = cr3 & BX_CONST64(0x000ffffffffff000); */
+    /* page_walk_la48(pt_address, false, NULL, print_pte); */
+
+    // unmark the page containing the current guest RIP
+    // alternatively, check that (addr != guest RIP) in the DMA hook
+    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr))
+        mark_page_not_guest(phyaddr, BX_LEVEL_PTE);
+    else {
+        fprintf(stderr, "GUEST_RIP page not mapped");
+        abort();
+    }
+}
+
+static void print_page(bx_phy_address entry, int level, bx_phy_address virt ){
+    uint64_t pte;
+    return;
+    for(int i=0; i<512; i++) {
+        BX_MEM(0)->readPhysicalPage(BX_CPU(id), entry + i*8, 8, &pte);
+        uint64_t final_virt = virt + ((uint64_t)i << (12 + (level*9)));
+        if(pte & PG_PRESENT_MASK){
+            printf("%lx: %d %lx[%d] %lx\n", final_virt, level, entry, i, pte);
+        }
+    }
+}
+
+void fuzz_walk_cr3() {
+    bx_phy_address pt_address = BX_CPU(id)->cr3 & BX_CONST64(0x000ffffffffff000);
+    pt_address  = BX_CPU(id)->VMread64(VMCS_GUEST_CR3) & 0x000ffffffffff000;
+    page_walk_la48(pt_address, true, NULL, print_pte);
 }
