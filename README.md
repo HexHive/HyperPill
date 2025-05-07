@@ -1,14 +1,15 @@
 HyperPill
 =========
 
+!!! For better communication, please join our [discord](https://discord.gg/dxdvHvrK8D) server. !!!
+
 Building
 --------
 ```bash
 sudo apt-get install -y libssl-dev libsqlite3-dev bison clang \
     build-essential debuginfod elfutils python3-pip libcapstone4 \
-    libcapstone-dev
+    libcapstone-dev binutils-aarch64-linux-gnu
 CC=clang CXX=clang++ make # for x86_64 hypervisors
-ARCH=x86_64 CC=clang CXX=clang++ make # for x86_64 hypervisors
 ARCH=aarch64 CC=clang CXX=clang++ make # for aarch64 hypervisors
 ```
 
@@ -19,6 +20,13 @@ Using
 
 To fuzz a hypervisor, we first must obtain a snapshot.
 To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/)
+
+After collecting the snapshot, the snapshot directory should contain the
+following files:
+* `dir/mem`
+* `dir/regs`
+
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
 
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.
@@ -33,26 +41,25 @@ First, create a working directory.
 
 ```
 mkdir -p /tmp/fuzz/; cd /tmp/fuzz
-export SNAPSHOT_BASE=/path/to/snapshots/kvm
-export PROJECT_ROOT=/path/to/HyperPill
+export SNAPSHOT_BASE=/absolute/path/to/snapshots/kvm
+export PROJECT_ROOT=/absolute/path/to/HyperPill
 ```
 
 Second, enumerate the input-spaces.
 
-For x86_64 hypervisors,
-
 ```
 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
+ARCH=aarch64 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
-For aarch64 hypervisors, we obtain the mmio regions from the device tree blob,
-or if QEMU/KVM, from the outpuf of `info mtree -f` within the monitor of QEMU
-that runs L2 VM. Then export the following envs according to what virtual
-device(s) you are fuzzing (e.g. pl061).
+Skip this step if you have or can construct a mtree file from a device tree file
+or the outpuf of `info mtree -f` within the monitor of QEMU that runs L2 VM.
+Then export the following environment variables according to what virtual
+device(s) you are fuzzing (e.g. virtio-scsi).
 
 ```
 export MANUAL_RANGES=$SNAPSHOT_BASE/mtree
-export RANGE_REGEX="pl061"
+export RANGE_REGEX="virtio-scsi"
 ```
 
 After the enumeration stage is complete, we can fuzz the snapshot:
@@ -60,7 +67,6 @@ After the enumeration stage is complete, we can fuzz the snapshot:
 ```
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
-KVM=1 ARCH=x86_64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
@@ -73,7 +79,6 @@ To use these symbols, we need to infer the symbol map. To do this:
 
 ```
 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
-KVM=1 ARCH=x86_64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 KVM=1 ARCH=aarch64 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 ```
 
@@ -94,7 +99,6 @@ Then, remove SYMBOLS_DIR and rerun the fuzzer. Every new PC will be symbolized.
 
 ```
 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
-KVM=1 ARCH=x86_64 $PROJECT_ROOT/scripts/run_hyperpill.sh
 KVM=1 ARCH=aarch64 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
@@ -102,7 +106,6 @@ We can reproduce a crash:
 
 ```
 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
-KVM=1 ARCH=x86_64 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
 KVM=1 ARCH=aarch64 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
 ```
 
@@ -114,3 +117,57 @@ python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/
 ```
 
 For any bus errors, unlink the shm in /dev/shm or expand the memory.
+
+## Collecting source-based coverage (qemu-system-aarch64 is similar)
+
+First, config the QEMU to run L2 VM and compile.
+
+```
+CC=clang CXX=clang++ \
+../configure --target-list=x86_64-softmmu --enable-slirp \
+--extra-cflags="-fprofile-instr-generate -fcoverage-mapping"
+ninja
+```
+
+Second, when L2 is running, use gdb to load all unmapped pages into memory. Then
+retake the snapshot and reinfer the symbol map.
+
+```
+[L1] $ gdb --pid $(pgrep -f "qemu")
+[L1] $ (gdb) call (int)mlockall(3)
+[L1] $ (gdb) detach
+```
+
+Third, set LINK_OBJ_BASE and run the command below. Here NSLOTS is needed otherwise clang
+profraw file will not be generated.
+
+```
+KVM=1 NSLOTS=1 $PROJECT_ROOT/scripts/run_hyperpill2.sh
+```
+
+How to calculate LINK_OBJ_BASE? Suppose we have the symbolization range of
+qemu-system-x86_64 below,
+
+```
+Symbolization Range: 55bc471e6660 - ... file: ...qemu-system-x86_64 ....text sh_addr: 975660
+```
+
+LINK_OBJ_BASE is hex(0x55bc471e6660-0x975660), which is 0x55bc46871000.
+
+Or run `$PROJECT_ROOT/scripts/cal_link_obj_base.sh`.
+
+After at least 300s, there will be clang profraw files under the fuzz working
+directory. For example:
+
+```
+[L0] $ ls *profraw
+172037-1740394346.profraw
+```
+
+Finally, collect coverage results within L1
+```
+[L0] $ scp -P 2222 172037-1740394346.profraw root@localhost:/tmp/
+[L0] $ ssh -p 2222 root@localhost llvm-profdata-14 merge -output=/tmp/default.profdata /tmp/172037-1740394346.profraw
+[L0] $ ssh -p 2222 root@localhost llvm-cov-14 show --format=html /root/qemu-8.0.0/build/qemu-system-x86_64 -instr-profile=/tmp/default.profdata -output-dir=/tmp/cov
+[L0] $ scp -r -P 2222 root@localhost:/tmp/cov ./
+```
