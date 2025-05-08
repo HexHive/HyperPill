@@ -38,7 +38,7 @@ extern "C" void __sanitizer_print_stack_trace();
 
 unsigned fuzz_get_vmcs_field_offset(Bit32u encoding) {
     static int reenter; 
-    if(BX_CPU(id)->fuzztrace && !reenter){
+    if(cpu0_get_fuzztrace() && !reenter){
         reenter = 1;
         printf("VMCS->%lx = VMCS[%lx] = %lx\n", encoding, shadow_vmcs_layout[encoding], auto_vmread(encoding));
         reenter = 0;

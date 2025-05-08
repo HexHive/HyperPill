@@ -19,15 +19,15 @@ diff -au $PATH_TO_HYPERPILL_MAIN/breakpoints.cc backends/bochs/breakpoints.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/dbg.cc backends/bochs/dbg.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/devices.cc backends/bochs/devices.cc
 
-diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc backends/bochs/ept.cc > ept.diff
-diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc slat.cc >> ept.diff
+diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc backends/bochs/ept.cc
+diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc slat.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/gui.cc backends/bochs/gui.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/instrument.cc backends/bochs/instrument.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/logfunctions.cc backends/bochs/logfunctions.cc
 
-diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc backends/bochs/mem.cc > mem.diff
-diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc mem.cc >> mem.diff
+diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc backends/bochs/mem.cc
+diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc mem.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/paramtree.cc backends/bochs/paramtree.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/regs.cc backends/bochs/regs.cc
@@ -36,5 +36,8 @@ diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/system.cc backends/bochs/system.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/vmcs.cc backends/bochs/vmcs.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/scripts/ scripts/
+diff -au $PATH_TO_HYPERPILL_MAIN/fuzz.h fuzz.h
+diff -au $PATH_TO_HYPERPILL_MAIN/fuzzc.h fuzzc.h
 diff -au $PATH_TO_HYPERPILL_MAIN/Makefile Makefile
+
 

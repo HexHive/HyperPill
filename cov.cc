@@ -86,10 +86,10 @@ void add_edge(hp_address prev_rip, hp_address new_rip) {
     }
 }
 
-void reset_op_cov(void) {
+void reset_op_cov() {
     last_new = 0;
 }
-void reset_cur_cov(void) {
+void reset_cur_cov() {
     our_stacktrace.clear();
     cur_input.clear();
     last_new = 0;
