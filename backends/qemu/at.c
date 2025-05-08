@@ -8,15 +8,19 @@
 
 #include "qemu.h"
 #include "sysreg.h"
+#include "nested.h"
 
+typedef int8_t s8;
+typedef uint8_t u8;
 typedef uint32_t u32;
-typedef uint64_t u64 :
+typedef uint64_t u64;
+typedef int64_t s64;
 
-	enum trans_regime {
-		TR_EL10,
-		TR_EL20,
-		TR_EL2,
-	};
+enum trans_regime {
+	TR_EL10,
+	TR_EL20,
+	TR_EL2,
+};
 
 struct s1_walk_info {
 	u64 baddr;
@@ -25,10 +29,6 @@ struct s1_walk_info {
 	unsigned int pgshift;
 	unsigned int txsz;
 	int sl;
-	bool hpd;
-	bool e0poe;
-	bool poe;
-	bool pan;
 	bool be;
 	bool s2;
 };
@@ -39,19 +39,6 @@ struct s1_walk_result {
 			u64 desc;
 			u64 pa;
 			s8 level;
-			u8 APTable;
-			bool UXNTable;
-			bool PXNTable;
-			bool uwxn;
-			bool uov;
-			bool ur;
-			bool uw;
-			bool ux;
-			bool pwxn;
-			bool pov;
-			bool pr;
-			bool pw;
-			bool px;
 		};
 		struct {
 			u8 fst;
@@ -80,146 +67,87 @@ static bool check_output_size(u64 ipa, struct s1_walk_info *wi) {
 	return wi->max_oa_bits < 48 && (ipa & GENMASK_ULL(47, wi->max_oa_bits));
 }
 
-/* Return the translation regime that applies to an AT instruction */
-static enum trans_regime compute_translation_regime(struct kvm_vcpu *vcpu,
-						    u32 op) {
-	/*
-	 * We only get here from guest EL2, so the translation
-	 * regime AT applies to is solely defined by {E2H,TGE}.
-	 */
-	switch (op) {
-	case OP_AT_S1E2R:
-	case OP_AT_S1E2W:
-	case OP_AT_S1E2A:
-		return vcpu_el2_e2h_is_set(vcpu) ? TR_EL20 : TR_EL2;
-		break;
-	default:
-		return (vcpu_el2_e2h_is_set(vcpu) &&
-			vcpu_el2_tge_is_set(vcpu)) ?
-			       TR_EL20 :
-			       TR_EL10;
-	}
+static inline bool isar_feature_aa64_s1pie() {
+	return false;
 }
 
-static bool s1pie_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime) {
-	if (!kvm_has_s1pie(vcpu->kvm))
-		return false;
+// hcr_el2: Hypervisor Configuration Register
+// vm, bit[0], if 1, EL1&0 stage 2 address translation enabled
+// dc, bit[12], if 1, the PE behaves as if the value of the HCR_EL2.VM field is
+// 1 tge, bit[27], if 1, all exceptions that would be routed to EL1 are routed
+// to EL2 e2h, bit[34], if 1, the facilities to support a Host Operating System
+// at EL2 are enabled
 
-	switch (regime) {
-	case TR_EL2:
-	case TR_EL20:
-		return vcpu_read_sys_reg(vcpu, TCR2_EL2) & TCR2_EL2_PIE;
-	case TR_EL10:
-		return (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TCR2En) &&
-		       (__vcpu_sys_reg(vcpu, TCR2_EL1) & TCR2_EL1_PIE);
-	default:
-		BUG();
-	}
+#define TCR_T0SZ_OFFSET 0
+#define TCR_T1SZ_OFFSET 16
+#define TCR_TxSZ_WIDTH 6
+
+#define TCR_TG0_SHIFT 14
+#define TCR_TG0_WIDTH 2
+#define TCR_TG0_4K ((0) << TCR_TG0_SHIFT)
+#define TCR_TG0_64K ((1) << TCR_TG0_SHIFT)
+#define TCR_TG0_16K ((2) << TCR_TG0_SHIFT)
+
+#define TCR_TG1_SHIFT 30
+#define TCR_TG1_WIDTH 2
+#define TCR_TG1_16K ((1) << TCR_TG1_SHIFT)
+#define TCR_TG1_4K ((2) << TCR_TG1_SHIFT)
+#define TCR_TG1_64K ((3) << TCR_TG1_SHIFT)
+
+#define TCR_IPS_SHIFT 32
+#define TCR_IPS_MASK ((7) << TCR_IPS_SHIFT)
+
+#define TCR_TBI0_SHIFT 37
+#define TCR_TBI1_SHIFT 38
+#define TCR_HPD0_SHIFT 41
+#define TCR_HPD1_SHIFT 42
+
+#define TCR_E0PD0 ((1) << 55)
+#define TCR_E0PD1 ((1) << 56)
+#define TCR_DS ((1) << 59)
+
+static inline s64 sign_extend64(u64 value, int index) {
+	u8 shift = 63 - index;
+	return (s64)(value << shift) >> shift;
 }
 
-static void compute_s1poe(struct kvm_vcpu *vcpu, struct s1_walk_info *wi) {
-	u64 val;
-
-	if (!kvm_has_s1poe(vcpu->kvm)) {
-		wi->poe = wi->e0poe = false;
-		return;
-	}
-
-	switch (wi->regime) {
-	case TR_EL2:
-	case TR_EL20:
-		val = vcpu_read_sys_reg(vcpu, TCR2_EL2);
-		wi->poe = val & TCR2_EL2_POE;
-		wi->e0poe = (wi->regime == TR_EL20) && (val & TCR2_EL2_E0POE);
-		break;
-	case TR_EL10:
-		if (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TCR2En) {
-			wi->poe = wi->e0poe = false;
-			return;
-		}
-
-		val = __vcpu_sys_reg(vcpu, TCR2_EL1);
-		wi->poe = val & TCR2_EL1_POE;
-		wi->e0poe = val & TCR2_EL1_E0POE;
-	}
-}
-
-static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
+static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 			 struct s1_walk_result *wr, u64 va) {
 	u64 hcr, sctlr, tcr, tg, ps, ia_bits, ttbr;
 	unsigned int stride, x;
 	bool va55, tbi, lva, as_el0;
 
-	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
+	hcr = ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2;
 
-	wi->regime = compute_translation_regime(vcpu, op);
+	wi->regime = TR_EL10;
 	as_el0 = (op == OP_AT_S1E0R || op == OP_AT_S1E0W);
-	wi->pan = (op == OP_AT_S1E1RP || op == OP_AT_S1E1WP) &&
-		  (*vcpu_cpsr(vcpu) & PSR_PAN_BIT);
 
 	va55 = va & BIT(55);
 
-	if (wi->regime == TR_EL2 && va55)
-		goto addrsz;
+	wi->s2 = hcr & (HCR_VM | HCR_DC);
 
-	wi->s2 = wi->regime == TR_EL10 && (hcr & (HCR_VM | HCR_DC));
+	sctlr = ARM_CPU(QEMU_CPU(0))->env.cp15.sctlr_el[1];
+	tcr = ARM_CPU(QEMU_CPU(0))->env.cp15.tcr_el[1];
+	ttbr = (va55 ? ARM_CPU(QEMU_CPU(0))->env.cp15.ttbr1_el[1] :
+		       ARM_CPU(QEMU_CPU(0))->env.cp15.ttbr0_el[1]);
 
-	switch (wi->regime) {
-	case TR_EL10:
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-		tcr = vcpu_read_sys_reg(vcpu, TCR_EL1);
-		ttbr = (va55 ? vcpu_read_sys_reg(vcpu, TTBR1_EL1) :
-			       vcpu_read_sys_reg(vcpu, TTBR0_EL1));
-		break;
-	case TR_EL2:
-	case TR_EL20:
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL2);
-		tcr = vcpu_read_sys_reg(vcpu, TCR_EL2);
-		ttbr = (va55 ? vcpu_read_sys_reg(vcpu, TTBR1_EL2) :
-			       vcpu_read_sys_reg(vcpu, TTBR0_EL2));
-		break;
-	default:
-		BUG();
-	}
-
-	tbi = (wi->regime == TR_EL2 ? FIELD_GET(TCR_EL2_TBI, tcr) :
-				      (va55 ? FIELD_GET(TCR_TBI1, tcr) :
-					      FIELD_GET(TCR_TBI0, tcr)));
+	tbi = (va55 ? extract64(tcr, TCR_TBI1_SHIFT, 1) :
+		      extract64(tcr, TCR_TBI0_SHIFT, 1));
 
 	if (!tbi && (u64)sign_extend64(va, 55) != va)
 		goto addrsz;
 
 	va = (u64)sign_extend64(va, 55);
 
-	/* Let's put the MMU disabled case aside immediately */
-	switch (wi->regime) {
-	case TR_EL10:
-		/*
-		 * If dealing with the EL1&0 translation regime, 3 things
-		 * can disable the S1 translation:
-		 *
-		 * - HCR_EL2.DC = 1
-		 * - HCR_EL2.{E2H,TGE} = {0,1}
-		 * - SCTLR_EL1.M = 0
-		 *
-		 * The TGE part is interesting. If we have decided that this
-		 * is EL1&0, then it means that either {E2H,TGE} == {1,0} or
-		 * {0,x}, and we only need to test for TGE == 1.
-		 */
-		if (hcr & (HCR_DC | HCR_TGE)) {
-			wr->level = S1_MMU_DISABLED;
-			break;
-		}
-		fallthrough;
-	case TR_EL2:
-	case TR_EL20:
-		if (!(sctlr & SCTLR_ELx_M))
-			wr->level = S1_MMU_DISABLED;
-		break;
+	if (hcr & (HCR_DC | HCR_TGE)) {
+		wr->level = S1_MMU_DISABLED;
+	}
+	if (!(sctlr & SCTLR_ELx_M)) {
+		wr->level = S1_MMU_DISABLED;
 	}
 
 	if (wr->level == S1_MMU_DISABLED) {
-		if (va >= BIT(kvm_get_pa_bits(vcpu->kvm)))
+		if (va >= (1 << 48))
 			goto addrsz;
 
 		wr->pa = va;
@@ -228,23 +156,10 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 
 	wi->be = sctlr & SCTLR_ELx_EE;
 
-	wi->hpd = kvm_has_feat(vcpu->kvm, ID_AA64MMFR1_EL1, HPDS, IMP);
-	wi->hpd &= (wi->regime == TR_EL2 ? FIELD_GET(TCR_EL2_HPD, tcr) :
-					   (va55 ? FIELD_GET(TCR_HPD1, tcr) :
-						   FIELD_GET(TCR_HPD0, tcr)));
-	/* R_JHSVW */
-	wi->hpd |= s1pie_enabled(vcpu, wi->regime);
-
-	/* Do we have POE? */
-	compute_s1poe(vcpu, wi);
-
-	/* R_BVXDG */
-	wi->hpd |= (wi->poe || wi->e0poe);
-
 	/* Someone was silly enough to encode TG0/TG1 differently */
 	if (va55) {
-		wi->txsz = FIELD_GET(TCR_T1SZ_MASK, tcr);
-		tg = FIELD_GET(TCR_TG1_MASK, tcr);
+		wi->txsz = extract64(tcr, TCR_T1SZ_OFFSET, TCR_TxSZ_WIDTH);
+		tg = extract64(tcr, TCR_TG1_SHIFT, TCR_TG1_WIDTH);
 
 		switch (tg << TCR_TG1_SHIFT) {
 		case TCR_TG1_4K:
@@ -259,8 +174,8 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 			break;
 		}
 	} else {
-		wi->txsz = FIELD_GET(TCR_T0SZ_MASK, tcr);
-		tg = FIELD_GET(TCR_TG0_MASK, tcr);
+		wi->txsz = extract64(tcr, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH);
+		tg = extract64(tcr, TCR_TG0_SHIFT, TCR_TG0_WIDTH);
 
 		switch (tg << TCR_TG0_SHIFT) {
 		case TCR_TG0_4K:
@@ -277,7 +192,7 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 	}
 
 	/* R_PLCGL, R_YXNYW */
-	if (!kvm_has_feat_enum(vcpu->kvm, ID_AA64MMFR2_EL1, ST, 48_47)) {
+	if (!isar_feature_aa64_st(&(ARM_CPU(QEMU_CPU(0))->isar))) {
 		if (wi->txsz > 39)
 			goto transfault_l0;
 	} else {
@@ -289,16 +204,15 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 	/* R_GTJBY, R_SXWGM */
 	switch (BIT(wi->pgshift)) {
 	case SZ_4K:
-		lva = kvm_has_feat(vcpu->kvm, ID_AA64MMFR0_EL1, TGRAN4, 52_BIT);
-		lva &= tcr & (wi->regime == TR_EL2 ? TCR_EL2_DS : TCR_DS);
+		lva = isar_feature_aa64_tgran4(&(ARM_CPU(QEMU_CPU(0))->isar));
+		lva &= tcr & TCR_DS;
 		break;
 	case SZ_16K:
-		lva = kvm_has_feat(vcpu->kvm, ID_AA64MMFR0_EL1, TGRAN16,
-				   52_BIT);
-		lva &= tcr & (wi->regime == TR_EL2 ? TCR_EL2_DS : TCR_DS);
+		lva = isar_feature_aa64_tgran16(&(ARM_CPU(QEMU_CPU(0))->isar));
+		lva &= tcr & TCR_DS;
 		break;
 	case SZ_64K:
-		lva = kvm_has_feat(vcpu->kvm, ID_AA64MMFR2_EL1, VARange, 52);
+		lva = isar_feature_aa64_lva(&(ARM_CPU(QEMU_CPU(0))->isar));
 		break;
 	}
 
@@ -329,7 +243,7 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, u32 op, struct s1_walk_info *wi,
 	ps = (wi->regime == TR_EL2 ? FIELD_GET(TCR_EL2_PS_MASK, tcr) :
 				     FIELD_GET(TCR_IPS_MASK, tcr));
 
-	wi->max_oa_bits = min(get_kvm_ipa_limit(), ps_to_output_size(ps));
+	wi->max_oa_bits = min(48, ps_to_output_size(ps));
 
 	/* Compute minimal alignment */
 	x = 3 + ia_bits - ((3 - wi->sl) * stride + wi->pgshift);
@@ -353,8 +267,8 @@ transfault_l0: /* Translation Fault level 0 */
 	return -EFAULT;
 }
 
-static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
-		   struct s1_walk_result *wr, u64 va) {
+#define ESR_ELx_FSC_LEVEL 0x03
+static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, u64 va) {
 	u64 va_top, va_bottom, baddr, desc;
 	int level, stride, ret;
 
@@ -374,9 +288,9 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		ipa = baddr | index;
 
 		if (wi->s2) {
-			struct kvm_s2_trans s2_trans = {};
+			struct s2_trans s2_trans = {};
 
-			ret = kvm_walk_nested_s2(vcpu, ipa, &s2_trans);
+			ret = walk_nested_s2(ipa, &s2_trans);
 			if (ret) {
 				fail_s1_walk(wr,
 					     (s2_trans.esr &
@@ -386,27 +300,15 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 				return ret;
 			}
 
-			if (!kvm_s2_trans_readable(&s2_trans)) {
-				fail_s1_walk(wr, ESR_ELx_FSC_PERM_L(level),
-					     true, true);
-
-				return -EPERM;
-			}
-
-			ipa = kvm_s2_trans_output(&s2_trans);
+			ipa = s2_trans_output(&s2_trans);
 		}
 
-		ret = kvm_read_guest(vcpu->kvm, ipa, &desc, sizeof(desc));
-		if (ret) {
-			fail_s1_walk(wr, ESR_ELx_FSC_SEA_TTW(level), true,
-				     false);
-			return ret;
-		}
+		cpu_physical_memory_read(ipa, &desc, sizeof(desc));
 
 		if (wi->be)
-			desc = be64_to_cpu((__force __be64)desc);
+			desc = be64_to_cpu(desc);
 		else
-			desc = le64_to_cpu((__force __le64)desc);
+			desc = le64_to_cpu(desc);
 
 		/* Invalid descriptor */
 		if (!(desc & BIT(0)))
@@ -419,13 +321,6 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		/* Page mapping */
 		if (level == 3)
 			break;
-
-		/* Table handling */
-		if (!wi->hpd) {
-			wr->APTable |= FIELD_GET(S1_TABLE_AP, desc);
-			wr->UXNTable |= FIELD_GET(PMD_TABLE_UXN, desc);
-			wr->PXNTable |= FIELD_GET(PMD_TABLE_PXN, desc);
-		}
 
 		baddr = desc & GENMASK_ULL(47, wi->pgshift);
 
@@ -475,94 +370,6 @@ addrsz:
 transfault:
 	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(level), true, false);
 	return -ENOENT;
-}
-
-struct mmu_config {
-	u64 ttbr0;
-	u64 ttbr1;
-	u64 tcr;
-	u64 mair;
-	u64 tcr2;
-	u64 pir;
-	u64 pire0;
-	u64 por_el0;
-	u64 por_el1;
-	u64 sctlr;
-	u64 vttbr;
-	u64 vtcr;
-	u64 hcr;
-};
-
-static void __mmu_config_save(struct mmu_config *config) {
-	config->ttbr0 = read_sysreg_el1(SYS_TTBR0);
-	config->ttbr1 = read_sysreg_el1(SYS_TTBR1);
-	config->tcr = read_sysreg_el1(SYS_TCR);
-	config->mair = read_sysreg_el1(SYS_MAIR);
-	if (cpus_have_final_cap(ARM64_HAS_TCR2)) {
-		config->tcr2 = read_sysreg_el1(SYS_TCR2);
-		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
-			config->pir = read_sysreg_el1(SYS_PIR);
-			config->pire0 = read_sysreg_el1(SYS_PIRE0);
-		}
-		if (system_supports_poe()) {
-			config->por_el1 = read_sysreg_el1(SYS_POR);
-			config->por_el0 = read_sysreg_s(SYS_POR_EL0);
-		}
-	}
-	config->sctlr = read_sysreg_el1(SYS_SCTLR);
-	config->vttbr = read_sysreg(vttbr_el2);
-	config->vtcr = read_sysreg(vtcr_el2);
-	config->hcr = read_sysreg(hcr_el2);
-}
-
-static void __mmu_config_restore(struct mmu_config *config) {
-	write_sysreg(config->hcr, hcr_el2);
-
-	/*
-	 * ARM errata 1165522 and 1530923 require TGE to be 1 before
-	 * we update the guest state.
-	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
-
-	write_sysreg_el1(config->ttbr0, SYS_TTBR0);
-	write_sysreg_el1(config->ttbr1, SYS_TTBR1);
-	write_sysreg_el1(config->tcr, SYS_TCR);
-	write_sysreg_el1(config->mair, SYS_MAIR);
-	if (cpus_have_final_cap(ARM64_HAS_TCR2)) {
-		write_sysreg_el1(config->tcr2, SYS_TCR2);
-		if (cpus_have_final_cap(ARM64_HAS_S1PIE)) {
-			write_sysreg_el1(config->pir, SYS_PIR);
-			write_sysreg_el1(config->pire0, SYS_PIRE0);
-		}
-		if (system_supports_poe()) {
-			write_sysreg_el1(config->por_el1, SYS_POR);
-			write_sysreg_s(config->por_el0, SYS_POR_EL0);
-		}
-	}
-	write_sysreg_el1(config->sctlr, SYS_SCTLR);
-	write_sysreg(config->vttbr, vttbr_el2);
-	write_sysreg(config->vtcr, vtcr_el2);
-}
-
-static bool at_s1e1p_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr) {
-	u64 host_pan;
-	bool fail;
-
-	host_pan = read_sysreg_s(SYS_PSTATE_PAN);
-	write_sysreg_s(*vcpu_cpsr(vcpu) & PSTATE_PAN, SYS_PSTATE_PAN);
-
-	switch (op) {
-	case OP_AT_S1E1RP:
-		fail = __kvm_at(OP_AT_S1E1RP, vaddr);
-		break;
-	case OP_AT_S1E1WP:
-		fail = __kvm_at(OP_AT_S1E1WP, vaddr);
-		break;
-	}
-
-	write_sysreg_s(host_pan, SYS_PSTATE_PAN);
-
-	return fail;
 }
 
 #define MEMATTR(ic, oc) (MEMATTR_##oc << 4 | MEMATTR_##ic)
@@ -688,8 +495,7 @@ static u8 combine_sh(u8 s1_sh, u8 s2_sh) {
 	return ATTR_NSH;
 }
 
-static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
-			   struct kvm_s2_trans *tr) {
+static u64 compute_par_s12(u64 s1_par, struct s2_trans *tr) {
 	u8 s1_parattr, s2_memattr, final_attr;
 	u64 par;
 
@@ -705,7 +511,7 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 	s1_parattr = FIELD_GET(SYS_PAR_EL1_ATTR, s1_par);
 	s2_memattr = FIELD_GET(GENMASK(5, 2), tr->desc);
 
-	if (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_FWB) {
+	if (ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_FWB) {
 		if (!kvm_has_feat(vcpu->kvm, ID_AA64PFR2_EL1, MTEPERM, IMP))
 			s2_memattr &= ~BIT(3);
 
@@ -760,7 +566,7 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 		}
 	}
 
-	if ((__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_CD) &&
+	if ((ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_CD) &&
 	    !MEMATTR_IS_DEVICE(final_attr))
 		final_attr = MEMATTR(NC, NC);
 
@@ -773,8 +579,7 @@ static u64 compute_par_s12(struct kvm_vcpu *vcpu, u64 s1_par,
 	return par;
 }
 
-static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
-			  enum trans_regime regime) {
+static u64 compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
 	u64 par;
 
 	if (wr->failed) {
@@ -789,7 +594,7 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 		par |= wr->pa & GENMASK_ULL(47, 12);
 
 		if (regime == TR_EL10 &&
-		    (__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_DC)) {
+		    (ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_DC)) {
 			par |= FIELD_PREP(SYS_PAR_EL1_ATTR,
 					  MEMATTR(WbRaWa, WbRaWa));
 			par |= FIELD_PREP(SYS_PAR_EL1_SH, ATTR_NSH);
@@ -803,15 +608,12 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 
 		par = SYS_PAR_EL1_NSE;
 
-		mair = (regime == TR_EL10 ? vcpu_read_sys_reg(vcpu, MAIR_EL1) :
-					    vcpu_read_sys_reg(vcpu, MAIR_EL2));
+		mair = vcpu_read_sys_reg(vcpu, MAIR_EL1);
 
 		mair >>= FIELD_GET(PTE_ATTRINDX_MASK, wr->desc) * 8;
 		mair &= 0xff;
 
-		sctlr = (regime == TR_EL10 ?
-				 vcpu_read_sys_reg(vcpu, SCTLR_EL1) :
-				 vcpu_read_sys_reg(vcpu, SCTLR_EL2));
+		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
 
 		/* Force NC for memory if SCTLR_ELx.C is clear */
 		if (!(sctlr & SCTLR_EL1_C) && !MEMATTR_IS_DEVICE(mair))
@@ -827,314 +629,6 @@ static u64 compute_par_s1(struct kvm_vcpu *vcpu, struct s1_walk_result *wr,
 	return par;
 }
 
-static bool pan3_enabled(struct kvm_vcpu *vcpu, enum trans_regime regime) {
-	u64 sctlr;
-
-	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR1_EL1, PAN, PAN3))
-		return false;
-
-	if (s1pie_enabled(vcpu, regime))
-		return true;
-
-	if (regime == TR_EL10)
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
-	else
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL2);
-
-	return sctlr & SCTLR_EL1_EPAN;
-}
-
-static void compute_s1_direct_permissions(struct kvm_vcpu *vcpu,
-					  struct s1_walk_info *wi,
-					  struct s1_walk_result *wr) {
-	bool wxn;
-
-	/* Non-hierarchical part of AArch64.S1DirectBasePermissions() */
-	if (wi->regime != TR_EL2) {
-		switch (FIELD_GET(PTE_USER | PTE_RDONLY, wr->desc)) {
-		case 0b00:
-			wr->pr = wr->pw = true;
-			wr->ur = wr->uw = false;
-			break;
-		case 0b01:
-			wr->pr = wr->pw = wr->ur = wr->uw = true;
-			break;
-		case 0b10:
-			wr->pr = true;
-			wr->pw = wr->ur = wr->uw = false;
-			break;
-		case 0b11:
-			wr->pr = wr->ur = true;
-			wr->pw = wr->uw = false;
-			break;
-		}
-
-		/* We don't use px for anything yet, but hey... */
-		wr->px = !((wr->desc & PTE_PXN) || wr->uw);
-		wr->ux = !(wr->desc & PTE_UXN);
-	} else {
-		wr->ur = wr->uw = wr->ux = false;
-
-		if (!(wr->desc & PTE_RDONLY)) {
-			wr->pr = wr->pw = true;
-		} else {
-			wr->pr = true;
-			wr->pw = false;
-		}
-
-		/* XN maps to UXN */
-		wr->px = !(wr->desc & PTE_UXN);
-	}
-
-	switch (wi->regime) {
-	case TR_EL2:
-	case TR_EL20:
-		wxn = (vcpu_read_sys_reg(vcpu, SCTLR_EL2) & SCTLR_ELx_WXN);
-		break;
-	case TR_EL10:
-		wxn = (__vcpu_sys_reg(vcpu, SCTLR_EL1) & SCTLR_ELx_WXN);
-		break;
-	}
-
-	wr->pwxn = wr->uwxn = wxn;
-	wr->pov = wi->poe;
-	wr->uov = wi->e0poe;
-}
-
-static void compute_s1_hierarchical_permissions(struct kvm_vcpu *vcpu,
-						struct s1_walk_info *wi,
-						struct s1_walk_result *wr) {
-	/* Hierarchical part of AArch64.S1DirectBasePermissions() */
-	if (wi->regime != TR_EL2) {
-		switch (wr->APTable) {
-		case 0b00:
-			break;
-		case 0b01:
-			wr->ur = wr->uw = false;
-			break;
-		case 0b10:
-			wr->pw = wr->uw = false;
-			break;
-		case 0b11:
-			wr->pw = wr->ur = wr->uw = false;
-			break;
-		}
-
-		wr->px &= !wr->PXNTable;
-		wr->ux &= !wr->UXNTable;
-	} else {
-		if (wr->APTable & BIT(1))
-			wr->pw = false;
-
-		/* XN maps to UXN */
-		wr->px &= !wr->UXNTable;
-	}
-}
-
-#define perm_idx(v, r, i) ((vcpu_read_sys_reg((v), (r)) >> ((i) * 4)) & 0xf)
-
-#define set_priv_perms(wr, r, w, x) \
-	do {                        \
-		(wr)->pr = (r);     \
-		(wr)->pw = (w);     \
-		(wr)->px = (x);     \
-	} while (0)
-
-#define set_unpriv_perms(wr, r, w, x) \
-	do {                          \
-		(wr)->ur = (r);       \
-		(wr)->uw = (w);       \
-		(wr)->ux = (x);       \
-	} while (0)
-
-#define set_priv_wxn(wr, v)       \
-	do {                      \
-		(wr)->pwxn = (v); \
-	} while (0)
-
-#define set_unpriv_wxn(wr, v)     \
-	do {                      \
-		(wr)->uwxn = (v); \
-	} while (0)
-
-/* Similar to AArch64.S1IndirectBasePermissions(), without GCS  */
-#define set_perms(w, wr, ip)                                        \
-	do {                                                        \
-		/* R_LLZDZ */                                       \
-		switch ((ip)) {                                     \
-		case 0b0000:                                        \
-			set_##w##_perms((wr), false, false, false); \
-			break;                                      \
-		case 0b0001:                                        \
-			set_##w##_perms((wr), true, false, false);  \
-			break;                                      \
-		case 0b0010:                                        \
-			set_##w##_perms((wr), false, false, true);  \
-			break;                                      \
-		case 0b0011:                                        \
-			set_##w##_perms((wr), true, false, true);   \
-			break;                                      \
-		case 0b0100:                                        \
-			set_##w##_perms((wr), false, false, false); \
-			break;                                      \
-		case 0b0101:                                        \
-			set_##w##_perms((wr), true, true, false);   \
-			break;                                      \
-		case 0b0110:                                        \
-			set_##w##_perms((wr), true, true, true);    \
-			break;                                      \
-		case 0b0111:                                        \
-			set_##w##_perms((wr), true, true, true);    \
-			break;                                      \
-		case 0b1000:                                        \
-			set_##w##_perms((wr), true, false, false);  \
-			break;                                      \
-		case 0b1001:                                        \
-			set_##w##_perms((wr), true, false, false);  \
-			break;                                      \
-		case 0b1010:                                        \
-			set_##w##_perms((wr), true, false, true);   \
-			break;                                      \
-		case 0b1011:                                        \
-			set_##w##_perms((wr), false, false, false); \
-			break;                                      \
-		case 0b1100:                                        \
-			set_##w##_perms((wr), true, true, false);   \
-			break;                                      \
-		case 0b1101:                                        \
-			set_##w##_perms((wr), false, false, false); \
-			break;                                      \
-		case 0b1110:                                        \
-			set_##w##_perms((wr), true, true, true);    \
-			break;                                      \
-		case 0b1111:                                        \
-			set_##w##_perms((wr), false, false, false); \
-			break;                                      \
-		}                                                   \
-                                                                    \
-		/* R_HJYGR */                                       \
-		set_##w##_wxn((wr), ((ip) == 0b0110));              \
-                                                                    \
-	} while (0)
-
-static void compute_s1_indirect_permissions(struct kvm_vcpu *vcpu,
-					    struct s1_walk_info *wi,
-					    struct s1_walk_result *wr) {
-	u8 up, pp, idx;
-
-	idx = pte_pi_index(wr->desc);
-
-	switch (wi->regime) {
-	case TR_EL10:
-		pp = perm_idx(vcpu, PIR_EL1, idx);
-		up = perm_idx(vcpu, PIRE0_EL1, idx);
-		break;
-	case TR_EL20:
-		pp = perm_idx(vcpu, PIR_EL2, idx);
-		up = perm_idx(vcpu, PIRE0_EL2, idx);
-		break;
-	case TR_EL2:
-		pp = perm_idx(vcpu, PIR_EL2, idx);
-		up = 0;
-		break;
-	}
-
-	set_perms(priv, wr, pp);
-
-	if (wi->regime != TR_EL2)
-		set_perms(unpriv, wr, up);
-	else
-		set_unpriv_perms(wr, false, false, false);
-
-	wr->pov = wi->poe && !(pp & BIT(3));
-	wr->uov = wi->e0poe && !(up & BIT(3));
-
-	/* R_VFPJF */
-	if (wr->px && wr->uw) {
-		set_priv_perms(wr, false, false, false);
-		set_unpriv_perms(wr, false, false, false);
-	}
-}
-
-static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
-					   struct s1_walk_info *wi,
-					   struct s1_walk_result *wr) {
-	u8 idx, pov_perms, uov_perms;
-
-	idx = FIELD_GET(PTE_PO_IDX_MASK, wr->desc);
-
-	switch (wi->regime) {
-	case TR_EL10:
-		pov_perms = perm_idx(vcpu, POR_EL1, idx);
-		uov_perms = perm_idx(vcpu, POR_EL0, idx);
-		break;
-	case TR_EL20:
-		pov_perms = perm_idx(vcpu, POR_EL2, idx);
-		uov_perms = perm_idx(vcpu, POR_EL0, idx);
-		break;
-	case TR_EL2:
-		pov_perms = perm_idx(vcpu, POR_EL2, idx);
-		uov_perms = 0;
-		break;
-	}
-
-	if (pov_perms & ~POE_RWX)
-		pov_perms = POE_NONE;
-
-	if (wi->poe && wr->pov) {
-		wr->pr &= pov_perms & POE_R;
-		wr->pw &= pov_perms & POE_W;
-		wr->px &= pov_perms & POE_X;
-	}
-
-	if (uov_perms & ~POE_RWX)
-		uov_perms = POE_NONE;
-
-	if (wi->e0poe && wr->uov) {
-		wr->ur &= uov_perms & POE_R;
-		wr->uw &= uov_perms & POE_W;
-		wr->ux &= uov_perms & POE_X;
-	}
-}
-
-static void compute_s1_permissions(struct kvm_vcpu *vcpu,
-				   struct s1_walk_info *wi,
-				   struct s1_walk_result *wr) {
-	bool pan;
-
-	if (!s1pie_enabled(vcpu, wi->regime))
-		compute_s1_direct_permissions(vcpu, wi, wr);
-	else
-		compute_s1_indirect_permissions(vcpu, wi, wr);
-
-	if (!wi->hpd)
-		compute_s1_hierarchical_permissions(vcpu, wi, wr);
-
-	if (wi->poe || wi->e0poe)
-		compute_s1_overlay_permissions(vcpu, wi, wr);
-
-	/* R_QXXPC */
-	if (wr->pwxn) {
-		if (!wr->pov && wr->pw)
-			wr->px = false;
-		if (wr->pov && wr->px)
-			wr->pw = false;
-	}
-
-	/* R_NPBXC */
-	if (wr->uwxn) {
-		if (!wr->uov && wr->uw)
-			wr->ux = false;
-		if (wr->uov && wr->ux)
-			wr->uw = false;
-	}
-
-	pan = wi->pan &&
-	      (wr->ur || wr->uw || (pan3_enabled(vcpu, wi->regime) && wr->ux));
-	wr->pw &= !pan;
-	wr->pr &= !pan;
-}
-
 static u64 handle_at_slow(u32 op, u64 vaddr) {
 	struct s1_walk_result wr = {};
 	struct s1_walk_info wi = {};
@@ -1148,116 +642,32 @@ static u64 handle_at_slow(u32 op, u64 vaddr) {
 	if (wr.level == S1_MMU_DISABLED)
 		goto compute_par;
 
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-
-	ret = walk_s1(vcpu, &wi, &wr, vaddr);
-
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-
-	if (ret)
-		goto compute_par;
-
-	compute_s1_permissions(vcpu, &wi, &wr);
-
-	switch (op) {
-	case OP_AT_S1E1RP:
-	case OP_AT_S1E1R:
-	case OP_AT_S1E2R:
-		perm_fail = !wr.pr;
-		break;
-	case OP_AT_S1E1WP:
-	case OP_AT_S1E1W:
-	case OP_AT_S1E2W:
-		perm_fail = !wr.pw;
-		break;
-	case OP_AT_S1E0R:
-		perm_fail = !wr.ur;
-		break;
-	case OP_AT_S1E0W:
-		perm_fail = !wr.uw;
-		break;
-	case OP_AT_S1E1A:
-	case OP_AT_S1E2A:
-		break;
-	default:
-		BUG();
-	}
-
-	if (perm_fail)
-		fail_s1_walk(&wr, ESR_ELx_FSC_PERM_L(wr.level), false, false);
+	ret = walk_s1(&wi, &wr, vaddr);
 
 compute_par:
-	return compute_par_s1(vcpu, &wr, wi.regime);
-}
-
-static bool par_check_s1_perm_fault(u64 par) {
-	u8 fst = FIELD_GET(SYS_PAR_EL1_FST, par);
-
-	return ((fst & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_PERM &&
-		!(par & SYS_PAR_EL1_S));
+	return compute_par_s1(&wr, wi.regime);
 }
 
 void at_s1e01(u32 op, u64 vaddr) {
-	return handle_at_slow(vcpu, op, vaddr);
+	return handle_at_slow(op, vaddr);
 }
 
-void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr) {
-	u64 par;
+static inline bool isar_feature_aa64_nv1() {
+	return false;
+}
 
-	/*
-	 * We've trapped, so everything is live on the CPU. As we will be
-	 * switching context behind everybody's back, disable interrupts...
-	 */
-	scoped_guard(write_lock_irqsave, &vcpu->kvm->mmu_lock) {
-		u64 val, hcr;
-		bool fail;
+static inline bool el2_e2h_is_set() {
+	return (!isar_feature_aa64_nv1() ||
+		(ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_E2H));
+}
 
-		val = hcr = read_sysreg(hcr_el2);
-		val &= ~HCR_TGE;
-		val |= HCR_VM;
-
-		if (!vcpu_el2_e2h_is_set(vcpu))
-			val |= HCR_NV | HCR_NV1;
-
-		write_sysreg(val, hcr_el2);
-		isb();
-
-		par = SYS_PAR_EL1_F;
-
-		switch (op) {
-		case OP_AT_S1E2R:
-			fail = __kvm_at(OP_AT_S1E1R, vaddr);
-			break;
-		case OP_AT_S1E2W:
-			fail = __kvm_at(OP_AT_S1E1W, vaddr);
-			break;
-		case OP_AT_S1E2A:
-			fail = __kvm_at(OP_AT_S1E1A, vaddr);
-			break;
-		default:
-			WARN_ON_ONCE(1);
-			fail = true;
-		}
-
-		isb();
-
-		if (!fail)
-			par = read_sysreg_par();
-
-		write_sysreg(hcr, hcr_el2);
-		isb();
-	}
-
-	/* We failed the translation, let's replay it in slow motion */
-	if ((par & SYS_PAR_EL1_F) && !par_check_s1_perm_fault(par))
-		par = handle_at_slow(vcpu, op, vaddr);
-
-	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+static inline bool el2_tge_is_set() {
+	return (ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_TGE;
 }
 
 /* Performs stage 1 and 2 address translations */
-void at_s12(u32 op, u64 vaddr) {
-	struct kvm_s2_trans out = {};
+uint64_t at_s12(u32 op, u64 vaddr) {
+	struct s2_trans out = {};
 	u64 ipa, par;
 	bool write;
 	int ret;
@@ -1292,21 +702,17 @@ void at_s12(u32 op, u64 vaddr) {
 	 * If we only have a single stage of translation (E2H=0 or
 	 * TGE=1), exit early. Same thing if {VM,DC}=={0,0}.
 	 */
-	if (!vcpu_el2_e2h_is_set(vcpu) || vcpu_el2_tge_is_set(vcpu) ||
-	    !(vcpu_read_sys_reg(vcpu, HCR_EL2) & (HCR_VM | HCR_DC)))
+	if (!el2_e2h_is_set() || el2_tge_is_set() ||
+	    !(ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & (HCR_VM | HCR_DC)))
 		return;
 
 	/* Do the stage-2 translation */
 	ipa = (par & GENMASK_ULL(47, 12)) | (vaddr & GENMASK_ULL(11, 0));
 	out.esr = 0;
-	ret = kvm_walk_nested_s2(vcpu, ipa, &out);
+	ret = walk_nested_s2(ipa, &out);
 	if (ret < 0)
 		return;
 
-	/* Check the access permission */
-	if (!out.esr && ((!write && !out.readable) || (write && !out.writable)))
-		out.esr = ESR_ELx_FSC_PERM_L(out.level & 0x3);
-
-	par = compute_par_s12(vcpu, par, &out);
-	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+	par = compute_par_s12(par, &out);
+	return par;
 }

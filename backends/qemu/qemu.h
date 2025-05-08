@@ -38,14 +38,17 @@ typedef void hp_instruction;
 
 int hp_qemu_plugin_load();
 extern struct qemu_plugin_state plugin;
-void hp_vcpu_mem_access(
-        unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
-        uint64_t vaddr, void *userdata, enum qemu_plugin_pos pos, uint32_t size);
+void hp_vcpu_mem_access(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
+			uint64_t vaddr, void *userdata,
+			enum qemu_plugin_pos pos, uint32_t size);
 
 void el_change_fn(ARMCPU *cpu, void *opaque);
 void pre_el_change_fn(ARMCPU *cpu, void *opaque);
 void before_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 void after_exec_tb_fn(int cpu_index, TranslationBlock *tb);
+
+#define GENMASK(h, l) (((~_UL(0)) << (l)) & (~_UL(0) >> (64 - 1 - (h))))
+#define GENMASK_ULL(h, l) (((~_ULL(0)) << (l)) & (~_ULL(0) >> (64 - 1 - (h))))
 
 #ifdef __cplusplus
 }
