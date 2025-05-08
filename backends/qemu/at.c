@@ -11,9 +11,9 @@
 #include "nested.h"
 
 typedef int8_t s8;
-typedef uint8_t u8;
-typedef uint32_t u32;
-typedef uint64_t u64;
+typedef uint8_t uint8_t;
+typedef uint32_t uint32_t;
+typedef uint64_t uint64_t;
 typedef int64_t s64;
 
 enum trans_regime {
@@ -23,7 +23,7 @@ enum trans_regime {
 };
 
 struct s1_walk_info {
-	u64 baddr;
+	uint64_t baddr;
 	enum trans_regime regime;
 	unsigned int max_oa_bits;
 	unsigned int pgshift;
@@ -36,12 +36,12 @@ struct s1_walk_info {
 struct s1_walk_result {
 	union {
 		struct {
-			u64 desc;
-			u64 pa;
+			uint64_t desc;
+			uint64_t pa;
 			s8 level;
 		};
 		struct {
-			u8 fst;
+			uint8_t fst;
 			bool ptw;
 			bool s2;
 		};
@@ -49,7 +49,7 @@ struct s1_walk_result {
 	bool failed;
 };
 
-static void fail_s1_walk(struct s1_walk_result *wr, u8 fst, bool ptw, bool s2) {
+static void fail_s1_walk(struct s1_walk_result *wr, uint8_t fst, bool ptw, bool s2) {
 	wr->fst = fst;
 	wr->ptw = ptw;
 	wr->s2 = s2;
@@ -63,7 +63,7 @@ static int get_ia_size(struct s1_walk_info *wi) {
 }
 
 /* Return true if the IPA is out of the OA range */
-static bool check_output_size(u64 ipa, struct s1_walk_info *wi) {
+static bool check_output_size(uint64_t ipa, struct s1_walk_info *wi) {
 	return wi->max_oa_bits < 48 && (ipa & GENMASK_ULL(47, wi->max_oa_bits));
 }
 
@@ -78,42 +78,154 @@ static inline bool isar_feature_aa64_s1pie() {
 // to EL2 e2h, bit[34], if 1, the facilities to support a Host Operating System
 // at EL2 are enabled
 
+/*
+ * TCR flags.
+ */
 #define TCR_T0SZ_OFFSET 0
 #define TCR_T1SZ_OFFSET 16
+#define TCR_T0SZ(x) (((64UL) - (x)) << TCR_T0SZ_OFFSET)
+#define TCR_T1SZ(x) (((64UL) - (x)) << TCR_T1SZ_OFFSET)
+#define TCR_TxSZ(x) (TCR_T0SZ(x) | TCR_T1SZ(x))
 #define TCR_TxSZ_WIDTH 6
+#define TCR_T0SZ_MASK ((((1UL) << TCR_TxSZ_WIDTH) - 1) << TCR_T0SZ_OFFSET)
+#define TCR_T1SZ_MASK ((((1UL) << TCR_TxSZ_WIDTH) - 1) << TCR_T1SZ_OFFSET)
+
+#define TCR_EPD0_SHIFT 7
+#define TCR_EPD0_MASK ((1UL) << TCR_EPD0_SHIFT)
+#define TCR_IRGN0_SHIFT 8
+#define TCR_IRGN0_MASK ((3UL) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_NC ((0UL) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WBWA ((1UL) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WT ((2UL) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WBnWA ((3UL) << TCR_IRGN0_SHIFT)
+
+#define TCR_EPD1_SHIFT 23
+#define TCR_EPD1_MASK ((1UL) << TCR_EPD1_SHIFT)
+#define TCR_IRGN1_SHIFT 24
+#define TCR_IRGN1_MASK ((3UL) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_NC ((0Ul) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WBWA ((1UL) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WT ((2UL) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WBnWA ((3Ul) << TCR_IRGN1_SHIFT)
+
+#define TCR_IRGN_NC (TCR_IRGN0_NC | TCR_IRGN1_NC)
+#define TCR_IRGN_WBWA (TCR_IRGN0_WBWA | TCR_IRGN1_WBWA)
+#define TCR_IRGN_WT (TCR_IRGN0_WT | TCR_IRGN1_WT)
+#define TCR_IRGN_WBnWA (TCR_IRGN0_WBnWA | TCR_IRGN1_WBnWA)
+#define TCR_IRGN_MASK (TCR_IRGN0_MASK | TCR_IRGN1_MASK)
+
+#define TCR_ORGN0_SHIFT 10
+#define TCR_ORGN0_MASK ((3UL) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_NC ((0UL) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WBWA ((1UL) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WT ((2UL) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WBnWA ((3UL) << TCR_ORGN0_SHIFT)
+
+#define TCR_ORGN1_SHIFT 26
+#define TCR_ORGN1_MASK ((3UL) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_NC ((0Ul) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WBWA ((1UL) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WT ((2UL) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WBnWA ((3UL) << TCR_ORGN1_SHIFT)
+
+#define TCR_ORGN_NC (TCR_ORGN0_NC | TCR_ORGN1_NC)
+#define TCR_ORGN_WBWA (TCR_ORGN0_WBWA | TCR_ORGN1_WBWA)
+#define TCR_ORGN_WT (TCR_ORGN0_WT | TCR_ORGN1_WT)
+#define TCR_ORGN_WBnWA (TCR_ORGN0_WBnWA | TCR_ORGN1_WBnWA)
+#define TCR_ORGN_MASK (TCR_ORGN0_MASK | TCR_ORGN1_MASK)
+
+#define TCR_SH0_SHIFT 12
+#define TCR_SH0_MASK ((3UL) << TCR_SH0_SHIFT)
+#define TCR_SH0_INNER ((3UL) << TCR_SH0_SHIFT)
+
+#define TCR_SH1_SHIFT 28
+#define TCR_SH1_MASK ((3UL) << TCR_SH1_SHIFT)
+#define TCR_SH1_INNER ((3UL) << TCR_SH1_SHIFT)
+#define TCR_SHARED (TCR_SH0_INNER | TCR_SH1_INNER)
 
 #define TCR_TG0_SHIFT 14
 #define TCR_TG0_WIDTH 2
-#define TCR_TG0_4K ((0) << TCR_TG0_SHIFT)
-#define TCR_TG0_64K ((1) << TCR_TG0_SHIFT)
-#define TCR_TG0_16K ((2) << TCR_TG0_SHIFT)
+#define TCR_TG0_MASK ((3UL) << TCR_TG0_SHIFT)
+#define TCR_TG0_4K ((0UL) << TCR_TG0_SHIFT)
+#define TCR_TG0_64K ((1UL) << TCR_TG0_SHIFT)
+#define TCR_TG0_16K ((2UL) << TCR_TG0_SHIFT)
 
 #define TCR_TG1_SHIFT 30
 #define TCR_TG1_WIDTH 2
-#define TCR_TG1_16K ((1) << TCR_TG1_SHIFT)
-#define TCR_TG1_4K ((2) << TCR_TG1_SHIFT)
-#define TCR_TG1_64K ((3) << TCR_TG1_SHIFT)
+#define TCR_TG1_MASK ((3UL) << TCR_TG1_SHIFT)
+#define TCR_TG1_16K ((1UL) << TCR_TG1_SHIFT)
+#define TCR_TG1_4K ((2UL) << TCR_TG1_SHIFT)
+#define TCR_TG1_64K ((3UL) << TCR_TG1_SHIFT)
 
 #define TCR_IPS_SHIFT 32
-#define TCR_IPS_MASK ((7) << TCR_IPS_SHIFT)
-
+#define TCR_IPS_MASK ((7UL) << TCR_IPS_SHIFT)
+#define TCR_A1 ((1UL) << 22)
+#define TCR_ASID16 ((1UL) << 36)
 #define TCR_TBI0_SHIFT 37
+#define TCR_TBI0 ((1UL) << 37)
 #define TCR_TBI1_SHIFT 38
+#define TCR_TBI1 ((1UL) << 38)
+#define TCR_HA ((1UL) << 39)
+#define TCR_HD ((1UL) << 40)
 #define TCR_HPD0_SHIFT 41
+#define TCR_HPD0 ((1UL) << TCR_HPD0_SHIFT)
 #define TCR_HPD1_SHIFT 42
+#define TCR_HPD1 ((1UL) << TCR_HPD1_SHIFT)
+#define TCR_TBID0 ((1UL) << 51)
+#define TCR_TBID1 ((1UL) << 52)
+#define TCR_NFD0 ((1UL) << 53)
+#define TCR_NFD1 ((1UL) << 54)
+#define TCR_E0PD0 ((1UL) << 55)
+#define TCR_E0PD1 ((1UL) << 56)
+#define TCR_TCMA0 ((1UL) << 57)
+#define TCR_TCMA1 ((1UL) << 58)
+#define TCR_DS ((1UL) << 59)
 
-#define TCR_E0PD0 ((1) << 55)
-#define TCR_E0PD1 ((1) << 56)
-#define TCR_DS ((1) << 59)
-
-static inline s64 sign_extend64(u64 value, int index) {
-	u8 shift = 63 - index;
+static inline s64 sign_extend64(uint64_t value, int index) {
+	uint8_t shift = 63 - index;
 	return (s64)(value << shift) >> shift;
 }
 
-static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
-			 struct s1_walk_result *wr, u64 va) {
-	u64 hcr, sctlr, tcr, tg, ps, ia_bits, ttbr;
+/* Shared ISS fault status code(IFSC/DFSC) for Data/Instruction aborts */
+#define ESR_ELx_FSC		(0x3F)
+#define ESR_ELx_FSC_TYPE	(0x3C)
+#define ESR_ELx_FSC_LEVEL	(0x03)
+#define ESR_ELx_FSC_EXTABT	(0x10)
+#define ESR_ELx_FSC_MTE		(0x11)
+#define ESR_ELx_FSC_SERROR	(0x11)
+#define ESR_ELx_FSC_ACCESS	(0x08)
+#define ESR_ELx_FSC_FAULT	(0x04)
+#define ESR_ELx_FSC_PERM	(0x0C)
+#define ESR_ELx_FSC_SEA_TTW(n)	(0x14 + (n))
+#define ESR_ELx_FSC_SECC	(0x18)
+#define ESR_ELx_FSC_SECC_TTW(n)	(0x1c + (n))
+#define ESR_ELx_FSC_ADDRSZ	(0x00)
+
+/*
+ * Annoyingly, the negative levels for Address size faults aren't laid out
+ * contiguously (or in the desired order)
+ */
+#define ESR_ELx_FSC_ADDRSZ_nL(n)	((n) == -1 ? 0x25 : 0x2C)
+#define ESR_ELx_FSC_ADDRSZ_L(n)		((n) < 0 ? ESR_ELx_FSC_ADDRSZ_nL(n) : \
+						   (ESR_ELx_FSC_ADDRSZ + (n)))
+
+/* Status codes for individual page table levels */
+#define ESR_ELx_FSC_ACCESS_L(n)	(ESR_ELx_FSC_ACCESS + (n))
+#define ESR_ELx_FSC_PERM_L(n)	(ESR_ELx_FSC_PERM + (n))
+
+#define ESR_ELx_FSC_FAULT_nL	(0x2C)
+#define ESR_ELx_FSC_FAULT_L(n)	(((n) < 0 ? ESR_ELx_FSC_FAULT_nL : \
+					    ESR_ELx_FSC_FAULT) + (n))
+
+#define __bf_shf(x) (__builtin_ffsll(x) - 1)
+#define FIELD_PREP(_mask, _val) \
+	({ ((typeof(_mask))(_val) << __bf_shf(_mask)) & (_mask); })
+#define FIELD_GET(_mask, _reg) \
+	({ (typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask)); })
+
+static int setup_s1_walk(uint32_t op, struct s1_walk_info *wi,
+			 struct s1_walk_result *wr, uint64_t va) {
+	uint64_t hcr, sctlr, tcr, tg, ps, ia_bits, ttbr;
 	unsigned int stride, x;
 	bool va55, tbi, lva, as_el0;
 
@@ -134,10 +246,10 @@ static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 	tbi = (va55 ? extract64(tcr, TCR_TBI1_SHIFT, 1) :
 		      extract64(tcr, TCR_TBI0_SHIFT, 1));
 
-	if (!tbi && (u64)sign_extend64(va, 55) != va)
+	if (!tbi && (uint64_t)sign_extend64(va, 55) != va)
 		goto addrsz;
 
-	va = (u64)sign_extend64(va, 55);
+	va = (uint64_t)sign_extend64(va, 55);
 
 	if (hcr & (HCR_DC | HCR_TGE)) {
 		wr->level = S1_MMU_DISABLED;
@@ -147,7 +259,7 @@ static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 	}
 
 	if (wr->level == S1_MMU_DISABLED) {
-		if (va >= (1 << 48))
+		if (va >= (1UL << 48))
 			goto addrsz;
 
 		wr->pa = va;
@@ -232,7 +344,7 @@ static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 		goto transfault_l0;
 
 	/* R_BNDVG and following statements */
-	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR2_EL1, E0PD, IMP) && as_el0 &&
+	if (isar_feature_aa64_e0pd(&(ARM_CPU(QEMU_CPU(0))->isar)) && as_el0 &&
 	    (tcr & (va55 ? TCR_E0PD1 : TCR_E0PD0)))
 		goto transfault_l0;
 
@@ -240,15 +352,14 @@ static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 	stride = wi->pgshift - 3;
 	wi->sl = 3 - (((ia_bits - 1) - wi->pgshift) / stride);
 
-	ps = (wi->regime == TR_EL2 ? FIELD_GET(TCR_EL2_PS_MASK, tcr) :
-				     FIELD_GET(TCR_IPS_MASK, tcr));
+	ps = FIELD_GET(TCR_IPS_MASK, tcr);
 
-	wi->max_oa_bits = min(48, ps_to_output_size(ps));
+	wi->max_oa_bits = MIN(48, ps_to_output_size(ps));
 
 	/* Compute minimal alignment */
 	x = 3 + ia_bits - ((3 - wi->sl) * stride + wi->pgshift);
 
-	wi->baddr = ttbr & TTBRx_EL1_BADDR;
+	wi->baddr = ttbr & GENMASK_ULL(47, 1);;
 
 	/* R_VPBBF */
 	if (check_output_size(wi->baddr, wi))
@@ -260,16 +371,15 @@ static int setup_s1_walk(u32 op, struct s1_walk_info *wi,
 
 addrsz: /* Address Size Fault level 0 */
 	fail_s1_walk(wr, ESR_ELx_FSC_ADDRSZ_L(0), false, false);
-	return -EFAULT;
+	return -1;
 
 transfault_l0: /* Translation Fault level 0 */
 	fail_s1_walk(wr, ESR_ELx_FSC_FAULT_L(0), false, false);
-	return -EFAULT;
+	return -1;
 }
 
-#define ESR_ELx_FSC_LEVEL 0x03
-static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, u64 va) {
-	u64 va_top, va_bottom, baddr, desc;
+static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, uint64_t va) {
+	uint64_t va_top, va_bottom, baddr, desc;
 	int level, stride, ret;
 
 	level = wi->sl;
@@ -279,7 +389,7 @@ static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, u64 va) {
 	va_top = get_ia_size(wi) - 1;
 
 	while (1) {
-		u64 index, ipa;
+		uint64_t index, ipa;
 
 		va_bottom = (3 - level) * stride + wi->pgshift;
 		index = (va & GENMASK_ULL(va_top, va_bottom)) >>
@@ -380,7 +490,7 @@ transfault:
 
 #define MEMATTR_IS_DEVICE(m) (((m) & GENMASK(7, 4)) == 0)
 
-static u8 s2_memattr_to_attr(u8 memattr) {
+static uint8_t s2_memattr_to_attr(uint8_t memattr) {
 	memattr &= 0b1111;
 
 	switch (memattr) {
@@ -416,13 +526,13 @@ static u8 s2_memattr_to_attr(u8 memattr) {
 	case 0b1111:
 		return MEMATTR(Wb, Wb);
 	default:
-		unreachable();
+		abort();
 	}
 }
 
-static u8 combine_s1_s2_attr(u8 s1, u8 s2) {
+static uint8_t combine_s1_s2_attr(uint8_t s1, uint8_t s2) {
 	bool transient;
-	u8 final = 0;
+	uint8_t final = 0;
 
 	/* Upgrade transient s1 to non-transient to simplify things */
 	switch (s1) {
@@ -472,8 +582,10 @@ static u8 combine_s1_s2_attr(u8 s1, u8 s2) {
 #define ATTR_OSH 0b10
 #define ATTR_ISH 0b11
 
-static u8 compute_sh(u8 attr, u64 desc) {
-	u8 sh;
+#define PTE_SHARED		((3UL) << 8)		/* SH[1:0], inner shareable */
+
+static uint8_t compute_sh(uint8_t attr, uint64_t desc) {
+	uint8_t sh;
 
 	/* Any form of device, as well as NC has SH[1:0]=0b10 */
 	if (MEMATTR_IS_DEVICE(attr) || attr == MEMATTR(NC, NC))
@@ -486,7 +598,7 @@ static u8 compute_sh(u8 attr, u64 desc) {
 	return sh;
 }
 
-static u8 combine_sh(u8 s1_sh, u8 s2_sh) {
+static uint8_t combine_sh(uint8_t s1_sh, uint8_t s2_sh) {
 	if (s1_sh == ATTR_OSH || s2_sh == ATTR_OSH)
 		return ATTR_OSH;
 	if (s1_sh == ATTR_ISH || s2_sh == ATTR_ISH)
@@ -495,9 +607,13 @@ static u8 combine_sh(u8 s1_sh, u8 s2_sh) {
 	return ATTR_NSH;
 }
 
-static u64 compute_par_s12(u64 s1_par, struct s2_trans *tr) {
-	u8 s1_parattr, s2_memattr, final_attr;
-	u64 par;
+static inline bool isar_feature_aa64_mteperm() {
+	return false;
+}
+
+static uint64_t compute_par_s12(uint64_t s1_par, struct s2_trans *tr) {
+	uint8_t s1_parattr, s2_memattr, final_attr;
+	uint64_t par;
 
 	/* If S2 has failed to translate, report the damage */
 	if (tr->esr) {
@@ -512,7 +628,7 @@ static u64 compute_par_s12(u64 s1_par, struct s2_trans *tr) {
 	s2_memattr = FIELD_GET(GENMASK(5, 2), tr->desc);
 
 	if (ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_FWB) {
-		if (!kvm_has_feat(vcpu->kvm, ID_AA64PFR2_EL1, MTEPERM, IMP))
+		if (!isar_feature_aa64_mteperm())
 			s2_memattr &= ~BIT(3);
 
 		/* Combination of R_VRJSW and R_RHWZM */
@@ -547,15 +663,15 @@ static u64 compute_par_s12(u64 s1_par, struct s2_trans *tr) {
 			 * with stage 2 Device type and attributes.
 			 */
 			final_attr =
-				min(s2_memattr_to_attr(s2_memattr), s1_parattr);
+				MIN(s2_memattr_to_attr(s2_memattr), s1_parattr);
 		}
 	} else {
 		/* Combination of R_HMNDG, R_TNHFM and R_GQFSF */
-		u8 s2_parattr = s2_memattr_to_attr(s2_memattr);
+		uint8_t s2_parattr = s2_memattr_to_attr(s2_memattr);
 
 		if (MEMATTR_IS_DEVICE(s1_parattr) ||
 		    MEMATTR_IS_DEVICE(s2_parattr)) {
-			final_attr = min(s1_parattr, s2_parattr);
+			final_attr = MIN(s1_parattr, s2_parattr);
 		} else {
 			/* At this stage, this is memory vs memory */
 			final_attr = combine_s1_s2_attr(s1_parattr & 0xf,
@@ -579,8 +695,9 @@ static u64 compute_par_s12(u64 s1_par, struct s2_trans *tr) {
 	return par;
 }
 
-static u64 compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
-	u64 par;
+#define PTE_ATTRINDX_MASK	((7UL) << 2)
+static uint64_t compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
+	uint64_t par;
 
 	if (wr->failed) {
 		par = SYS_PAR_EL1_RES1;
@@ -603,20 +720,20 @@ static u64 compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
 			par |= FIELD_PREP(SYS_PAR_EL1_SH, ATTR_OSH);
 		}
 	} else {
-		u64 mair, sctlr;
-		u8 sh;
+		uint64_t mair, sctlr;
+		uint8_t sh;
 
 		par = SYS_PAR_EL1_NSE;
 
-		mair = vcpu_read_sys_reg(vcpu, MAIR_EL1);
+		mair = ARM_CPU(QEMU_CPU(0))->env.cp15.mair_el[1];
 
 		mair >>= FIELD_GET(PTE_ATTRINDX_MASK, wr->desc) * 8;
 		mair &= 0xff;
 
-		sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
+		sctlr = ARM_CPU(QEMU_CPU(0))->env.cp15.sctlr_el[1];
 
 		/* Force NC for memory if SCTLR_ELx.C is clear */
-		if (!(sctlr & SCTLR_EL1_C) && !MEMATTR_IS_DEVICE(mair))
+		if (!(sctlr & SCTLR_ELx_C) && !MEMATTR_IS_DEVICE(mair))
 			mair = MEMATTR(NC, NC);
 
 		par |= FIELD_PREP(SYS_PAR_EL1_ATTR, mair);
@@ -629,7 +746,7 @@ static u64 compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
 	return par;
 }
 
-static u64 handle_at_slow(u32 op, u64 vaddr) {
+static uint64_t handle_at_slow(uint32_t op, uint64_t vaddr) {
 	struct s1_walk_result wr = {};
 	struct s1_walk_info wi = {};
 	bool perm_fail = false;
@@ -648,7 +765,7 @@ compute_par:
 	return compute_par_s1(&wr, wi.regime);
 }
 
-void at_s1e01(u32 op, u64 vaddr) {
+uint64_t at_s1e01(uint32_t op, uint64_t vaddr) {
 	return handle_at_slow(op, vaddr);
 }
 
@@ -662,13 +779,13 @@ static inline bool el2_e2h_is_set() {
 }
 
 static inline bool el2_tge_is_set() {
-	return (ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_TGE;
+	return ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & HCR_TGE;
 }
 
 /* Performs stage 1 and 2 address translations */
-uint64_t at_s12(u32 op, u64 vaddr) {
+uint64_t at_s12(uint32_t op, uint64_t vaddr) {
 	struct s2_trans out = {};
-	u64 ipa, par;
+	uint64_t ipa, par;
 	bool write;
 	int ret;
 
@@ -704,14 +821,14 @@ uint64_t at_s12(u32 op, u64 vaddr) {
 	 */
 	if (!el2_e2h_is_set() || el2_tge_is_set() ||
 	    !(ARM_CPU(QEMU_CPU(0))->env.cp15.hcr_el2 & (HCR_VM | HCR_DC)))
-		return;
+		return ~(0UL);
 
 	/* Do the stage-2 translation */
 	ipa = (par & GENMASK_ULL(47, 12)) | (vaddr & GENMASK_ULL(11, 0));
 	out.esr = 0;
 	ret = walk_nested_s2(ipa, &out);
 	if (ret < 0)
-		return;
+		return ~(0UL);
 
 	par = compute_par_s12(par, &out);
 	return par;

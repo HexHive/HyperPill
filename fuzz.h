@@ -26,7 +26,6 @@
 #include "fuzzc.h"
 
 extern bool fuzzing;
-extern size_t maxaddr;
 #if defined(HP_X86_64)
 extern std::vector<size_t> guest_page_scratchlist;
 #endif
@@ -138,6 +137,9 @@ void init_register_feedback();
 
 // link_map.cc
 void load_link_map(char* map_path, char* obj_regex, size_t base);
+
+// mem.cc
+uint64_t lookup_gpa_by_hpa(uint64_t hpa);
 
 // slat.cc
 void walk_slat();

@@ -195,11 +195,18 @@ void icp_init_mem(const char *filename) {
 		}
 		ram = qemu_ram_get_host_addr(ram_block);
 		ramsize = qemu_ram_get_used_length(ram_block);
+		maxaddr = ramsize;
 		break;
 	}
 
 	shadowram = (uint8_t *)malloc(ramsize);
 	memcpy(shadowram, (void *)ram, ramsize);
+
+	is_l2_page_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+	memset(is_l2_page_bitmap, 0, maxaddr >> 12);
+
+	is_l2_pagetable_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+	memset(is_l2_pagetable_bitmap, 0, maxaddr >> 12);
 }
 
 void cpu0_read_virtual(hp_address start, size_t size, void *data) {

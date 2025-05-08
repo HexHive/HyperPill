@@ -42,10 +42,11 @@ extern int walk_nested_s2(uint64_t gipa, struct s2_trans *result);
 #define SZ_4K 0x00001000
 #define SZ_16K 0x00004000
 #define SZ_64K 0x00010000
+#define PTE_CONT		((1UL) << 52)	/* Contiguous range */
 /* Adjust alignment for the contiguous bit as per StageOA() */
 #define contiguous_bit_shift(d, wi, l)                    \
 	({                                                \
-		u8 shift = 0;                             \
+		uint8_t shift = 0;                             \
                                                           \
 		if ((d) & PTE_CONT) {                     \
 			switch (BIT((wi)->pgshift)) {     \

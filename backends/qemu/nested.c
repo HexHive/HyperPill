@@ -11,7 +11,7 @@
 
 struct s2_walk_info {
 	void (*read_desc)(uint64_t pa, uint64_t *desc);
-	u64 baddr;
+	uint64_t baddr;
 	unsigned int max_oa_bits;
 	unsigned int pgshift;
 	unsigned int sl;
@@ -19,7 +19,7 @@ struct s2_walk_info {
 	bool be;
 };
 
-static u32 compute_fsc(int level, u32 fsc) {
+static uint32_t compute_fsc(int level, uint32_t fsc) {
 	return fsc | (level & 0x3);
 }
 
@@ -63,7 +63,7 @@ static int check_base_s2_limits(struct s2_walk_info *wi, int level,
 }
 
 /* Check if output is within boundaries */
-static int check_output_size(struct s2_walk_info *wi, phys_addr_t output) {
+static int check_output_size(struct s2_walk_info *wi, uint64_t output) {
 	unsigned int output_size = wi->max_oa_bits;
 
 	if (output_size != 48 && (output & GENMASK_ULL(47, output_size)))
@@ -93,14 +93,14 @@ static int check_output_size(struct s2_walk_info *wi, phys_addr_t output) {
  *
  * Must be called with the kvm->srcu read lock held
  */
-static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
+static int walk_nested_s2_pgd(uint64_t ipa, struct s2_walk_info *wi,
 			      struct s2_trans *out) {
 	int first_block_level, level, stride, input_size, base_lower_bound;
-	phys_addr_t base_addr;
+	uint64_t base_addr;
 	unsigned int addr_top, addr_bottom;
-	u64 desc; /* page table entry */
+	uint64_t desc; /* page table entry */
 	int ret;
-	phys_addr_t paddr;
+	uint64_t paddr;
 
 	switch (BIT(wi->pgshift)) {
 	default:
@@ -118,11 +118,13 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 	stride = wi->pgshift - 3;
 	input_size = get_ia_size(wi);
 	if (input_size > 48 || input_size < 25)
-		return -EFAULT;
+		return -1;
 
 	ret = check_base_s2_limits(wi, level, input_size, stride);
-	if (WARN_ON(ret))
+	if (ret == -1) {
+		out->level = level;
 		return ret;
+	}
 
 	base_lower_bound =
 		3 + input_size - ((3 - level) * stride + wi->pgshift);
@@ -130,6 +132,7 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 
 	if (check_output_size(wi, base_addr)) {
 		out->esr = compute_fsc(level, ESR_ELx_FSC_ADDRSZ);
+		out->level = level;
 		return 1;
 	}
 
@@ -137,14 +140,14 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 	addr_top = input_size - 1;
 
 	while (1) {
-		phys_addr_t index;
+		uint64_t index;
 
 		addr_bottom = (3 - level) * stride + wi->pgshift;
 		index = (ipa & GENMASK_ULL(addr_top, addr_bottom)) >>
 			(addr_bottom - 3);
 
 		paddr = base_addr | index;
-		ret = wi->read_desc(paddr, &desc, wi->data);
+		wi->read_desc(paddr, &desc);
 
 		/*
 		 * Handle reversedescriptors if endianness differs between the
@@ -159,6 +162,7 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 		if (!(desc & 1) || ((desc & 3) == 1 && level == 3)) {
 			out->esr = compute_fsc(level, ESR_ELx_FSC_FAULT);
 			out->desc = desc;
+			out->level = level;
 			return 1;
 		}
 
@@ -169,6 +173,7 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 		if (check_output_size(wi, desc)) {
 			out->esr = compute_fsc(level, ESR_ELx_FSC_ADDRSZ);
 			out->desc = desc;
+			out->level = level;
 			return 1;
 		}
 
@@ -181,18 +186,21 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 	if (level < first_block_level) {
 		out->esr = compute_fsc(level, ESR_ELx_FSC_FAULT);
 		out->desc = desc;
+		out->level = level;
 		return 1;
 	}
 
 	if (check_output_size(wi, desc)) {
 		out->esr = compute_fsc(level, ESR_ELx_FSC_ADDRSZ);
 		out->desc = desc;
+		out->level = level;
 		return 1;
 	}
 
 	if (!(desc & BIT(10))) {
 		out->esr = compute_fsc(level, ESR_ELx_FSC_ACCESS);
 		out->desc = desc;
+		out->level = level;
 		return 1;
 	}
 
@@ -210,7 +218,7 @@ static int walk_nested_s2_pgd(phys_addr_t ipa, struct s2_walk_info *wi,
 	return 0;
 }
 
-static int read_guest_s2_desc(uint64_t pa, uint64_t *desc) {
+static void read_guest_s2_desc(uint64_t pa, uint64_t *desc) {
 	cpu_physical_memory_read(pa, desc, sizeof(*desc));
 }
 
@@ -231,7 +239,7 @@ static int read_guest_s2_desc(uint64_t pa, uint64_t *desc) {
 #define VTCR_EL2_SL0_SHIFT 6
 #define VTCR_EL2_SL0_MASK (3 << VTCR_EL2_SL0_SHIFT)
 
-static void vtcr_to_walk_info(u64 vtcr, struct s2_walk_info *wi) {
+static void vtcr_to_walk_info(uint64_t vtcr, struct s2_walk_info *wi) {
 	wi->t0sz = vtcr & TCR_EL2_T0SZ_MASK;
 
 	switch (vtcr & VTCR_EL2_TG0_MASK) {
@@ -249,11 +257,13 @@ static void vtcr_to_walk_info(u64 vtcr, struct s2_walk_info *wi) {
 
 	wi->sl = ((vtcr & VTCR_EL2_SL0_MASK) >> VTCR_EL2_SL0_SHIFT);
 	/* Global limit for now, should eventually be per-VM */
-	wi->max_oa_bits = min(48, ps_to_output_size((vtcr & VTCR_EL2_PS_MASK) >>
+	wi->max_oa_bits = MIN(48, ps_to_output_size((vtcr & VTCR_EL2_PS_MASK) >>
 						    VTCR_EL2_PS_SHIFT));
 }
 
-static inline bool vcpu_has_nv() { return false; }
+static inline bool vcpu_has_nv() {
+	return true;
+}
 
 #define SCTLR_ELx_EE_SHIFT 25
 #define SCTLR_ELx_EE (1 << SCTLR_ELx_EE_SHIFT)
@@ -264,7 +274,7 @@ int walk_nested_s2(uint64_t gipa, struct s2_trans *result) {
 
 	result->esr = 0;
 
-	if (!vcpu_has_nv(vcpu))
+	if (!vcpu_has_nv())
 		return 0;
 
 	wi.read_desc = read_guest_s2_desc;
@@ -275,8 +285,6 @@ int walk_nested_s2(uint64_t gipa, struct s2_trans *result) {
 	wi.be = ((ARM_CPU(QEMU_CPU(0))->env).cp15.sctlr_el[2]) & SCTLR_ELx_EE;
 
 	ret = walk_nested_s2_pgd(gipa, &wi, result);
-	if (ret)
-		result->esr |= (kvm_vcpu_get_esr(vcpu) & ~ESR_ELx_FSC);
 
 	return ret;
 }

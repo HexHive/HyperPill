@@ -34,6 +34,8 @@ extern "C" {
 #define NM_PREFIX "aarch64-linux-gnu-"
 #endif
 
+extern size_t maxaddr;
+
 // backends/xxx/control
 bool cpu0_get_fuzztrace(void);
 void cpu0_set_fuzztrace(bool fuzztrace);
@@ -148,8 +150,6 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
 // mem.cc
 extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
-void hpa_to_gpa_get(uint64_t hpa, uint64_t *gpa);
-void hpa_to_gpa_set(uint64_t hpa, uint64_t *gpa);
 void fuzzed_guest_paged_push_back(uint64_t hpa, uint8_t pagetable_level, uint8_t original_val);
 
 // sym2addr_linux.cc

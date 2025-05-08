@@ -50,6 +50,10 @@ bool frame_is_guest(hp_phy_address addr) {
 }
 
 void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr){
+    if (hpa_to_gpa.find(paddr) != hpa_to_gpa.end()){
+        return;
+    }
+
     hpa_to_gpa[paddr] = addr;
     while(paddr < maxaddr && len) {
         is_l2_page_bitmap[paddr>>12]++;
@@ -68,15 +72,6 @@ void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level) {
         is_l2_pagetable_bitmap[paddr>>12] = level + 1;
         assert(level >= 0 && level <= 3);
     }
-}
-
-// c bindings for hpa_to_gpa
-void hpa_to_gpa_get(uint64_t hpa, uint64_t *gpa) {
-  *gpa = hpa_to_gpa[hpa];
-}
-
-void hpa_to_gpa_set(uint64_t hpa, uint64_t *gpa) {
-  hpa_to_gpa[hpa] = *gpa;
 }
 
 // c bingings for fuzzed_guest_pages
