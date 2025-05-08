@@ -257,45 +257,8 @@ image, install ubuntu, and restart the ubuntu
 # We include snap in rootfs.cpio.gz
 [L2] $ snap
 
-# But in other L2 VM, we have to compile snap.c
-[L2] $ cat > snap.c << EOF
-#include <stdint.h>
-#include <stddef.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-int main() {
-    size_t size = 0x100000; // 1MB
-    int fd = open("/dev/random", O_RDONLY);
-    int i =0;
-    void *bloat = -1;
-    if(!fork()) {
-        mlockall( MCL_CURRENT | MCL_FUTURE );
-
-        while(bloat !=  NULL){
-            bloat = malloc(size);
-            if(bloat == NULL) {
-                printf("MMAP FAILED\n");
-            } else {
-                memset(bloat, 1, size);
-                printf("BLOAT %p\n", bloat);
-            }
-        }
-        exit(0);
-    } else {
-            wait(NULL);
-            uint64_t rax;;
-            __asm__ __volatile__("mov $0xdeadbeef, %rax\n");
-            asm volatile("vmcall");
-    }
-}
-EOF
-
-[L2] $ gcc snap.c -o snap
-[L2] $ ./snap
+# But in other L2 VM, we have to compile
+# /path/to/hyperpill/hyperpill-snap/snap.c
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
@@ -466,17 +429,21 @@ EL2. Note that it is impossible to do this from EL0 (or userspace) as the
 aarch64 specification makes an `hvc` instruction executed at EL0 an undefined
 behaviour.
 
-To do so, execute in L2 :
+To do so, execute in L2 to expose an interface to userspace
 
 ```bash
 [L2] insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
-```
 
-Once the exception is triggered, L0's QEMU catches it and stops the VM. From
-that point we are able to perform a snapshot. To do so, type in the (L0) QEMU
-monitor :
+# In L2, we use the following tool to trigger a snapshot.
+# We include snap in rootfs.cpio.gz
+[L2] $ snap
 
-```bash
+# But in other L2 VM, we have to compile
+# /path/to/hyperpill/hyperpill-snap/snap.c
+
+# Now in L0, collect the snapshot data to /path/to/snapshots/dir,
+# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+# Attach to qemu monitor:
 [L0] telnet localhost 55556
 # it is not necessary to run dump-guest-memory anymore if using qemu
 # as the backend because hp-save-devices-state -r will save all the ram blocks
