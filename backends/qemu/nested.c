@@ -7,7 +7,7 @@
  */
 
 #include "qemu.h"
-#include "nested.h"
+#include "s2pt.h"
 
 struct s2_walk_info {
 	void (*read_desc)(uint64_t pa, uint64_t *desc);

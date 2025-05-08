@@ -68,6 +68,7 @@ void apply_breakpoints_linux() {
 	add_breakpoint(sym_to_addr2("libc.so.6", "abort@@GLIBC_2.17"), abort_crash);
 }
 
+// TODO: test it
 void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
 		     uint64_t a4, uint64_t a5, uint64_t a6, uint64_t a7,
 		     uint64_t a8) {
@@ -75,6 +76,7 @@ void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
 	case 93: /* exit */
 	case 94: /* exit_group */
 		fuzz_emu_stop_crash("exit syscall");
+		break;
 	case 129: /* kill */
 	case 130: /* tkill */
 		if (a1 == 6) { /* sigabrt */

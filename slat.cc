@@ -1,6 +1,6 @@
 #include "fuzz.h"
 
-static uint64_t pow64(uint64_t x, uint64_t y){
+uint64_t pow64(uint64_t x, uint64_t y){
     uint64_t result = 1;
     while(y--){
         result*=x;

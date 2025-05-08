@@ -62,8 +62,13 @@ void hp_vcpu_mem_access(
 			test_and_set_bit(pages, ram_block->bmap);
 			break;
 		}
+
+		if (is_l2_pagetable_bitmap[addr >> 12] && watch_level > 1) {
+			fuzz_mark_l2_guest_page(addr, 0x1000);
+		}
     } 
 
+	// TODO: test it
 	if (rw == QEMU_PLUGIN_MEM_R) {
 		size_t __size = 0;
 		switch (size) {
@@ -75,15 +80,15 @@ void hp_vcpu_mem_access(
 			default: abort();
 		}
 		uint8_t data[__size];
-		// printf("load, 0x%08"PRIx64", %lx\n", addr, size);
-		// if (is_l2_page_bitmap[hwaddr >> 12]) {
-		if (0) {
+		printf("load, 0x%08"PRIx64", %lx\n", addr, size);
+		if (is_l2_page_bitmap[hwaddr >> 12]) {
 				if (cpu0_get_fuzztrace()) {
 					/* printf(".dma inject: %lx +%lx ",phy, len); */
 				}
 				fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
 			}
-		// __cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
+		cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
+		prioraccess = -1;
 	}
 }
 
@@ -119,34 +124,7 @@ void fuzz_watch_memory_inc() {
 	watch_level++;
 }
 
-/**
- * During fuzzing, there is a chance that new guest addresses get paged in.
- * The corresponding HPAs have not been marked as guest pages, so we mark them.
- * However, the EPT is reset across fuzz iterations, so have to unmark
- * the pages that have been marked during the current fuzz iteration
-*/
-#define PG_PRESENT_BIT  0
-#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
-void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
-    uint64_t pg_entry;
-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
-    hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
-    uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
-    uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
-
-    if (!pg_present || new_addr >= ramsize)
-      return;
-
-    // store all updates made for the current fuzzing iteration
-	fuzzed_guest_paged_push_back(new_addr, new_pgtable_lvl, is_l2_pagetable_bitmap[new_addr>>12]);
-    //printf("!fuzz_mark_l2_guest_page Mark 0x%lx lvl %x as tmp guest page\n", new_addr, new_pgtable_lvl);
-    if (new_pgtable_lvl) {
-        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl - 1);
-    } else {
-        mark_l2_guest_page(new_addr, len, 0);
-    }
-}
-
+// TODO: implement it
 void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
 }
 
@@ -182,6 +160,7 @@ void fuzz_reset_memory() {
 		break;
 	}
 	fuzz_clear_dirty();
+    fuzz_reset_watched_pages();
 }
 
 void icp_init_mem(const char *filename) {
@@ -227,6 +206,7 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 }
 
 uint64_t cpu0_virt2phy(uint64_t start) {
+	return gva2hpa(start);
 
 }
 

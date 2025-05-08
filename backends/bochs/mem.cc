@@ -93,34 +93,6 @@ void fuzz_watch_memory_inc() {
 }
 
 
-/**
- * During fuzzing, there is a chance that new guest addresses get paged in.
- * The corresponding HPAs have not been marked as guest pages, so we mark them.
- * However, the EPT is reset across fuzz iterations, so have to unmark
- * the pages that have been marked during the current fuzz iteration
-*/
-#define PG_PRESENT_BIT  0
-#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
-void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
-    uint64_t pg_entry;
-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
-    bx_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
-    uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
-    uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
-
-    if (!pg_present || new_addr >= maxaddr)
-      return;
-
-    // store all updates made for the current fuzzing iteration
-    fuzzed_guest_pages.push_back(std::make_tuple(new_addr, new_pgtable_lvl, is_l2_pagetable_bitmap[new_addr>>12]));
-    //printf("!fuzz_mark_l2_guest_page Mark 0x%lx lvl %x as tmp guest page\n", new_addr, new_pgtable_lvl);
-    if (new_pgtable_lvl) {
-        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl - 1);
-    } else {
-        mark_l2_guest_page(new_addr, len, 0);
-    }
-}
-
 void add_persistent_memory_range(bx_phy_address start, bx_phy_address len) {
     /* printf("Add persistent memory range: %lx %lx\n", start, len); */
     bx_phy_address page = (start >> 12) << 12;

@@ -25,6 +25,36 @@ uint64_t lookup_gpa_by_hpa(uint64_t hpa){
         printf("Error looking up GPA for HPA: %lx\n", hpa);
     return hpa_to_gpa[page] | (hpa&(~(((uint64_t)(-1)>>i)<<i)));
 }
+/**
+ * During fuzzing, there is a chance that new guest addresses get paged in.
+ * The corresponding HPAs have not been marked as guest pages, so we mark them.
+ * However, the EPT is reset across fuzz iterations, so have to unmark
+ * the pages that have been marked during the current fuzz iteration
+*/
+#define PG_PRESENT_BIT  0
+#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
+    bool pg_present = guest_page_is_present(paddr);
+    uint64_t new_addr = get_guest_page(paddr);
+
+    uint64_t pg_entry;
+    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
+    hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
+    uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
+    uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
+
+    if (!pg_present || new_addr >= maxaddr)
+      return;
+
+    // store all updates made for the current fuzzing iteration
+    fuzzed_guest_pages.push_back(std::make_tuple(new_addr, new_pgtable_lvl, is_l2_pagetable_bitmap[new_addr>>12]));
+    //printf("!fuzz_mark_l2_guest_page Mark 0x%lx lvl %x as tmp guest page\n", new_addr, new_pgtable_lvl);
+    if (new_pgtable_lvl) {
+        mark_l2_guest_pagetable(new_addr, len, new_pgtable_lvl - 1);
+    } else {
+        mark_l2_guest_page(new_addr, len, 0);
+    }
+}
 
 void fuzz_reset_watched_pages() {
     // printf("[fuzz_reset_watched_pages] reset 0x%lx watched pages\n", fuzzed_guest_pages.size());;
@@ -41,7 +71,15 @@ void fuzz_reset_watched_pages() {
 }
 
 void mark_page_not_guest(hp_phy_address addr, int level) {
-    printf("Mark page not present: %lx\n", addr);
+    if (hpa_to_gpa.find(addr) == hpa_to_gpa.end()){
+        printf("Page not : %lx\n", (addr>>12) * 0x1000);
+        abort();
+    }
+
+    if (is_l2_pagetable_bitmap[addr>>12] == 0) {
+        return;
+    }
+    printf("Mark page not present: %lx\n", (addr>>12) * 0x1000);
     is_l2_page_bitmap[addr>>12] = 0;
 }
 

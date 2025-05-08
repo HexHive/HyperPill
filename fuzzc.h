@@ -147,6 +147,9 @@ bool fuzz_hook_back_to_el1_kernel(void);
 #endif
 void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
 
+// slat.cc
+uint64_t pow64(uint64_t x, uint64_t y);
+
 // mem.cc
 extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */

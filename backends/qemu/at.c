@@ -7,56 +7,15 @@
  */
 
 #include "qemu.h"
-#include "sysreg.h"
-#include "nested.h"
+#include "s2pt.h"
 
-typedef int8_t s8;
-typedef uint8_t uint8_t;
-typedef uint32_t uint32_t;
-typedef uint64_t uint64_t;
-typedef int64_t s64;
-
-enum trans_regime {
-	TR_EL10,
-	TR_EL20,
-	TR_EL2,
-};
-
-struct s1_walk_info {
-	uint64_t baddr;
-	enum trans_regime regime;
-	unsigned int max_oa_bits;
-	unsigned int pgshift;
-	unsigned int txsz;
-	int sl;
-	bool be;
-	bool s2;
-};
-
-struct s1_walk_result {
-	union {
-		struct {
-			uint64_t desc;
-			uint64_t pa;
-			s8 level;
-		};
-		struct {
-			uint8_t fst;
-			bool ptw;
-			bool s2;
-		};
-	};
-	bool failed;
-};
-
-static void fail_s1_walk(struct s1_walk_result *wr, uint8_t fst, bool ptw, bool s2) {
+static void fail_s1_walk(struct s1_walk_result *wr, uint8_t fst, bool ptw,
+			 bool s2) {
 	wr->fst = fst;
 	wr->ptw = ptw;
 	wr->s2 = s2;
 	wr->failed = true;
 }
-
-#define S1_MMU_DISABLED (-127)
 
 static int get_ia_size(struct s1_walk_info *wi) {
 	return 64 - wi->txsz;
@@ -181,41 +140,41 @@ static inline bool isar_feature_aa64_s1pie() {
 #define TCR_TCMA1 ((1UL) << 58)
 #define TCR_DS ((1UL) << 59)
 
-static inline s64 sign_extend64(uint64_t value, int index) {
+static inline int64_t sign_extend64(uint64_t value, int index) {
 	uint8_t shift = 63 - index;
-	return (s64)(value << shift) >> shift;
+	return (int64_t)(value << shift) >> shift;
 }
 
 /* Shared ISS fault status code(IFSC/DFSC) for Data/Instruction aborts */
-#define ESR_ELx_FSC		(0x3F)
-#define ESR_ELx_FSC_TYPE	(0x3C)
-#define ESR_ELx_FSC_LEVEL	(0x03)
-#define ESR_ELx_FSC_EXTABT	(0x10)
-#define ESR_ELx_FSC_MTE		(0x11)
-#define ESR_ELx_FSC_SERROR	(0x11)
-#define ESR_ELx_FSC_ACCESS	(0x08)
-#define ESR_ELx_FSC_FAULT	(0x04)
-#define ESR_ELx_FSC_PERM	(0x0C)
-#define ESR_ELx_FSC_SEA_TTW(n)	(0x14 + (n))
-#define ESR_ELx_FSC_SECC	(0x18)
-#define ESR_ELx_FSC_SECC_TTW(n)	(0x1c + (n))
-#define ESR_ELx_FSC_ADDRSZ	(0x00)
+#define ESR_ELx_FSC (0x3F)
+#define ESR_ELx_FSC_TYPE (0x3C)
+#define ESR_ELx_FSC_LEVEL (0x03)
+#define ESR_ELx_FSC_EXTABT (0x10)
+#define ESR_ELx_FSC_MTE (0x11)
+#define ESR_ELx_FSC_SERROR (0x11)
+#define ESR_ELx_FSC_ACCESS (0x08)
+#define ESR_ELx_FSC_FAULT (0x04)
+#define ESR_ELx_FSC_PERM (0x0C)
+#define ESR_ELx_FSC_SEA_TTW(n) (0x14 + (n))
+#define ESR_ELx_FSC_SECC (0x18)
+#define ESR_ELx_FSC_SECC_TTW(n) (0x1c + (n))
+#define ESR_ELx_FSC_ADDRSZ (0x00)
 
 /*
  * Annoyingly, the negative levels for Address size faults aren't laid out
  * contiguously (or in the desired order)
  */
-#define ESR_ELx_FSC_ADDRSZ_nL(n)	((n) == -1 ? 0x25 : 0x2C)
-#define ESR_ELx_FSC_ADDRSZ_L(n)		((n) < 0 ? ESR_ELx_FSC_ADDRSZ_nL(n) : \
-						   (ESR_ELx_FSC_ADDRSZ + (n)))
+#define ESR_ELx_FSC_ADDRSZ_nL(n) ((n) == -1 ? 0x25 : 0x2C)
+#define ESR_ELx_FSC_ADDRSZ_L(n) \
+	((n) < 0 ? ESR_ELx_FSC_ADDRSZ_nL(n) : (ESR_ELx_FSC_ADDRSZ + (n)))
 
 /* Status codes for individual page table levels */
-#define ESR_ELx_FSC_ACCESS_L(n)	(ESR_ELx_FSC_ACCESS + (n))
-#define ESR_ELx_FSC_PERM_L(n)	(ESR_ELx_FSC_PERM + (n))
+#define ESR_ELx_FSC_ACCESS_L(n) (ESR_ELx_FSC_ACCESS + (n))
+#define ESR_ELx_FSC_PERM_L(n) (ESR_ELx_FSC_PERM + (n))
 
-#define ESR_ELx_FSC_FAULT_nL	(0x2C)
-#define ESR_ELx_FSC_FAULT_L(n)	(((n) < 0 ? ESR_ELx_FSC_FAULT_nL : \
-					    ESR_ELx_FSC_FAULT) + (n))
+#define ESR_ELx_FSC_FAULT_nL (0x2C)
+#define ESR_ELx_FSC_FAULT_L(n) \
+	(((n) < 0 ? ESR_ELx_FSC_FAULT_nL : ESR_ELx_FSC_FAULT) + (n))
 
 #define __bf_shf(x) (__builtin_ffsll(x) - 1)
 #define FIELD_PREP(_mask, _val) \
@@ -223,8 +182,8 @@ static inline s64 sign_extend64(uint64_t value, int index) {
 #define FIELD_GET(_mask, _reg) \
 	({ (typeof(_mask))(((_reg) & (_mask)) >> __bf_shf(_mask)); })
 
-static int setup_s1_walk(uint32_t op, struct s1_walk_info *wi,
-			 struct s1_walk_result *wr, uint64_t va) {
+int setup_s1_walk(uint8_t op, struct s1_walk_info *wi,
+		  struct s1_walk_result *wr, uint64_t va) {
 	uint64_t hcr, sctlr, tcr, tg, ps, ia_bits, ttbr;
 	unsigned int stride, x;
 	bool va55, tbi, lva, as_el0;
@@ -339,8 +298,7 @@ static int setup_s1_walk(uint32_t op, struct s1_walk_info *wi,
 		goto transfault_l0;
 
 	/* I_ZFSYQ */
-	if (wi->regime != TR_EL2 &&
-	    (tcr & (va55 ? TCR_EPD1_MASK : TCR_EPD0_MASK)))
+	if ((tcr & (va55 ? TCR_EPD1_MASK : TCR_EPD0_MASK)))
 		goto transfault_l0;
 
 	/* R_BNDVG and following statements */
@@ -359,7 +317,7 @@ static int setup_s1_walk(uint32_t op, struct s1_walk_info *wi,
 	/* Compute minimal alignment */
 	x = 3 + ia_bits - ((3 - wi->sl) * stride + wi->pgshift);
 
-	wi->baddr = ttbr & GENMASK_ULL(47, 1);;
+	wi->baddr = ttbr & GENMASK_ULL(47, 1);
 
 	/* R_VPBBF */
 	if (check_output_size(wi->baddr, wi))
@@ -378,7 +336,7 @@ transfault_l0: /* Translation Fault level 0 */
 	return -1;
 }
 
-static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, uint64_t va) {
+int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, uint64_t va) {
 	uint64_t va_top, va_bottom, baddr, desc;
 	int level, stride, ret;
 
@@ -396,6 +354,7 @@ static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, uint64_t 
 			(va_bottom - 3);
 
 		ipa = baddr | index;
+		wr->level = level;
 
 		if (wi->s2) {
 			struct s2_trans s2_trans = {};
@@ -413,7 +372,11 @@ static int walk_s1(struct s1_walk_info *wi, struct s1_walk_result *wr, uint64_t 
 			ipa = s2_trans_output(&s2_trans);
 		}
 
+		if (wi->page_table_cb) {
+			wi->page_table_cb(ipa, 3 - level);
+		}
 		cpu_physical_memory_read(ipa, &desc, sizeof(desc));
+		wr->desc = desc;
 
 		if (wi->be)
 			desc = be64_to_cpu(desc);
@@ -582,7 +545,7 @@ static uint8_t combine_s1_s2_attr(uint8_t s1, uint8_t s2) {
 #define ATTR_OSH 0b10
 #define ATTR_ISH 0b11
 
-#define PTE_SHARED		((3UL) << 8)		/* SH[1:0], inner shareable */
+#define PTE_SHARED ((3UL) << 8) /* SH[1:0], inner shareable */
 
 static uint8_t compute_sh(uint8_t attr, uint64_t desc) {
 	uint8_t sh;
@@ -695,8 +658,8 @@ static uint64_t compute_par_s12(uint64_t s1_par, struct s2_trans *tr) {
 	return par;
 }
 
-#define PTE_ATTRINDX_MASK	((7UL) << 2)
-static uint64_t compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
+#define PTE_ATTRINDX_MASK ((7UL) << 2)
+uint64_t compute_par_s1(struct s1_walk_result *wr, enum trans_regime regime) {
 	uint64_t par;
 
 	if (wr->failed) {
@@ -746,7 +709,7 @@ static uint64_t compute_par_s1(struct s1_walk_result *wr, enum trans_regime regi
 	return par;
 }
 
-static uint64_t handle_at_slow(uint32_t op, uint64_t vaddr) {
+static uint64_t handle_at_slow(uint8_t op, uint64_t vaddr) {
 	struct s1_walk_result wr = {};
 	struct s1_walk_info wi = {};
 	bool perm_fail = false;
@@ -765,7 +728,7 @@ compute_par:
 	return compute_par_s1(&wr, wi.regime);
 }
 
-uint64_t at_s1e01(uint32_t op, uint64_t vaddr) {
+uint64_t at_s1e01(uint8_t op, uint64_t vaddr) {
 	return handle_at_slow(op, vaddr);
 }
 
@@ -783,7 +746,7 @@ static inline bool el2_tge_is_set() {
 }
 
 /* Performs stage 1 and 2 address translations */
-uint64_t at_s12(uint32_t op, uint64_t vaddr) {
+uint64_t at_s12(uint8_t op, uint64_t vaddr) {
 	struct s2_trans out = {};
 	uint64_t ipa, par;
 	bool write;
