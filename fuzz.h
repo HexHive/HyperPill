@@ -140,6 +140,7 @@ void load_link_map(char* map_path, char* obj_regex, size_t base);
 
 // mem.cc
 uint64_t lookup_gpa_by_hpa(uint64_t hpa);
+void add_persistent_memory_range(hp_address start, size_t len);
 
 // slat.cc
 void walk_slat();

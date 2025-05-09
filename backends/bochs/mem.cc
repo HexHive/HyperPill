@@ -32,8 +32,6 @@ uint8_t *overlay_map; // 0: from shadowmem 1: from workershadowmem
 
 tsl::robin_set<bx_phy_address> dirtyset;
 
-tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
-
 static int memory_commit_level;
 
 size_t ndirty=0;
@@ -90,19 +88,6 @@ void fuzz_clear_dirty() {
 
 void fuzz_watch_memory_inc() {
     watch_level++;
-}
-
-
-void add_persistent_memory_range(bx_phy_address start, bx_phy_address len) {
-    /* printf("Add persistent memory range: %lx %lx\n", start, len); */
-    bx_phy_address page = (start >> 12) << 12;
-    bx_phy_address startend;
-    assert(((start+len-1)>>12) == (page >> 12));
-
-    startend = start-page;
-    startend |= (start+len - page) << 12;
-    persist_ranges[page] = startend;
-    
 }
 
 static void notify_write(uint64_t addr){

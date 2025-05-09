@@ -81,7 +81,7 @@ void hp_vcpu_mem_access(
 		}
 		uint8_t data[__size];
 		printf("load, 0x%08"PRIx64", %lx\n", addr, size);
-		if (is_l2_page_bitmap[hwaddr >> 12]) {
+		if (is_l2_page_bitmap[addr >> 12]) {
 				if (cpu0_get_fuzztrace()) {
 					/* printf(".dma inject: %lx +%lx ",phy, len); */
 				}
@@ -203,11 +203,6 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 	} else {
 		return false;
 	}
-}
-
-uint64_t cpu0_virt2phy(uint64_t start) {
-	return gva2hpa(start);
-
 }
 
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {

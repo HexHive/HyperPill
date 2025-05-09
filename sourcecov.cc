@@ -253,8 +253,8 @@ void init_sourcecov(size_t baseaddr) {
         if(pcstop - page < 0x1000)
             len = pcstop - page;
 
-        hp_phy_address phystart =
-            cpu0_virt2phy(start); 
+        hp_phy_address phystart;
+        gva2hpa(start, &phystart);
 
         cpu0_write_virtual(start, len, pc);
         phystart = (phystart & ~((uint64_t) 0xfff)) | (start & 0xfff);

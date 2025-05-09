@@ -147,6 +147,7 @@ static int walk_nested_s2_pgd(uint64_t ipa, struct s2_walk_info *wi,
 			(addr_bottom - 3);
 
 		paddr = base_addr | index;
+		mark_l2_guest_pagetable(paddr, /*unused*/0, 3 - level);
 		wi->read_desc(paddr, &desc);
 
 		/*

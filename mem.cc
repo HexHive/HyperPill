@@ -9,6 +9,7 @@ uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
 size_t guest_mem_size;
 
+tsl::robin_map<hp_phy_address, hp_phy_address> persist_ranges;
 tsl::robin_map<hp_phy_address, hp_phy_address> hpa_to_gpa;
 
 std::vector<std::tuple<hp_address, uint8_t, uint8_t>> fuzzed_guest_pages; // < HPA, pagetable_level, original_val >
@@ -38,7 +39,8 @@ void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     uint64_t new_addr = get_guest_page(paddr);
 
     uint64_t pg_entry;
-    cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));
+    cpu0_mem_read_physical_page(paddr, sizeof(pg_entry), &pg_entry);
+
     hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
     uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
     uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
@@ -70,13 +72,24 @@ void fuzz_reset_watched_pages() {
     fuzzed_guest_pages.clear();
 }
 
+void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
+    /* printf("Add persistent memory range: %lx %lx\n", start, len); */
+    hp_phy_address page = (start >> 12) << 12;
+    hp_phy_address startend;
+    assert(((start+len-1)>>12) == (page >> 12));
+
+    startend = start-page;
+    startend |= (start+len - page) << 12;
+    persist_ranges[page] = startend;
+}
+
 void mark_page_not_guest(hp_phy_address addr, int level) {
     if (hpa_to_gpa.find(addr) == hpa_to_gpa.end()){
         printf("Page not : %lx\n", (addr>>12) * 0x1000);
         abort();
     }
 
-    if (is_l2_pagetable_bitmap[addr>>12] == 0) {
+    if (is_l2_page_bitmap[addr>>12] == 0) {
         return;
     }
     printf("Mark page not present: %lx\n", (addr>>12) * 0x1000);

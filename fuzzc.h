@@ -65,7 +65,6 @@ void fuzz_hook_memory_access(hp_address phy, unsigned len,
 void fuzz_clear_dirty();
 void fuzz_watch_memory_inc();
 void fuzz_reset_memory();
-void add_persistent_memory_range(hp_address start, size_t len);
 void icp_init_mem(const char* filename);
 void cpu0_read_virtual(hp_address start, size_t size, void *data);
 void cpu0_write_virtual(hp_address start, size_t size, void *data);
@@ -106,7 +105,6 @@ void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
-hp_phy_address cpu0_virt2phy(hp_address addr);
 #if defined(HP_X86_64)
 void ept_mark_page_table();
 #elif defined(HP_AARCH64)
@@ -153,7 +151,8 @@ uint64_t pow64(uint64_t x, uint64_t y);
 // mem.cc
 extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
-void fuzzed_guest_paged_push_back(uint64_t hpa, uint8_t pagetable_level, uint8_t original_val);
+void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len);
+void fuzz_reset_watched_pages();
 
 // sym2addr_linux.cc
 typedef struct addr_bin_name {
