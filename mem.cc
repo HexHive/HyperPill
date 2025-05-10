@@ -35,17 +35,17 @@ uint64_t lookup_gpa_by_hpa(uint64_t hpa){
 #define PG_PRESENT_BIT  0
 #define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
 void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
-    bool pg_present = guest_page_is_present(paddr);
-    uint64_t new_addr = get_guest_page(paddr);
-
     uint64_t pg_entry;
     cpu0_mem_read_physical_page(paddr, sizeof(pg_entry), &pg_entry);
-
+#if defined(HP_X86_64)
     hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
+#elif defined(HP_AARCH64)
+    hp_phy_address new_addr = pg_entry & 0x0fffffffff000ULL;
+#endif
     uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
-    uint8_t pg_present = pg_entry & PG_PRESENT_MASK;
+    uint8_t pg_present_or_valid = pg_entry & PG_PRESENT_MASK;
 
-    if (!pg_present || new_addr >= maxaddr)
+    if (!pg_present_or_valid || new_addr >= maxaddr)
       return;
 
     // store all updates made for the current fuzzing iteration
@@ -84,15 +84,6 @@ void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
 }
 
 void mark_page_not_guest(hp_phy_address addr, int level) {
-    if (hpa_to_gpa.find(addr) == hpa_to_gpa.end()){
-        printf("Page not : %lx\n", (addr>>12) * 0x1000);
-        abort();
-    }
-
-    if (is_l2_page_bitmap[addr>>12] == 0) {
-        return;
-    }
-    printf("Mark page not present: %lx\n", (addr>>12) * 0x1000);
     is_l2_page_bitmap[addr>>12] = 0;
 }
 
@@ -101,10 +92,6 @@ bool frame_is_guest(hp_phy_address addr) {
 }
 
 void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr){
-    if (hpa_to_gpa.find(paddr) != hpa_to_gpa.end()){
-        return;
-    }
-
     hpa_to_gpa[paddr] = addr;
     while(paddr < maxaddr && len) {
         is_l2_page_bitmap[paddr>>12]++;

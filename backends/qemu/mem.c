@@ -124,10 +124,6 @@ void fuzz_watch_memory_inc() {
 	watch_level++;
 }
 
-// TODO: implement it
-void add_persistent_memory_range(hp_phy_address start, hp_phy_address len) {
-}
-
 void find_diff(const void *a, const void *b, size_t n) {
     const uint64_t *pa = (const uint64_t *)a;
     const uint64_t *pb = (const uint64_t *)b;

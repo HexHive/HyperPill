@@ -17,10 +17,31 @@ int gpa2hpa(uint64_t gipa, uint64_t *phy, int *translation_level) {
 	}
 }
 
-// TODO: implement it
 // Translate GVA -> GPA -> HPA
 bool gva2hpa(uint64_t gva, uint64_t *phy) {
-	assert(0);
+	// there are four kinds of addresses
+	// - host el0/el2 -> ttbr0/1_el2
+	// - guest el0/el1 -> ttbr0/1_el1
+	// however, this function only handes guest el0/el1 addresses
+	int ret;
+	if (gva & (1UL << 55)) {
+		at_s12(OP_AT_S12E1R, gva, phy);
+	} else {
+		at_s12(OP_AT_S12E0R, gva, phy);
+	}
+	*phy = *phy & GENMASK(47, 12);
+	return true;
+}
+
+void slat_locate_pc() {
+	uint64_t phyaddr;
+
+	uint64_t faulty_va = aarch64_get_far_el2();
+	gva2hpa(faulty_va, &phyaddr);
+	printf("%lx -> %lx\n", faulty_va, phyaddr);
+
+	gva2hpa(0, &phyaddr);
+	printf("%lx -> %lx\n", 0, phyaddr);
 }
 
 void walk_guest_pt_with_handler(bool userspace,
@@ -77,11 +98,10 @@ void s2pt_mark_page_table() {
 	walk_guest_pt_with_handler(/*userspace=*/false, mark_page_not_guest);
 
 	uint64_t phyaddr;
-	if (gva2hpa(cpu0_get_pc(), &phyaddr)) {
+	if (gva2hpa(aarch64_get_far_el2(), &phyaddr)) {
 		mark_page_not_guest(phyaddr, 0);
-	} {
-        fprintf(stderr, "GUEST_RIP page not mapped");
-        abort();
+	} else {
+		fprintf(stderr, "GUEST_RIP page not mapped");
+		abort();
 	}
-
 }

@@ -97,14 +97,12 @@ uint64_t aarch64_get_hpfar_el2(void);
 #endif
 
 // backends/xxx/ept/s2pt
-#if defined(HP_X86_64)
-void ept_locate_pc();
-#endif
 void mark_page_not_guest(hp_phy_address addr, int level);
 void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
+void slat_locate_pc();
 #if defined(HP_X86_64)
 void ept_mark_page_table();
 #elif defined(HP_AARCH64)

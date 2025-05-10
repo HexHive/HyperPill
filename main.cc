@@ -427,10 +427,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 */
 	slat_mark_page_table();
 
-#if defined(HP_X86_64)
-	/* Translate the guest's RIP in the VMCS to a physical-address */
-	ept_locate_pc();
-#endif
+	/* Translate the guest's RIP to a physical-address */
+	slat_locate_pc();
 
 	/* Save guest RIP so that we can restore it after each fuzzer input */
 	guest_rip = cpu0_get_pc();
