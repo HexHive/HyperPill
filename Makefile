@@ -50,7 +50,7 @@ endif
 else
     $(error Unsupported architecture: $(ARCH))
 endif
-CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 OBJS_GENERIC= \

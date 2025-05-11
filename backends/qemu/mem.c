@@ -36,6 +36,10 @@ void hp_vcpu_mem_access(
         return;
     }
 	uint64_t addr = qemu_plugin_hwaddr_phys_addr(hwaddr);
+	if (!addr) {
+		return;
+	}
+	size = size & 0x0f;
 
 	if (addr >= ramsize) {
 		return;
@@ -68,8 +72,7 @@ void hp_vcpu_mem_access(
 		}
     } 
 
-	// TODO: test it
-	if (rw == QEMU_PLUGIN_MEM_R) {
+	if (rw == QEMU_PLUGIN_MEM_R && is_l2_page_bitmap[addr >> 12]) {
 		size_t __size = 0;
 		switch (size) {
 			case Byte: __size = 1; break;
@@ -80,14 +83,12 @@ void hp_vcpu_mem_access(
 			default: abort();
 		}
 		uint8_t data[__size];
-		printf("load, 0x%08"PRIx64", %lx\n", addr, size);
-		if (is_l2_page_bitmap[addr >> 12]) {
-				if (cpu0_get_fuzztrace()) {
-					/* printf(".dma inject: %lx +%lx ",phy, len); */
-				}
-				fuzz_dma_read_cb(hwaddr->phys_addr, __size, data);
-			}
-		cpu0_mem_write_physical_page(hwaddr->phys_addr, __size, data);
+		if (cpu0_get_fuzztrace()) {
+			printf(".dma inject: %lx +%lx ", addr, __size);
+		}
+		if (cpu0_get_user_pl())
+			fuzz_dma_read_cb(addr, __size, data);
+		cpu0_mem_write_physical_page(addr, __size, data);
 		prioraccess = -1;
 	}
 }
