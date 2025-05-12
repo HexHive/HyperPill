@@ -4,6 +4,7 @@
 static uint8_t watch_level = 0;
 
 static size_t ramsize;
+static size_t rampoff;
 static uint8_t *ram;
 static uint8_t *shadowram;
 
@@ -41,7 +42,7 @@ void hp_vcpu_mem_access(
 	}
 	size = size & 0x0f;
 
-	if (addr >= ramsize) {
+	if ((addr < rampoff) || (addr >= maxaddr)) {
 		return;
 	}
 	uint64_t aligned = addr & (~0xFFFLL);
@@ -62,7 +63,7 @@ void hp_vcpu_mem_access(
 			if (strcmp(ram_block->idstr, "mach-virt.ram")) {
 				continue;
 			}
-			uint64_t pages = addr >> 12;
+			uint64_t pages = (addr - rampoff) >> 12;
 			test_and_set_bit(pages, ram_block->bmap);
 			break;
 		}
@@ -153,7 +154,7 @@ void fuzz_reset_memory() {
 			       1 << 12);
 			dirty = find_next_bit(ram_block->bmap, pages, dirty + 1);
 		}
-		memcpy(ram + 0xc0000000, shadowram + 0xc0000000, 0x10000000);
+		// find_diff(shadowram, ram, ramsize);
 		break;
 	}
 	fuzz_clear_dirty();
@@ -171,7 +172,8 @@ void icp_init_mem(const char *filename) {
 		}
 		ram = qemu_ram_get_host_addr(ram_block);
 		ramsize = qemu_ram_get_used_length(ram_block);
-		maxaddr = ramsize;
+		rampoff = ram_block->mr->addr;
+		maxaddr = ramsize + rampoff;
 		break;
 	}
 
