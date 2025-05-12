@@ -856,12 +856,13 @@ bool op_vmcall() {
 
 bool op_clock_step() {
 	if (!getenv("END_WITH_CLOCK_STEP")) {
-		printf("END_WITH_CLOCK_STEP is not set.\n");
+		verbose_printf("END_WITH_CLOCK_STEP is not set.\n");
 		return false;
 	} else if (in_clock_step < 0) {
-		printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
+		verbose_printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
 		return false;
 	}
+	verbose_printf("OP_CLOCK_STEP\n");
 	in_clock_step = CLOCK_STEP_GET_DEADLINE;
 
 	uint64_t addr = mmio_regions.begin()->first;
@@ -876,6 +877,7 @@ bool op_clock_step() {
 
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
+    verbose_printf("FUZZ RUN INPUT\n");
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,

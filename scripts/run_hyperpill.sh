@@ -25,8 +25,10 @@ if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
 fi
 export NOCOV=1
 
+if [ "$ARCH" == "x86_64" ]; then
 if [ -n "$KVM" ] && [ -z "${FUZZ_ENUM+x}" ]; then
     export END_WITH_CLOCK_STEP=1
+fi
 fi
 
 if [ -z "$ARCH" ]; then

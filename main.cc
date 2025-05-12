@@ -246,8 +246,7 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-	if (cpu0_get_fuzztrace())
-		printf("NEW INPUT\n");
+    verbose_printf("NEW INPUT\n");
 	if (!done) {
 		if (!log_writes)
 			log_writes = getenv("LOG_WRITES");

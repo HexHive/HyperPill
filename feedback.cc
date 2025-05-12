@@ -35,6 +35,7 @@ bool fuzz_hook_vmlaunch() {
 }
 #elif defined(HP_AARCH64)
 bool fuzz_hook_back_to_el1_kernel(void) {
+    verbose_printf("ERET to EL1\n");
     fuzz_emu_stop_normal();
     return true;
 }

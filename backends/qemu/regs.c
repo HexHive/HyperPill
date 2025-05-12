@@ -42,8 +42,6 @@ void save_cpu() {
 }
 
 void restore_cpu() {
-    if (!qemu_mutex_iothread_locked())
-        qemu_mutex_lock_iothread();
     int saved_vm_running = runstate_is_running();
     if (saved_vm_running) {
         vm_stop(RUN_STATE_RESTORE_VM);
