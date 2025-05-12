@@ -736,7 +736,8 @@ bool op_vmcall() {
 	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
 #elif defined(HP_AARCH64)
 	// Only 17 XRegs according to the SMCCC v1.2
-	const uint64_t fuzzable_regs_bitmap = (0b11111111111111111);
+	// X0-X7 Arguments and return values
+	const uint64_t fuzzable_regs_bitmap = (0b11111111);
 #endif
 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
 		return false;
@@ -792,10 +793,15 @@ bool op_vmcall() {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 #elif defined(HP_AARCH64)
+	// If the op was skipped, we need to reset the register state
+	for (int i = 0; i < 31; i++) {
+		vmcall_gpregs[i] = cpu0_get_general_purpose_reg64(i);
+	}
 	vmcall_enabled_regs &= fuzzable_regs_bitmap;
-	for (int i = 0; i < 32; i++) { // FIXME : DO I CHECK FUZZ X0 ?
+	for (int i = 0; i < 8; i++) {
 		if ((vmcall_enabled_regs >> i) & 1) {
-			// NO NEED, X1 to X17 are fuzzable
+			if (i == 31 /*SP*/)
+				continue;
 			uint64_t val;
 			if (ic_ingest64(&val, 0, -1)) {
 				return false;

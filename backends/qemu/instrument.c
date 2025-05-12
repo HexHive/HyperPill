@@ -176,12 +176,11 @@ static void hp_vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb) {
             insn, hp_vcpu_mem_access, QEMU_PLUGIN_CB_NO_REGS, QEMU_PLUGIN_MEM_RW, NULL);
 
         // find svc (syscall)
-        uint32_t insn_opcode = *((uint32_t *)qemu_plugin_insn_data(insn));
-        if (!(extract32(insn_opcode, 0, 5) == 0x1 && extract32(insn_opcode, 21, 11) == 0x6a0)) {
-            continue;
-        }
-        // qemu_plugin_register_vcpu_insn_exec_cb(
-            // insn, hp_vcpu_insn_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);
+        // https://developer.arm.com/documentation/ddi0602/2022-06/Base-Instructions/SVC--Supervisor-Call-
+        // uint32_t insn_opcode = *((uint32_t *)qemu_plugin_insn_data(insn));
+        // if ((extract32(insn_opcode, 0, 5) == 0x1) && (extract32(insn_opcode, 21, 11) == 0x6a0)) {
+        //     continue;
+        // }
     }
     qemu_plugin_register_vcpu_tb_exec_cb(
         tb, hp_vcpu_tb_exec, QEMU_PLUGIN_CB_NO_REGS, NULL);

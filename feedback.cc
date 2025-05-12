@@ -158,7 +158,7 @@ void init_register_feedback() {
             if(i == BX_64BIT_REG_RSP || i == BX_64BIT_REG_RBP)
                 continue;
 #elif defined(HP_AARCH64)
-    for(int i=0; i<31; i++) {
+    for(int i=0; i<8; i++) {
 #endif
             uint64_t value;
             uint8_t* ptr = (uint8_t*)&value;

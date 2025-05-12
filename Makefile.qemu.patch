@@ -1,4 +1,4 @@
-From d372358e79921e188f123499b08437d3c78407b1 Mon Sep 17 00:00:00 2001
+From 1de3b21f77f53468f3bbbc07a769ec7cee98ce89 Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Wed, 7 May 2025 09:30:54 +0200
 Subject: [PATCH] Patch QEMU for HyperARM
@@ -17,6 +17,8 @@ Subject: [PATCH] Patch QEMU for HyperARM
  accel/tcg/plugin-helpers.h            |   2 +-
  accel/tcg/tcg-accel-ops-mttcg.c       |   2 +-
  accel/tcg/tcg-accel-ops.c             |   4 +-
+ accel/tcg/tcg-runtime.c               |  25 ++++++
+ accel/tcg/tcg-runtime.h               |   6 +-
  accel/tcg/translator.c                |   4 +
  contrib/plugins/cache.c               |   2 +-
  contrib/plugins/execlog.c             |   2 +-
@@ -46,6 +48,7 @@ Subject: [PATCH] Patch QEMU for HyperARM
  migration/savevm.c                    |  89 +++++++++++++++++++--
  plugins/api.c                         |   2 +-
  plugins/core.c                        |  18 ++++-
+ qemuafl/cpu-translate.h               |  58 ++++++++++++++
  replay/replay-audio.c                 |   2 +-
  replay/stubs-system.c                 |   2 +-
  system/memory.c                       |  12 ---
@@ -56,7 +59,8 @@ Subject: [PATCH] Patch QEMU for HyperARM
  target/arm/debug_helper.c             |   2 +-
  target/arm/helper.c                   |  13 ++++
  target/arm/ptw.c                      |   4 +
- target/arm/tcg/translate-a64.c        |   2 +-
+ target/arm/tcg/translate-a64.c        |  16 +++-
+ target/arm/tcg/translate.c            |  42 +++++++++-
  target/i386/tcg/sysemu/bpt_helper.c   |   2 +-
  target/ppc/cpu.c                      |   2 +-
  target/riscv/debug.c                  |   4 +-
@@ -64,7 +68,8 @@ Subject: [PATCH] Patch QEMU for HyperARM
  tcg/tcg-op.c                          |   2 +-
  tests/plugin/mem.c                    |   2 +-
  tests/qtest/fuzz/generic_fuzz.c       | 108 --------------------------
- 60 files changed, 332 insertions(+), 243 deletions(-)
+ 64 files changed, 475 insertions(+), 245 deletions(-)
+ create mode 100644 qemuafl/cpu-translate.h
 
 diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
 index abe7adf..35a0436 100644
@@ -593,6 +598,57 @@ index 1b57290..286cb11 100644
              if (err) {
                  break;
              }
+diff --git a/accel/tcg/tcg-runtime.c b/accel/tcg/tcg-runtime.c
+index 9fa539a..0751b5b 100644
+--- a/accel/tcg/tcg-runtime.c
++++ b/accel/tcg/tcg-runtime.c
+@@ -35,6 +35,31 @@
+ #include "exec/helper-info.c.inc"
+ #undef  HELPER_H
+ 
++void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
++
++__attribute__((weak))
++void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size) {}
++
++void HELPER(afl_cmplog_8)(target_ulong arg1, target_ulong arg2)
++{
++    fuzz_hook_cmp(arg1, arg2, 1);
++}
++
++void HELPER(afl_cmplog_16)(target_ulong arg1, target_ulong arg2)
++{
++    fuzz_hook_cmp(arg1, arg2, 2);
++}
++
++void HELPER(afl_cmplog_32)(target_ulong arg1, target_ulong arg2)
++{
++    fuzz_hook_cmp(arg1, arg2, 4);
++}
++
++void HELPER(afl_cmplog_64)(target_ulong arg1, target_ulong arg2)
++{
++    fuzz_hook_cmp(arg1, arg2, 8);
++}
++
+ /* 32-bit helpers */
+ 
+ int32_t HELPER(div_i32)(int32_t arg1, int32_t arg2)
+diff --git a/accel/tcg/tcg-runtime.h b/accel/tcg/tcg-runtime.h
+index c23b5e6..9dac528 100644
+--- a/accel/tcg/tcg-runtime.h
++++ b/accel/tcg/tcg-runtime.h
+@@ -321,5 +321,9 @@ DEF_HELPER_FLAGS_4(gvec_leus8, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+ DEF_HELPER_FLAGS_4(gvec_leus16, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+ DEF_HELPER_FLAGS_4(gvec_leus32, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+ DEF_HELPER_FLAGS_4(gvec_leus64, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+-
+ DEF_HELPER_FLAGS_5(gvec_bitsel, TCG_CALL_NO_RWG, void, ptr, ptr, ptr, ptr, i32)
++
++DEF_HELPER_FLAGS_2(afl_cmplog_8, TCG_CALL_NO_RWG, void, i64, i64)
++DEF_HELPER_FLAGS_2(afl_cmplog_16, TCG_CALL_NO_RWG, void, i64, i64)
++DEF_HELPER_FLAGS_2(afl_cmplog_32, TCG_CALL_NO_RWG, void, i64, i64)
++DEF_HELPER_FLAGS_2(afl_cmplog_64, TCG_CALL_NO_RWG, void, i64, i64)
 diff --git a/accel/tcg/translator.c b/accel/tcg/translator.c
 index 38c3400..cebd986 100644
 --- a/accel/tcg/translator.c
@@ -1313,6 +1369,70 @@ index 4958828..91a97e3 100644
              break;
          case PLUGIN_CB_INLINE:
              exec_inline_op(cb);
+diff --git a/qemuafl/cpu-translate.h b/qemuafl/cpu-translate.h
+new file mode 100644
+index 0000000..e46ed07
+--- /dev/null
++++ b/qemuafl/cpu-translate.h
+@@ -0,0 +1,58 @@
++/*
++   american fuzzy lop++ - high-performance binary-only instrumentation
++   -------------------------------------------------------------------
++
++   Originally written by Andrew Griffiths <agriffiths@google.com> and
++			 Michal Zalewski
++   Modified by Qiang Liu <cyruscyliu@gmail.com>
++
++   TCG instrumentation and block chaining support by Andrea Biondo
++				      <andrea.biondo965@gmail.com>
++
++   QEMU 3.1.1 port, TCG thread-safety, CompareCoverage and NeverZero
++   counters by Andrea Fioraldi <andreafioraldi@gmail.com>
++
++   Copyright 2015, 2016, 2017 Google Inc. All rights reserved.
++   Copyright 2019-2020 AFLplusplus Project. All rights reserved.
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at:
++
++     http://www.apache.org/licenses/LICENSE-2.0
++
++   This code is a shim patched into the separately-distributed source
++   code of QEMU 3.1.0. It leverages the built-in QEMU tracing functionality
++   to implement AFL-style instrumentation and to take care of the remaining
++   parts of the AFL fork server logic.
++
++   The resulting QEMU binary is essentially a standalone instrumentation
++   tool; for an example of how to leverage it for other purposes, you can
++   have a look at afl-showmap.c.
++
++ */
++
++#if TARGET_LONG_BITS == 64
++#define _DEFAULT_MO MO_64
++#else
++#define _DEFAULT_MO MO_32
++#endif
++
++static void afl_gen_cmplog(TCGv arg1, TCGv arg2, MemOp ot, int is_imm) {
++	switch (ot & MO_SIZE) {
++	case MO_64:
++		gen_helper_afl_cmplog_64(arg1, arg2);
++		break;
++	case MO_32:
++		gen_helper_afl_cmplog_32(arg1, arg2);
++		break;
++	case MO_16:
++		gen_helper_afl_cmplog_16(arg1, arg2);
++		break;
++	case MO_8:
++		gen_helper_afl_cmplog_8(arg1, arg2);
++		break;
++	default:
++		break;
++	}
++}
 diff --git a/replay/replay-audio.c b/replay/replay-audio.c
 index 91854f0..3fea0bd 100644
 --- a/replay/replay-audio.c
@@ -1497,10 +1617,59 @@ index 1762b05..cf3eba2 100644
      result->f.lg_page_size = ctz64(page_size);
      return false;
 diff --git a/target/arm/tcg/translate-a64.c b/target/arm/tcg/translate-a64.c
-index 5beac07..6235182 100644
+index 5beac07..5d0c0f7 100644
 --- a/target/arm/tcg/translate-a64.c
 +++ b/target/arm/tcg/translate-a64.c
-@@ -14242,7 +14242,7 @@ static void aarch64_tr_disas_log(const DisasContextBase *dcbase,
+@@ -26,6 +26,8 @@
+ #include "semihosting/semihost.h"
+ #include "cpregs.h"
+ 
++#include "qemuafl/cpu-translate.h"
++
+ static TCGv_i64 cpu_X[32];
+ static TCGv_i64 cpu_pc;
+ 
+@@ -4057,6 +4059,10 @@ static bool gen_rri(DisasContext *s, arg_rri_sf *a,
+     TCGv_i64 tcg_rd = rd_sp ? cpu_reg_sp(s, a->rd) : cpu_reg(s, a->rd);
+     TCGv_i64 tcg_imm = tcg_constant_i64(a->imm);
+ 
++    if (a->rd == 31 && (fn == gen_sub64_CC || fn == gen_sub32_CC)) {
++        afl_gen_cmplog(tcg_rn, tcg_imm, fn == gen_sub64_CC ? MO_64 : MO_32, 1);
++    }
++
+     fn(tcg_rd, tcg_rn, tcg_imm);
+     if (!a->sf) {
+         tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+@@ -4619,6 +4625,9 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
+     tcg_rm = read_cpu_reg(s, rm, sf);
+     ext_and_shift_reg(tcg_rm, tcg_rm, option, imm3);
+ 
++    if (rd == 31 && sub_op) // cmp xX, xY
++        afl_gen_cmplog(tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
++
+     tcg_result = tcg_temp_new_i64();
+ 
+     if (!setflags) {
+@@ -4681,6 +4690,9 @@ static void disas_add_sub_reg(DisasContext *s, uint32_t insn)
+ 
+     shift_reg_imm(tcg_rm, tcg_rm, sf, shift_type, imm6);
+ 
++    if (rd == 31 && sub_op) // cmp xX, xY
++        afl_gen_cmplog(tcg_rn, tcg_rm, sf ? MO_64 : MO_32, 0);
++
+     tcg_result = tcg_temp_new_i64();
+ 
+     if (!setflags) {
+@@ -4951,6 +4963,8 @@ static void disas_cc(DisasContext *s, uint32_t insn)
+     }
+     tcg_rn = cpu_reg(s, rn);
+ 
++    afl_gen_cmplog(tcg_rn, tcg_y, sf ? MO_64 : MO_32, is_imm);
++
+     /* Set the flags for the new comparison.  */
+     tcg_tmp = tcg_temp_new_i64();
+     if (op) {
+@@ -14242,7 +14256,7 @@ static void aarch64_tr_disas_log(const DisasContextBase *dcbase,
  {
      DisasContext *dc = container_of(dcbase, DisasContext, base);
  
@@ -1509,6 +1678,88 @@ index 5beac07..6235182 100644
      target_disas(logfile, cpu, dc->base.pc_first, dc->base.tb->size);
  }
  
+diff --git a/target/arm/tcg/translate.c b/target/arm/tcg/translate.c
+index e555e88..6538a23 100644
+--- a/target/arm/tcg/translate.c
++++ b/target/arm/tcg/translate.c
+@@ -33,6 +33,9 @@
+ #include "exec/helper-info.c.inc"
+ #undef  HELPER_H
+ 
++#include "qemuafl/cpu-translate.h"
++#include "tcg/tcg-temp-internal.h"
++
+ #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
+ #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
+ /* currently all emulated v5 cores are also v5TE, so don't bother */
+@@ -5297,6 +5300,18 @@ static bool op_s_rrr_shi(DisasContext *s, arg_s_rrr_shi *a,
+     gen_arm_shift_im(tmp2, a->shty, a->shim, logic_cc);
+     tmp1 = load_reg(s, a->rn);
+ 
++#ifdef TARGET_AARCH64
++    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
++      TCGv tmp1_64 = tcg_temp_ebb_new_i64();
++      TCGv tmp2_64 = tcg_temp_ebb_new_i64();
++      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
++      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
++      afl_gen_cmplog(tmp1_64, tmp2_64, MO_32, 0);
++      tcg_temp_free_i64(tmp1_64);
++      tcg_temp_free_i64(tmp2_64);
++    }
++#endif
++
+     gen(tmp1, tmp1, tmp2);
+ 
+     if (logic_cc) {
+@@ -5338,6 +5353,18 @@ static bool op_s_rrr_shr(DisasContext *s, arg_s_rrr_shr *a,
+     gen_arm_shift_reg(tmp2, a->shty, tmp1, logic_cc);
+     tmp1 = load_reg(s, a->rn);
+ 
++#ifdef TARGET_AARCH64
++    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
++      TCGv tmp1_64 = tcg_temp_ebb_new_i64();
++      TCGv tmp2_64 = tcg_temp_ebb_new_i64();
++      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
++      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
++      afl_gen_cmplog(tmp1_64, tmp2_64, MO_32, 0);
++      tcg_temp_free_i64(tmp1_64);
++      tcg_temp_free_i64(tmp2_64);
++    }
++#endif
++
+     gen(tmp1, tmp1, tmp2);
+ 
+     if (logic_cc) {
+@@ -5377,15 +5404,28 @@ static bool op_s_rri_rot(DisasContext *s, arg_s_rri_rot *a,
+                          void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32),
+                          int logic_cc, StoreRegKind kind)
+ {
+-    TCGv_i32 tmp1;
++    TCGv_i32 tmp1, tmp2;
+     uint32_t imm;
+ 
+     imm = ror32(a->imm, a->rot);
+     if (logic_cc && a->rot) {
+         tcg_gen_movi_i32(cpu_CF, imm >> 31);
+     }
++    tmp2 = tcg_constant_i32(imm);
+     tmp1 = load_reg(s, a->rn);
+ 
++#ifdef TARGET_AARCH64
++    if (gen == gen_sub_CC || /*gen == gen_add_CC ||*/ gen == gen_rsb_CC) {
++      TCGv tmp1_64 = tcg_temp_ebb_new_i64();
++      TCGv tmp2_64 = tcg_temp_ebb_new_i64();
++      tcg_gen_extu_i32_i64(tmp1_64, tmp1);
++      tcg_gen_extu_i32_i64(tmp2_64, tmp2);
++      afl_gen_cmplog(tmp1_64, tmp2_64, MO_32, 0);
++      tcg_temp_free_i64(tmp1_64);
++      tcg_temp_free_i64(tmp2_64);
++    }
++#endif
++
+     gen(tmp1, tmp1, tcg_constant_i32(imm));
+ 
+     if (logic_cc) {
 diff --git a/target/i386/tcg/sysemu/bpt_helper.c b/target/i386/tcg/sysemu/bpt_helper.c
 index 4d96a48..0c10fb8 100644
 --- a/target/i386/tcg/sysemu/bpt_helper.c
@@ -1799,5 +2050,5 @@ index ec842e0..44b7bc2 100644
   * Here we want to convert a fuzzer-provided [io-region-index, offset] to
   * a physical address. To do this, we iterate over all of the matched
 -- 
-2.34.1
+2.43.0
 

@@ -29,7 +29,8 @@ void cpu0_set_pc(uint64_t pc) {
 
 size_t init_random_register_data_len(void) {
 	// 31 64-bit generial-prpose registers, X0-X30
-	return 31 * 8;
+    // but only X0-X7 are used as arguments and return values
+	return 8 * 8;
 }
 
 bool cpu0_get_user_pl(void) {
@@ -61,6 +62,7 @@ uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
     return (ARM_CPU(QEMU_CPU(0))->env).xregs[reg];
 }
 
+// https://www.kernel.org/doc/Documentation/virt/kvm/arm/hypercalls.rst
 void aarch64_set_esr_el2_for_hvc() {
     CPUARMState *env = &(ARM_CPU(QEMU_CPU(0))->env);
     env->cp15.esr_el[2] =
