@@ -56,6 +56,7 @@ void start_cpu() {
 		dump_regs();
 	}
 	reset_op_cov();
+	verbose_printf("set fuzz_executing_input 1\n");
 	cpu0_set_fuzz_executing_input(true);
 	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
@@ -84,11 +85,13 @@ void start_cpu() {
  */
 
 static void fuzz_emu_stop() {
+	verbose_printf("set fuzz_executing_input 0\n");
 	cpu0_set_fuzz_executing_input(false);
 }
 
 void fuzz_emu_stop_normal(){
     fuzz_emu_stop();
+    fuzz_do_not_continue = 1;
 }
 
 void fuzz_emu_stop_unhealthy(){

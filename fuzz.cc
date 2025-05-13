@@ -523,6 +523,7 @@ bool op_write() {
 	if (!inject_write(addr, size, value))
 		return false;
 
+	verbose_printf("op_write()\n");
 	start_cpu();
 
 	return true;
@@ -549,6 +550,7 @@ bool op_read() {
 	if (!inject_read(addr, size))
 		return false;
 
+	verbose_printf("op_read()\n");
 	start_cpu();
 	return true;
 }
