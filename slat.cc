@@ -12,6 +12,7 @@ void walk_slat(){
     uint64_t phy = 0;
     int reason;
     int translation_level;
+    size_t size;
 
     uint64_t gap_start = 0;
     int gap_reason = 0;
@@ -19,8 +20,10 @@ void walk_slat(){
     do {
         phy = 0;
         reason = gpa2hpa(addr, &phy, &translation_level);
+        size = 0x1000*pow64(512, translation_level);
         if(phy){
-            mark_l2_guest_page(phy, 0x1000*pow64(512, translation_level), addr);
+            verbose_printf("0x%016lx 0x%016lx 0x%08lx (0x%016lx)\n", addr, phy, size, guest_mem_size);
+            mark_l2_guest_page(phy, size, addr);
 #if defined(HP_X86_64)
             if(guest_page_scratchlist.size() < 10) {
                 guest_page_scratchlist.push_back(addr);
@@ -35,14 +38,17 @@ void walk_slat(){
             gap_start = addr;
         }
 
-        addr += 0x1000*pow64(512, translation_level);
+        addr += size;
         addr &= (~(pow64(512, translation_level)-1));
+#if defined(HP_X86_64)
     } while(addr!=0 && addr < 0x1000*pow64(512, 4));
+#elif defined(HP_AARCH64)
+    } while(addr!=0 && addr < 0x1000*pow64(512, 3));
+#endif
     if(gap_reason)
         enum_handle_slat_gap(gap_reason, gap_start, addr-1);
 }
 
-extern size_t guest_mem_size;
 void fuzz_walk_slat() {
     printf(".performing slat walk \n");
 
@@ -57,6 +63,7 @@ void fuzz_walk_slat() {
     /* that was set up by the hypervisor for L2, which gives a mapping of */
     /* guest-physical to host-physical addresses. */
     // 2. To enumerate potential MMIO Ranges.
+    guest_mem_size = 0;
     walk_slat();
     /* walk_ept_kvm(BX_LEVEL_PML4, pml4_gpa, 0); */
     printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
