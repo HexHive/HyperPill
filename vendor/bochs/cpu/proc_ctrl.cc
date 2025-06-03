@@ -584,11 +584,11 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::RDPMC(bxInstruction_c *i)
 
   if (BX_CPUID_SUPPORT_ISA_EXTENSION(BX_ISA_SSE2)) { // Pentium 4 processor (see cpuid.cc)
     if ((ECX & 0x7fffffff) >= 18)
-      exception(BX_GP_EXCEPTION, 0);
+      BX_DEBUG(("Invalid PMC Index %d\n", ECX));
   }
   else {
     if ((ECX & 0xffffffff) >= 2)
-      exception(BX_GP_EXCEPTION, 0);
+      BX_DEBUG(("Invalid PMC Index %d\n", ECX));
   }
 
   // Most counters are for hardware specific details, which
@@ -601,7 +601,8 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::RDPMC(bxInstruction_c *i)
   RAX = 0;
   RDX = 0; // if P4 and ECX & 0x10000000, then always 0 (short read 32 bits)
 
-  BX_ERROR(("RDPMC: Performance Counters Support not implemented yet"));
+  // we don't abort
+  // BX_ERROR(("RDPMC: Performance Counters Support not implemented yet"));
 #endif
 
   BX_NEXT_INSTR(i);
