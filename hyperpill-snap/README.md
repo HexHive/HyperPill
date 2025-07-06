@@ -92,7 +92,7 @@ ubuntu 22.04).
 
 ``` bash
 # Install QEMU Dependencies: https://wiki.qemu.org/Hosts/Linux
-[L1] $ sudo apt-get install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build libslirp-dev
+[L0] $ sudo apt-get install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build libslirp-dev
 [L0] $ sudo apt-get install python3 python3-pip python3-venv # Recent QEMU may require python3-venv
 
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
@@ -273,6 +273,9 @@ image, install ubuntu, and restart the ubuntu
 ## Take the snapshot
 
 ``` bash
+# Before taking the snapshot, get all file-backed pages in
+[L1] python3 page_in_and_locked.py $(pgrep -f "qemu-system")
+
 # In L2, we use the following tool to trigger a snapshot.
 # We include snap in rootfs.cpio.gz
 [L2] $ snap
