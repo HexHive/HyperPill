@@ -26,7 +26,14 @@ def create_fuzzing_config(project_root, snapshot_base, target, config_path):
         f.write(f"export MANUAL_RANGES=$SNAPSHOT_BASE/mtree\n")
         f.write(f"source {config_path}\n")
 
-    print(f"[+] Created environment script at: {env_script}")
+    run_script = os.path.join(work_dir, "run.sh")
+    with open(run_script, "w") as f:
+        f.write(f"source env.sh\n")
+        f.write(f"mkdir CORPUS\n")
+        f.write(f"KVM=1 CORPUS_DIR=./CORPUS NSLOTS=4 $PROJECT_ROOT/scripts/run_hyperpill.sh\n")
+    os.system(f"chmod +x {run_script}")
+
+    print(f"[+] Created run script at: {run_script}")
 
 def create_all_fuzzing_configs(project_root, snapshot_base):
     """
