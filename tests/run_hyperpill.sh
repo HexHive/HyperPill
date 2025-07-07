@@ -14,10 +14,6 @@ if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
 fi
 export NOCOV=1
 
-if [ -n "$KVM" ]; then
-    export END_WITH_CLOCK_STEP=1
-fi
-
 export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
 export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
 export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"

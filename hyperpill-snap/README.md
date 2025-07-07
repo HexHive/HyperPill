@@ -55,7 +55,7 @@ ubuntu 22.04).
 [L0] $ cd linux-6.0
 [L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
 [L0] $ make defconfig
-[L0] $ grep .config CONFIG_KVM
+[L0] $ grep CONFIG_KVM .config 
 # Verify that CONFIG_KVM_INTEL is set to =m
 [L0] $ make M=./arch/x86/kvm/
 # Ensure that you are not currently running any virtual machines
@@ -92,7 +92,7 @@ ubuntu 22.04).
 
 ``` bash
 # Install QEMU Dependencies: https://wiki.qemu.org/Hosts/Linux
-[L0] $ sudo apt-get install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build
+[L0] $ sudo apt-get install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build libslirp-dev
 [L0] $ sudo apt-get install python3 python3-pip python3-venv # Recent QEMU may require python3-venv
 
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
@@ -111,13 +111,13 @@ ubuntu 22.04).
 ### Run L1 and L2 VMs for QEMU/KVM
 
 ``` bash
-[L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20240827-1852/debian-12-nocloud-amd64-daily-20240827-1852.qcow2 --no-check-certificate
-[L0] $ qemu-img resize debian-12-nocloud-amd64-daily-20240827-1852.qcow2 20G
+[L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20250306-2043/debian-12-nocloud-amd64-daily-20250306-2043.qcow2 --no-check-certificate
+[L0] $ qemu-img resize debian-12-nocloud-amd64-daily-20250306-2043.qcow2 20G
 [L0] $ qemu/build/qemu-system-x86_64 -machine q35 -accel kvm -m 8G \
     -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt,-hle,-rtm,-waitpkg \
     -netdev user,id=u1,hostfwd=tcp::2222-:22 \
     -device virtio-net,netdev=u1 -smp 1 -serial stdio \
-    -hda debian-12-nocloud-amd64-daily-20240827-1852.qcow2 \
+    -hda debian-12-nocloud-amd64-daily-20250306-2043.qcow2 \
     -monitor telnet:127.0.0.1:55556,server,nowait
 # Type root (no password) to enter L1 VM
 [L1] $ apt-get update && apt-get install -y cloud-utils xarchiver
@@ -273,6 +273,9 @@ image, install ubuntu, and restart the ubuntu
 ## Take the snapshot
 
 ``` bash
+# Before taking the snapshot, get all file-backed pages in
+[L1] python3 page_in_and_locked.py $(pgrep -f "qemu-system")
+
 # In L2, we use the following tool to trigger a snapshot.
 # We include snap in rootfs.cpio.gz
 [L2] $ snap

@@ -19,12 +19,12 @@ def is_accessible_region(line):
     perms = line.split()[1]
     return not perms.startswith("---")
 
-def is_special_named_pages(line):
-    items = line.split()
-    if len(items) != 6:
-        return False
-    name = items[5]
-    return name in ['[stack]', '[vvar]', '[vdso]']
+def is_anonymous_mapping(maps_line: str) -> bool:
+    parts = maps_line.strip().split(None, 5)
+    if len(parts) < 6:
+        return True  # No pathname — likely anonymous
+    pathname = parts[5]
+    return pathname == '' or pathname.startswith('[')  # [heap], [stack], etc., or empty
 
 def is_page_resident(pagemap_entry):
     return (pagemap_entry >> 63) & 1  # Bit 63: page present
@@ -39,7 +39,7 @@ def scan_mapped_pages(pid):
         for line in maps_file:
             if not is_accessible_region(line):
                 continue
-            if is_special_named_pages(line):
+            if is_anonymous_mapping(line):
                 continue
 
             addr_range = line.split()[0]
@@ -48,8 +48,6 @@ def scan_mapped_pages(pid):
             end = int(end_str, 16)
             size = end - start
 
-            if size > 0x100000000:
-                continue
             regions.append((start, size))
 
             for page_start in range(start, end, PAGE_SIZE):

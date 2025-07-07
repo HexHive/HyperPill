@@ -24,12 +24,5 @@ static void test_out(uint16_t addr, uint16_t size, uint32_t value) {
 	start_cpu();
 }
 
-static void test_clock_step() {
-	printf("[INJECT CLOCK STEP]\n");
-	if (!op_clock_step()) {
-		printf("inject clock step error/n");
-	}
-}
-
 #define HP_TESTS
 #endif /* HP_TESTS */

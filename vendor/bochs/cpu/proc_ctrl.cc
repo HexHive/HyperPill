@@ -612,8 +612,12 @@ void BX_CPP_AttrRegparmN(1) BX_CPU_C::RDPMC(bxInstruction_c *i)
 
 Bit64u BX_CPU_C::get_TSC(void)
 {
+  int tsc_factor = 1;
+  if (getenv("TSC_FACTOR")) {
+	tsc_factor = strtol(getenv("TSC_FACTOR"), NULL, 10);
+  }
   Bit64u tsc = bx_pc_system.time_ticks() + BX_CPU_THIS_PTR tsc_adjust;
-  return 0x441168e0000 + tsc * 100;
+  return 0x441168e0000 + tsc * tsc_factor;
 }
 
 #if BX_SUPPORT_VMX || BX_SUPPORT_SVM
