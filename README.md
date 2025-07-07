@@ -5,6 +5,9 @@ HyperPill
 
 Building
 --------
+sudo apt-get install libssl-dev libsqlite3-dev \
+    bison clang build-essential debuginfod elfutils \
+    python3-pip libcapstone4 libcapstone-dev
 CC=clang CXX=clang++ make
 
 Using
@@ -99,8 +102,8 @@ KVM=1 FUZZ_DEBUG_DISASM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-xxx 2>&1 
 python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/symbols/ crash-xxx.txt
 ```
 
-For common errors when using HyperPill, see [this
-page](https://github.com/HexHive/HyperPill/issues/26).
+For common questions when using HyperPill, see [this
+page](https://github.com/HexHive/HyperPill/wiki/Common-Questions).
 
 ## Collecting source-based coverage
 
