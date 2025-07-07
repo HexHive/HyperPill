@@ -5,6 +5,10 @@ int in_clock_step = CLOCK_STEP_NONE;
 bool hack_qtest_allowed = false;
 uint64_t clock_step_rip[5] = {0};
 
+int in_timer_mode = 0;
+uint64_t timer_mod[5] = {0};
+bool hack_timer_mod = false;
+
 bool master_fuzzer;
 bool verbose = 1;
 
@@ -155,6 +159,33 @@ void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
 }
 
 void fuzz_instr_after_execution(bxInstruction_c *i) {
+	if (hack_timer_mod && i->getIaOpcode() == 0x4b8 /*CALL_Jq*/) {
+		static uint64_t rdi, rsi; // context
+		uint64_t rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+		if (rip == timer_mod[0] || rip == timer_mod[1] || rip == timer_mod[2] || rip == timer_mod[3]) {
+			if (in_timer_mode == 0) {
+				uint64_t anchor = BX_CPU(id)->pop_64() - 5; // assume CALL_Ja
+				rdi = BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx;
+				rsi = BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx;
+				// printf("call timer_mod(ts=0x%lx, expire_time=0x%lx), ", rdi, rsi);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
+				BX_CPU(id)->prev_rip = timer_mod[4];
+				BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = timer_mod[4];
+				BX_CPU(id)->push_64(anchor);
+				BX_CPU(id)->invalidate_prefetch_q();
+				in_timer_mode++;
+			} else if (in_timer_mode == 1) {
+				uint64_t current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
+				// printf("while current=0x%lx\n", current);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RSI, current);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, rdi);
+				BX_CPU(id)->prev_rip = rip;
+				BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
+				BX_CPU(id)->invalidate_prefetch_q();
+				in_timer_mode = 2;
+			}
+		}
+	}
 	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
 		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
 		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
@@ -433,6 +464,14 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* For symbol - > addr (for breakpoints)*/
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
+		if (getenv("HACK_TIMER_MOD")) {
+			timer_mod[0] = sym_to_addr("qemu-system", "timer_mod");
+			timer_mod[1] = sym_to_addr("qemu-system", "timer_mod_anticipate");
+			timer_mod[2] = sym_to_addr("qemu-system", "timer_mod_ns");
+			timer_mod[3] = sym_to_addr("qemu-system", "timer_mod_anticipate_ns");
+			timer_mod[4] = sym_to_addr("qemu-system", "qemu_clock_get_ns");
+			hack_timer_mod = true;
+		}
 		if (getenv("END_WITH_CLOCK_STEP")) {
 			// see kvm_cpu_exe() in accel/kvm/kvm-all.c
 			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu-system", "address_space_rw");
