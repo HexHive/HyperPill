@@ -113,6 +113,7 @@ ubuntu 22.04).
 ``` bash
 [L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20250306-2043/debian-12-nocloud-amd64-daily-20250306-2043.qcow2 --no-check-certificate
 [L0] $ qemu-img resize debian-12-nocloud-amd64-daily-20250306-2043.qcow2 20G
+[L0] $ swapoff -a
 [L0] $ qemu/build/qemu-system-x86_64 -machine q35 -accel kvm -m 8G \
     -cpu host,-pku,-xsaves,-kvmclock,-kvm-pv-unhalt,-hle,-rtm,-waitpkg \
     -netdev user,id=u1,hostfwd=tcp::2222-:22 \
@@ -147,6 +148,7 @@ ubuntu 22.04).
 [L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/bzImage
 [L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/rootfs.cpio.gz
 [L1] $ apt-get install -y swtpm
+[L1] $ swapoff -a
 [L1] $
 rm -rf /tmp/mytpm1; mkdir /tmp/mytpm1
 pkill swtpm
