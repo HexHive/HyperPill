@@ -34,10 +34,6 @@ if [ ! -e "$LINK_OBJ_PATH" ]; then
     exit 1
 fi
 
-if [ -n "$KVM" ] && [ -z "${FUZZ_ENUM+x}" ]; then
-    export END_WITH_CLOCK_STEP=1
-fi
-
 export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
 export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
 export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"

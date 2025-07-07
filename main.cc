@@ -1,10 +1,6 @@
 #include "fuzz.h"
 #include <cstdint>
 
-int in_clock_step = CLOCK_STEP_NONE;
-bool hack_qtest_allowed = false;
-uint64_t clock_step_rip[5] = {0};
-
 int in_timer_mode = 0;
 uint64_t timer_mod[5] = {0};
 bool hack_timer_mod = false;
@@ -184,70 +180,6 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 				BX_CPU(id)->invalidate_prefetch_q();
 				in_timer_mode = 2;
 			}
-		}
-	}
-	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
-		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
-		//
-		// clock_step_rip[CLOCK_STEP_NONE] must be in userspace to bypass SMEP
-		// printf("clock-step\n");
-		static uint64_t anchor, callsite, deadline, current;
-		if (in_clock_step == CLOCK_STEP_GET_DEADLINE) {
-			anchor = BX_CPU(id)->pop_64() - 5;
-			// printf("Get anchor %lx\n", anchor);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
-			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
-			BX_CPU(id)->push_64(anchor);
-			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_GET_NS) {
-			anchor = BX_CPU(id)->pop_64() - 5;
-			deadline = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
-			// printf("get_deadline_ns()=0x%lx\n", deadline);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
- 			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_NS];
- 			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_NS];
- 			BX_CPU(id)->push_64(anchor);
- 			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_WARP) {
- 			anchor = BX_CPU(id)->pop_64() - 5;
- 			current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
-			// printf("get_current()=0x%lx\n", current);
-			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
-				bool __qtest_allowed = 1;
-				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
-			}
-			// printf("dest=0x%lx\n", deadline + current + 100000);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, deadline + current + 100000);
-			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_WARP];
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_WARP];
-			BX_CPU(id)->push_64(anchor);
-			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_DONE) {
-			// avoid expected reentrancy
-			callsite = BX_CPU(id)->pop_64() - 5;
-			// printf("Get callsite %lx\n", callsite);
-			if (callsite != anchor) {
-				// printf("unexpected reentrancy\n");
-				BX_CPU(id)->push_64(callsite + 5);
-				return;
-			}
-			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr("qemu-system", "qtest_allowed");
-				bool __qtest_allowed = 0;
-				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
-			}
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, 0);
-			BX_CPU(id)->prev_rip = callsite + 5;
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = callsite + 5;
-			BX_CPU(id)->invalidate_prefetch_q();
-			// printf("done!!!!\n");
-			in_clock_step = CLOCK_STEP_NONE;
 		}
 	}
 }
@@ -471,22 +403,6 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 			timer_mod[3] = sym_to_addr("qemu-system", "timer_mod_anticipate_ns");
 			timer_mod[4] = sym_to_addr("qemu-system", "qemu_clock_get_ns");
 			hack_timer_mod = true;
-		}
-		if (getenv("END_WITH_CLOCK_STEP")) {
-			// see kvm_cpu_exe() in accel/kvm/kvm-all.c
-			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr("qemu-system", "address_space_rw");
-			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr("qemu-system", "qemu_clock_deadline_ns_all");
-			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr("qemu-system", "qemu_clock_get_ns");
-			// since qemu-v9.1.0-rc0
-			clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu-system", "qemu_clock_advance_virtual_time");
-			if (!clock_step_rip[CLOCK_STEP_WARP]) {
-				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr("qemu-system", "qtest_clock_warp");
-				hack_qtest_allowed = true;
-			}
-			clock_step_rip[CLOCK_STEP_DONE] = 0;
-			if (clock_step_rip[CLOCK_STEP_NONE] == 0) {
-				in_clock_step = -1; // invalid
-			}
 		}
 	}
 

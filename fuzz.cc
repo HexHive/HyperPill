@@ -11,7 +11,6 @@ enum cmds {
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
 	OP_VMCALL,
-	OP_CLOCK_STEP,
 };
 
 static bool log_ops = false;
@@ -754,26 +753,6 @@ bool op_vmcall() {
 	return true;
 }
 
-bool op_clock_step() {
-	if (!getenv("END_WITH_CLOCK_STEP")) {
-		printf("END_WITH_CLOCK_STEP is not set.\n");
-		return false;
-	} else if (in_clock_step < 0) {
-		printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
-		return false;
-	}
-	in_clock_step = CLOCK_STEP_GET_DEADLINE;
-
-	uint64_t addr = mmio_regions.begin()->first;
-	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
-        in_clock_step = 0;
-        return false;
-	}
-    start_cpu();
-    in_clock_step = CLOCK_STEP_NONE;
-    return true;
-}
-
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
@@ -788,13 +767,12 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
 	uint8_t op;
 
-	static void *fuzz_legacy, *fuzz_hypercalls, *end_with_clockstep;
+	static void *fuzz_legacy, *fuzz_hypercalls;
 	static int inited;
 	if (!inited) {
 		inited = 1;
 		fuzz_legacy = getenv("FUZZ_LEGACY");
 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
-		end_with_clockstep = getenv("END_WITH_CLOCK_STEP");
 		log_ops = getenv("LOG_OPS") || BX_CPU(id)->fuzztrace;
 	}
 
@@ -837,9 +815,6 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 			   dma_len) >= 8)
 			break;
 	} while (ic_advance_until_token(SEPARATOR, 4));
-
-	if (end_with_clockstep)
-		op_clock_step();
 
 	size_t dummy;
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
