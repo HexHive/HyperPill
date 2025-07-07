@@ -10,8 +10,18 @@ CC=clang CXX=clang++ make
 Using
 --------
 
+We are using the example directory structure outlined below to keep everything
+organized and easy to manage.
+
+``` bash
+.
+├── HyperPill
+├── snapshots
+├── fuzz # working directory
+```
+
 To fuzz a hypervisor, we first must obtain a snapshot.
-To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/)
+To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/).
 
 After collecting the snapshot, the snapshot directory should contain the
 following files:
@@ -19,36 +29,10 @@ following files:
 * `dir/regs`
 * `dir/vmcs`
 
-where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+where dir can be `kvm`, or whatever you want.
 
-P.S. you may want to run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to
-make your life easy.
-
-We are using the example directory structure outlined below to keep everything
-organized and easy to manage.
-
-``` bash
-.
-├── HyperPill
-├── snapshots/kvm
-```
-
-First, enumerate the input-spaces:
-
-```
-# Create a working directory
-mkdir -p /tmp/fuzz/; cd /tmp/fuzz
-export SNAPSHOT_BASE=/path/to/snapshots/kvm
-export PROJECT_ROOT=/path/to/HyperPill
-KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
-```
-
-After the enumeration stage is complete, we can fuzz the snapshot:
-
-```
-mkdir CORPUS
-KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
-```
+P.S. run `md5sum dir/mem | cut -d ' ' -f 1 > dir/mem.md5sum` to avoid remapping
+the snapshot.
 
 Additionally, for elf-based hypervisors, it will be convenient to store copies
 of the binaries that we expect to be fuzzing for symbolization and breakpointing
@@ -70,30 +54,53 @@ Symbolization Range: ffffffffc09dc000 - ffffffffc0a44de3 size: 68de3 file: dir/s
 Symbolization Range: 7f4ec7c2e380 - 7f4ec7d81f2d size: 153bad file: dir/symbols/libc.so.6 section: .text sh_addr: 26380
 Symbolization Range: 55bc471e6660 - 55bc4813942c size: f52dcc file: dir/symbols/qemu-system-x86_64 section: .text sh_addr: 975660
 Symbolization Range: 7f4ec7f05e80 - 7f4ec7f91a1e size: 8bb9e file: dir/symbols/libglib-2.0.so.0 section: .text sh_addr: 1de80
-Symbolization Range: 7f4ec88c1530 - 7f4ec88d5c4c size: 1471c file: dir/symbols/libslirp.so.0 section: .text sh_addr: 4530
-Symbolization Range: 7ffd204d2000 - 7ffd20927d96 size: 455d96 file: dir/symbols/vmlinux section: .rodata sh_addr: ffffffff82000000
 ```
 
-Then, remove SYMBOLS_DIR and rerun the fuzzer. Every new PC will be symbolized.
+First, enumerate the input-spaces,
 
 ```
-KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
+# In the working directory
+export SNAPSHOT_BASE=/path/to/snapshots/kvm
+export PROJECT_ROOT=/path/to/HyperPill
+KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
-We can reproduce a crash:
+We can also skip the enumerating stage with manual ranges. A QEMU-like mtree
+file must be obtained or constructed.
 
 ```
-KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
+export MANUAL_RANGES=$SNAPSHOT_BASE/mtree
+export RANGE_REGEX="nvme"
 ```
 
-Add have more debugging information:
+After the enumeration stage is complete, we can fuzz the snapshot:
 
 ```
-KVM=1 FUZZ_DEBUG_DISASM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7 2>&1 | tee crash-48f2f7.txt
-python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/symbols/ crash-48f2f7.txt
+mkdir CORPUS
+KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
-For any bus errors, unlink the shm in /dev/shm or expand the memory.
+If `dir/layout` is valid, every new PC will be symbolized.
+
+A crash file will be dumped into the working directory, e.g.,
+`crash-04975a94754989e01ff516404dbef455ec6ac613`.
+
+We can reproduce the crash:
+
+```
+KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-xxx
+```
+
+To understand any crash (either in HyperPill or in the target hypervisor), we
+can enable more debugging information.
+
+```
+KVM=1 FUZZ_DEBUG_DISASM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-xxx 2>&1 | tee crash-xxx.txt
+python3 $PROJECT_ROOT/scripts/symbolize.py $SNAPSHOT_BASE/layout $SNAPSHOT_BASE/symbols/ crash-xxx.txt
+```
+
+For common errors when using HyperPill, see [this
+page](https://github.com/HexHive/HyperPill/issues/26).
 
 ## Collecting source-based coverage
 
@@ -106,14 +113,7 @@ CC=clang CXX=clang++ \
 ninja
 ```
 
-Second, when L2 is running, use gdb to load all unmapped pages into memory. Then
-retake the snapshot and reinfer the symbol map.
-
-```
-[L1] $ gdb --pid $(pgrep -f "qemu")
-[L1] $ (gdb) call (int)mlockall(3)
-[L1] $ (gdb) detach
-```
+Second, retake the snapshot and reinfer the symbol map.
 
 Third, set LINK_OBJ_BASE and run `KVM=1 NSLOTS=1
 $PROJECT_ROOT/scripts/run_hyperpill2.sh`. Here NSLOTS is needed otherwise clang
