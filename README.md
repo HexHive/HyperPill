@@ -26,6 +26,8 @@ organized and easy to manage.
 To fuzz a hypervisor, we first must obtain a snapshot.
 To do this, follow the instructions in [hyperpill-snap](hyperpill-snap/).
 
+Or get prepared snapshots [here](https://zenodo.org/records/15826268).
+
 After collecting the snapshot, the snapshot directory should contain the
 following files:
 * `dir/mem`
