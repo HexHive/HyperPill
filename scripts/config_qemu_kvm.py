@@ -12,6 +12,30 @@
 import os
 import sys
 
+def generate_master_run_script(base_dir, output_script="run.sh"):
+    """
+    Scans for all fuzz-* directories and writes commands to run their run.sh scripts into a master script.
+    """
+    lines = [
+        "#!/bin/bash\n\n",
+    ]
+
+    for entry in sorted(os.listdir(base_dir)):
+        entry_path = os.path.join(base_dir, entry)
+        run_script = os.path.join(entry_path, "run.sh")
+        if entry.startswith("fuzz-") and os.path.isdir(entry_path) and os.path.isfile(run_script):
+            lines.append(f"echo '[+] Running {entry}/run.sh'\n")
+            lines.append(f"pushd {entry} > /dev/null\n")
+            lines.append(f"./run.sh &\n")
+            lines.append(f"popd > /dev/null\n\n")
+
+    output_path = os.path.join(base_dir, output_script)
+    with open(output_path, "w") as f:
+        f.writelines(lines)
+
+    os.chmod(output_path, 0o755)
+    print(f"[+] Created run script at: {output_path}")
+
 def create_fuzzing_config(project_root, snapshot_base, target, config_path):
     """
     Creates a fuzzing work directory and corresponding environment script.
@@ -21,6 +45,7 @@ def create_fuzzing_config(project_root, snapshot_base, target, config_path):
 
     env_script = os.path.join(work_dir, "env.sh")
     with open(env_script, "w") as f:
+        f.write(f"#!/bin/bash\n\n")
         f.write(f"export PROJECT_ROOT={project_root}\n")
         f.write(f"export SNAPSHOT_BASE={snapshot_base}\n")
         f.write(f"export MANUAL_RANGES=$SNAPSHOT_BASE/mtree\n")
@@ -28,6 +53,7 @@ def create_fuzzing_config(project_root, snapshot_base, target, config_path):
 
     run_script = os.path.join(work_dir, "run.sh")
     with open(run_script, "w") as f:
+        f.write(f"#!/bin/bash\n\n")
         f.write(f"source env.sh\n")
         f.write(f"mkdir CORPUS\n")
         f.write(f"KVM=1 CORPUS_DIR=./CORPUS NSLOTS=4 $PROJECT_ROOT/scripts/run_hyperpill.sh\n")
@@ -65,6 +91,7 @@ def main():
     project_root = os.path.abspath(os.getcwd())
 
     create_all_fuzzing_configs(project_root, snapshot_base)
+    generate_master_run_script(os.path.dirname(project_root))
 
 if __name__ == "__main__":
     main()
