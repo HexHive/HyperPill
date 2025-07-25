@@ -68,6 +68,16 @@ void apply_breakpoints_linux() {
 	add_breakpoint(sym_to_addr2("libc.so.6", "abort@@GLIBC_2.17"), abort_crash);
 }
 
+static int seL4_workaround(void) {
+	uint64_t x21 = cpu0_get_general_purpose_reg64(21);
+	cpu0_set_general_purpose_reg64(21, 0x160000 | x21);
+	return 0 /* continue */;
+}
+
+void apply_breakpoints_sel4() {
+	add_breakpoint(0x00201e18, seL4_workaround);
+}
+
 // TODO: test it
 void hp_vcpu_syscall(int64_t num, uint64_t a1, uint64_t a2, uint64_t a3,
 		     uint64_t a4, uint64_t a5, uint64_t a6, uint64_t a7,

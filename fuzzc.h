@@ -46,6 +46,7 @@ void cpu0_run_loop();
 // backends/xxx/breakpoints
 void handle_syscall_hooks(hp_instruction *i);
 void apply_breakpoints_linux();
+void apply_breakpoints_sel4();
 
 // backends/xxx/dbg
 void icp_init_gdb();
