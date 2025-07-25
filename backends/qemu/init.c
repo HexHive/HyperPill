@@ -1,20 +1,18 @@
 #include "qemu.h"
 
 void icp_init_backend() {
-	int qemu_argc = 22;
+	int qemu_argc = 18;
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
 		"-nographic",
 		"-smp", "1",
-		"-m", "8192", // TODO: we assume at most 8G?
-		"-cpu", "max",
+		"-m", "2G", // TODO: we assume at most 8G?
+		"-cpu", "cortex-a53",
         "-L", "pc-bios",
 		"-M", "virt,virtualization=on,suppress-vmdesc=on",
         "-global", "migration.send-configuration=off",
         "-global", "migration.store-global-state=off",
         "-global", "migration.send-section-footer=off",
-		"-netdev", "user,id=net0",
-		"-device", "virtio-net-device,netdev=net0",
 		NULL
 	};
     qemu_init(qemu_argc, qemu_argv);
