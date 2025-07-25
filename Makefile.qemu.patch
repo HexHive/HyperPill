@@ -1,4 +1,4 @@
-From 1de3b21f77f53468f3bbbc07a769ec7cee98ce89 Mon Sep 17 00:00:00 2001
+From 4f24758b0efdc4b7800b8904e6cd217d578404bf Mon Sep 17 00:00:00 2001
 From: Qiang Liu <cyruscyliu@gmail.com>
 Date: Wed, 7 May 2025 09:30:54 +0200
 Subject: [PATCH] Patch QEMU for HyperARM
@@ -9,7 +9,7 @@ Subject: [PATCH] Patch QEMU for HyperARM
  accel/kvm/kvm-cpus.h                  |   2 +-
  accel/tcg/atomic_common.c.inc         |   4 +-
  accel/tcg/atomic_template.h           |  16 ++--
- accel/tcg/cpu-exec.c                  |  29 ++++++-
+ accel/tcg/cpu-exec.c                  |  34 +++++++-
  accel/tcg/cputlb.c                    |  10 +++
  accel/tcg/internal-target.h           |   3 +
  accel/tcg/ldst_common.c.inc           |  45 +++++------
@@ -68,7 +68,7 @@ Subject: [PATCH] Patch QEMU for HyperARM
  tcg/tcg-op.c                          |   2 +-
  tests/plugin/mem.c                    |   2 +-
  tests/qtest/fuzz/generic_fuzz.c       | 108 --------------------------
- 64 files changed, 475 insertions(+), 245 deletions(-)
+ 64 files changed, 480 insertions(+), 245 deletions(-)
  create mode 100644 qemuafl/cpu-translate.h
 
 diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
@@ -203,7 +203,7 @@ index 1dc2151..4a8d5b3 100644
  }
  
 diff --git a/accel/tcg/cpu-exec.c b/accel/tcg/cpu-exec.c
-index 6a4af14..eac9105 100644
+index 6a4af14..96e0905 100644
 --- a/accel/tcg/cpu-exec.c
 +++ b/accel/tcg/cpu-exec.c
 @@ -45,6 +45,15 @@
@@ -222,20 +222,25 @@ index 6a4af14..eac9105 100644
  /* -icount align implementation. */
  
  typedef struct SyncClocks {
-@@ -364,7 +373,11 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
+@@ -364,7 +373,16 @@ static bool check_for_breakpoints_slow(CPUState *cpu, vaddr pc,
              }
  
              if (match_bp) {
 -                cpu->exception_index = EXCP_DEBUG;
 +                if (bp->h) {
-+                    cpu->exception_index = bp->h();
++                    int ret = bp->h();
++                    if (ret == 0) {
++                        return false;
++                    } else {
++                        cpu->exception_index = ret;
++                    }
 +                } else {
 +                    cpu->exception_index = EXCP_DEBUG;
 +                }
                  return true;
              }
          } else if (((pc ^ bp->pc) & TARGET_PAGE_MASK) == 0) {
-@@ -916,8 +929,22 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
+@@ -916,8 +934,22 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
  {
      int32_t insns_left;
  
@@ -2050,5 +2055,5 @@ index ec842e0..44b7bc2 100644
   * Here we want to convert a fuzzer-provided [io-region-index, offset] to
   * a physical address. To do this, we iterate over all of the matched
 -- 
-2.43.0
+2.39.5
 
