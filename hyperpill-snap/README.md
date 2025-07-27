@@ -317,12 +317,12 @@ int main() {
 }
 EOF
 
-[L2] $ gcc snap.c -o snap
-[L2] $ ./snap
-[L2] $ lspci -v
-# Copy the output of the above command to /path/to/snapshots/dir/lspci
 [L1 qemu-monitor] info mtree -f
 # Copy the output of the above command to /path/to/snapshots/dir/mtree
+[L2] $ lspci -v
+# Copy the output of the above command to /path/to/snapshots/dir/lspci
+[L2] $ gcc snap.c -o snap
+[L2] $ ./snap
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
