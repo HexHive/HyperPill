@@ -190,7 +190,7 @@ bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
   *phy = paddress;
   return 1;
 page_fault:
-  // this is chance that page tables are currupted
+  // there is chance that page tables are currupted
   // leave it to the caller
   printf("PAGE FAULT ON ADDR: %lx\n", paddress);
   return 0;
