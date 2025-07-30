@@ -68,7 +68,10 @@ void start_cpu() {
 		dump_regs();
 	}
 	reset_op_cov();
+
 	BX_CPU(id)->fuzz_executing_input = true;
+	if (bx_dbg.gdbstub_enabled)
+		hp_gdbstub_debug_loop();
 	while (BX_CPU(id)->fuzz_executing_input) {
 		BX_CPU(id)->cpu_loop();
 	}
