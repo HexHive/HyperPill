@@ -6,7 +6,7 @@ ifeq ($(OS),Linux)
 endif
 
 CXX ?= clang++
-VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a vendor/lib/libavx.a vendor/lib/libfpu.a vendor/libfuzzer-ng/libFuzzer.a vendor/lib/gdbstub.o vendor/lib/pc_system.o
+VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a vendor/lib/libavx.a vendor/lib/libfpu.a vendor/libfuzzer-ng/libFuzzer.a vendor/lib/pc_system.o
 VENDOR_OBJS =
 
 
@@ -37,6 +37,7 @@ OBJS        = main.o \
 			  vmcs.o \
 			  enum.o \
 			  sourcecov.o \
+			  gdbstub.o \
               bochsapi/logfunctions.o \
 			  devices.o \
 			  bochsapi/system.o \
@@ -70,7 +71,6 @@ rebuild_bochs:
 	cp ./vendor/bochs-build/cpu/fpu/libfpu.a vendor/lib/
 	cp ./vendor/bochs-build/cpu/avx/libavx.a vendor/lib/
 	cp ./vendor/bochs-build/config.h vendor/include/
-	cp ./vendor/bochs-build/gdbstub.o vendor/lib/gdbstub.o
 	cp ./vendor/bochs-build/pc_system.o vendor/lib/pc_system.o
 	cp ./vendor/bochs/instrument/stubs/instrument.h vendor/include/
 	cd vendor/bochs-build; make -j bx_debug/libdebug.a

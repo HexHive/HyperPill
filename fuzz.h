@@ -237,4 +237,6 @@ void apply_breakpoints_linux();
 //stacktrace
 void fuzz_stacktrace();
 
+void hp_gdbstub_debug_loop();
+
 #endif

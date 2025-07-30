@@ -68,7 +68,10 @@ void start_cpu() {
 		dump_regs();
 	}
 	reset_op_cov();
+
 	BX_CPU(id)->fuzz_executing_input = true;
+	if (bx_dbg.gdbstub_enabled)
+		hp_gdbstub_debug_loop();
 	while (BX_CPU(id)->fuzz_executing_input) {
 		BX_CPU(id)->cpu_loop();
 	}
@@ -78,6 +81,7 @@ void start_cpu() {
 
 	bx_address phy;
 	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	assert(res == 1); // Guest page table should be guarded
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;
 	}
@@ -409,6 +413,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	BX_CPU(id)->TLB_flush();
 	fuzz_walk_ept();
 	vmcs_fixup();
+	ept_mark_page_table();
 	init_register_feedback();
 
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))

@@ -190,8 +190,9 @@ bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
   *phy = paddress;
   return 1;
 page_fault:
+  // there is chance that page tables are currupted
+  // leave it to the caller
   printf("PAGE FAULT ON ADDR: %lx\n", paddress);
-  fuzz_emu_stop_crash("page fault");
   return 0;
 }
 
@@ -368,9 +369,9 @@ void ept_mark_page_table() {
 
     // unmark the page containing the current guest RIP
     // alternatively, check that (addr != guest RIP) in the DMA hook
-    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr))
+    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr)) {
         mark_page_not_guest(phyaddr, BX_LEVEL_PTE);
-    else {
+    } else {
         fprintf(stderr, "GUEST_RIP page not mapped");
         abort();
     }
