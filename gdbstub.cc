@@ -417,12 +417,14 @@ static int access_linear(uint64_t laddress,
 
 #define RIP (BX_CPU_THIS_PTR gen_reg[BX_64BIT_REG_RIP].rrx)
 
+char last_seen_binary[1024] = { '\0' };
+
 static void debug_loop(void)
 {
   char buffer[255];
   char obuf[1024];
   int ne = 0;
-  uint8_t mem[255];
+  uint8_t mem[1024];
 
   while (ne == 0 && BX_CPU(0)->fuzz_executing_input)
   {
@@ -442,7 +444,7 @@ static void debug_loop(void)
       // This packet is deprecated for multi-threading support. See [vCont packet]
       case 'c':
       {
-        char buf[255];
+        char buf[1024];
         uint64_t new_rip;
 
         if (buffer[1] != 0)
@@ -472,6 +474,14 @@ static void debug_loop(void)
             last_stop_reason == GDBSTUB_TRACE)
         {
           write_signal(&buf[1], SIGTRAP);
+          auto s = addr_to_sym(RIP);
+          const char *current_binary = s.first.c_str();
+          if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
+            memcpy(last_seen_binary, current_binary, strlen(current_binary));
+            buf[0] = 'T';
+            mem2hex((uint8_t *)current_binary, (char *)mem, strlen(current_binary));
+            sprintf(&buf[3], "exec:%s;", mem);
+          }
         }
         else
         {
@@ -486,7 +496,7 @@ static void debug_loop(void)
       // This packet is deprecated for multi-threading support. See [vCont packet]
       case 's':
       {
-        char buf[255];
+        char buf[1024];
 
         verbose_printf("stepping\n");
         stub_trace_flag = 1;
@@ -502,6 +512,14 @@ static void debug_loop(void)
         else
         {
           write_signal(&buf[1], SIGTRAP);
+        }
+        auto s = addr_to_sym(RIP);
+        const char *current_binary = s.first.c_str();
+        if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
+          memcpy(last_seen_binary, current_binary, strlen(current_binary));
+          buf[0] = 'T';
+          mem2hex((uint8_t *)current_binary, (char *)mem, strlen(current_binary));
+          sprintf(&buf[3], "exec:%s;", mem);
         }
         put_reply(buf);
         break;
@@ -703,19 +721,37 @@ static void debug_loop(void)
         }
         else if (strncmp(&buffer[1], "Supported", strlen("Supported")) == 0)
         {
-          put_reply("");
+          put_reply("PacketSize=4000;qXfer:exec-file:read+");
         }
         // qRcmd,command
         else if (strncmp(&buffer[1], "Rcmd", strlen("Rcmd")) == 0)
         {
-          char command[255];
-          hex2mem(&buffer[6], (unsigned char *)command, 8);
-          if (strncmp(command, "info mem", 8) == 0) {
+          hex2mem(&buffer[6], mem, 8);
+          if (strncmp((char *)mem, "info mem", 8) == 0) {
               put_reply("OK");
           } else {
             verbose_printf("not supported\n");
             put_reply(""); /* not supported */
           }
+        }
+        // qXfer:exec-file:read:annex:offset,length
+        else if (strncmp(&buffer[1], "Xfer:exec-file:read::", strlen("Xfer:exec-file:read::")) == 0)
+        {
+          auto s = addr_to_sym(RIP);
+          const char *current_binary = s.first.c_str();
+          sprintf(obuf, "l%s", current_binary);
+          memcpy(last_seen_binary, current_binary, strlen(current_binary));
+          put_reply(obuf);
+        }
+        // qAttached
+        else if (strncmp(&buffer[1], "Attached", strlen("Attached")) == 0)
+        {
+          put_reply("1");
+        }
+        // qSymbol::
+        else if (strncmp(&buffer[1], "Symbol::", strlen("Symbol::")) == 0)
+        {
+          put_reply("OK");
         }
         else
         {
