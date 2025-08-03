@@ -28,8 +28,10 @@ bool fuzz_hook_vmlaunch() {
         fuzz_emu_stop_normal();
         return true;
     } else {
-        printf("Warning: vmcsptr has been changed from 0x%08lx to 0x%08lx\n",
+        verbose_printf("Warning: vmcsptr has been changed from 0x%08lx to 0x%08lx\n",
             vmcs_addr, BX_CPU(id)->vmcsptr);
+        fuzz_emu_stop_unhealthy();
+        return true;
     }
 
     return false;
