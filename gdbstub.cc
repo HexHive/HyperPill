@@ -422,9 +422,9 @@ char last_seen_binary[1024] = { '\0' };
 static void debug_loop(void)
 {
   char buffer[255];
-  char obuf[1024];
+  char obuf[1024 * 4];
   int ne = 0;
-  uint8_t mem[1024];
+  uint8_t mem[1024 * 4];
 
   while (ne == 0 && BX_CPU(0)->fuzz_executing_input)
   {
@@ -715,9 +715,11 @@ static void debug_loop(void)
         }
         else if (strncmp(&buffer[1], "Offsets", strlen("Offsets")) == 0)
         {
-          sprintf(obuf, "Text=%lx;Data=%lx;Bss=%lx",
-            0xffffffffc0aaedf0, 0xffffffffc0aaedf0, 0xffffffffc0aaedf0);
-          put_reply(obuf);
+          if (getenv("LINK_OBJ_BASE")) {
+            uint64_t base = strtoull(getenv("LINK_OBJ_BASE"), NULL, 16);
+            sprintf(obuf, "Text=%lx;Data=%lx;Bss=%lx", base, base, base);
+            put_reply(obuf);
+          }
         }
         else if (strncmp(&buffer[1], "Supported", strlen("Supported")) == 0)
         {
@@ -773,11 +775,12 @@ static void debug_loop(void)
 
       // "k" Kill request.
       case 'k':
-        verbose_printf("Debugger asked us to quit\n");
+        printf("Debugger asked us to quit\n");
+        BX_CPU(0)->fuzz_executing_input = 0;
         break;
 
       case 'D':
-        verbose_printf("Debugger detached\n");
+        printf("Debugger detached\n");
         put_reply("OK");
         return;
         break;
