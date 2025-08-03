@@ -860,7 +860,7 @@ void hp_gdbstub_debug_loop(void)
   int portn = 1234;
 
   /* Wait for connect */
-  verbose_printf("Waiting for gdb connection on port %d\n", portn);
+  printf("Waiting for gdb connection on port %d\n", portn);
   wait_for_connect(portn);
 
   /* Do debugger command loop */
