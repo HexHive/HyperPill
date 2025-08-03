@@ -111,11 +111,31 @@ To debug interactively using GDB:
 ``` bash
 # Terminal 1
 GDB=1 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-xxx
+# or
+VERBOSE=1 GDB=1 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-xxx
 
 # Terminal 2
-gdb
+gdb -ex "set architecture i386:x86-64"
+# if you are using gef
+# $ (gdb) arch set X86_64
+# for debugging HyperPill's gdbstub
+# $ (gdb) set debug remote on
+# $ (gdb) set remotetimeout 99999
 $ (gdb) target remote:1234
 ```
+
+Tip: Export LINK_OBJ_BASE to rebase the object being debugged
+
+Tip: If HyperPill is running on a remote server, forward the debug port to your
+local machine using SSH:
+
+``` bash
+ssh -N -L 1234:localhost:1234 user@server
+```
+
+Tip: When using the Ghidra debugger (e.g., to debug non-ELF binaries), configure
+and launch a GDB Remote session by specifying the input file, target port, GDB
+command (or a custom GDB wrapper script), and architecture (e.g., i386:x86-64).
 
 For troubleshooting and FAQs, refer to the [Common Questions
 page](https://github.com/HexHive/HyperPill/wiki/Common-Questions).
