@@ -228,6 +228,11 @@ static int other_thread = 0;
 static uint64_t breakpoints[MAX_BREAKPOINTS] = {0,};
 static unsigned nr_breakpoints = 0;
 
+struct hp_watchpoint { uint64_t addr; uint8_t len; uint8_t rwa; };
+#define MAX_WATCHPOINTS  (16)
+static struct hp_watchpoint watchpoints[MAX_WATCHPOINTS] = { {0, 0, 0} };
+static unsigned nr_watchpoints = 0;
+
 static int stub_trace_flag = 0;
 static int instr_count = 0;
 static int saved_rip = 0;
@@ -338,6 +343,52 @@ static void do_pc_breakpoint(int insert, uint64_t addr, int len)
       remove_breakpoint(addr+i, 1);
 }
 
+#define WATCHPOINT_R 0x01
+#define WATCHPOINT_W 0x10
+#define WATCHPOINT_A 0x11
+
+static int remove_watchpoint(uint64_t addr) {
+  for (unsigned i = 0; i < MAX_WATCHPOINTS; i++) {
+    if (watchpoints[i].addr == addr) {
+      watchpoints[i].addr = 0;
+      verbose_printf("Removed watchpoint at " FMT_ADDRX64, "\n", addr);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int insert_watchpoint(uint64_t addr, uint8_t len, uint8_t rwa) {
+  if (addr == 0) {
+    verbose_printf("Cannot watch address 0\n");
+    return 0;
+  }
+
+  for (int i = 0; i < MAX_WATCHPOINTS; i++) {
+    if (watchpoints[i].addr == 0) {
+      watchpoints[i].addr = addr;
+      watchpoints[i].len = len;
+      watchpoints[i].rwa = rwa;
+      if (i >= nr_watchpoints) {
+        nr_watchpoints = i + 1;
+      }
+      verbose_printf("Set watchpoint at " FMT_ADDRX64, "\n", addr);
+      return 1;
+    }
+  }
+  verbose_printf("No slot for watchpoints\n");
+  return 0;
+}
+
+static int do_pc_watchpoint(int insert,
+    uint64_t addr, uint8_t len, uint8_t rwa) {
+  if (insert) {
+    return insert_watchpoint(addr, len, rwa);
+  } else {
+    return remove_watchpoint(addr);
+  }
+}
+
 static void do_breakpoint(int insert, char* buffer)
 {
   char* ebuf;
@@ -345,15 +396,54 @@ static void do_breakpoint(int insert, char* buffer)
   uint64_t addr = strtoull(ebuf+1, &ebuf, 16);
   unsigned long len = strtoul(ebuf+1, &ebuf, 16);
   switch (type) {
-  case 0:
-  case 1:
+  case 0: // software breakpoint
+  case 1: // hardware breakpoint
     do_pc_breakpoint(insert, addr, len);
+    put_reply("OK");
+    break;
+  case 2: // write watch point
+    do_pc_watchpoint(insert, addr, len, WATCHPOINT_W);
+    put_reply("OK");
+    break;
+  case 3: // read watch point
+    do_pc_watchpoint(insert, addr, len, WATCHPOINT_R);
+    put_reply("OK");
+    break;
+  case 4: // access watch point
+    do_pc_watchpoint(insert, addr, len, WATCHPOINT_A);
     put_reply("OK");
     break;
   default:
     put_reply("");
     break;
   }
+}
+
+int hp_gdbstub_mem_check(unsigned cpu,
+    uint64_t lin, unsigned len, unsigned rw) {
+  if (!BX_CPU(0)->fuzzdebug_gdb) {
+    return 0;
+  }
+
+  uint64_t lin_end = lin + len - 1;
+  for (int i = 0; i < nr_watchpoints; i++) {
+    if (watchpoints[i].addr == 0)
+      continue;
+    uint64_t watch_end = watchpoints[i].addr + len - 1;
+    if (lin > watch_end || lin_end < watchpoints[i].addr)
+      continue;;
+    if (watchpoints[i].rwa == WATCHPOINT_A) {
+      bx_enter_gdbstub = 1;
+      return 1;
+    } else if (watchpoints[i].rwa == WATCHPOINT_R && rw == 0) {
+      bx_enter_gdbstub = 1;
+      return 1;
+    } else if (watchpoints[i].rwa == WATCHPOINT_W && rw == 1) {
+      bx_enter_gdbstub = 1;
+      return 1;
+    }
+  }
+  return 0;
 }
 
 static void write_signal(char* buf, int signal)
@@ -719,6 +809,8 @@ static void debug_loop(void)
             uint64_t base = strtoull(getenv("LINK_OBJ_BASE"), NULL, 16);
             sprintf(obuf, "Text=%lx;Data=%lx;Bss=%lx", base, base, base);
             put_reply(obuf);
+          } else {
+            put_reply("");
           }
         }
         else if (strncmp(&buffer[1], "Supported", strlen("Supported")) == 0)

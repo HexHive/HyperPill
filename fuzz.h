@@ -238,5 +238,6 @@ void apply_breakpoints_linux();
 void fuzz_stacktrace();
 
 void hp_gdbstub_debug_loop();
+int hp_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);
 
 #endif
