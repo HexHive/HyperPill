@@ -85,7 +85,7 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 	        fuzz_emu_stop_unhealthy();
 			return;
 		}
-		if (BX_CPU(id)->fuzztrace || log_ops) {
+		if (cpu0_get_fuzztrace() || log_ops) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
@@ -99,7 +99,7 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 			source -= len;
 		cpu0_mem_read_physical_page(source, len, buf);
 
-		if (BX_CPU(id)->fuzztrace || log_ops) {
+		if (cpu0_get_fuzztrace() || log_ops) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
@@ -168,7 +168,7 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, addr);
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, val);
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!write%d %lx %lx (reason: %lx)\n", size, addr, val,
 		       exit_reason);
 	}
@@ -216,7 +216,7 @@ bool inject_read(bx_address addr, int size) {
 
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RCX, addr);
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!read%d %lx\n", size, addr);
 	}
 	bx_address phy;
@@ -262,7 +262,7 @@ bool inject_read(bx_address addr, int size) {
 bool inject_in(uint16_t addr, uint16_t size) {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint64_t field_64 = 0;
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!in%d %x\n", size, addr);
 	}
 	bx_address phy;
@@ -309,7 +309,7 @@ bool inject_in(uint16_t addr, uint16_t size) {
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint64_t field_64 = 0;
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!out%d %x %x\n", size, addr, value);
 	}
 	bx_address phy;
@@ -620,7 +620,7 @@ bool op_msr_write() {
 	if (ic_ingest64(&value, 0, -1))
 		return false;
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!wrmsr %lx = %lx\n", msr, value);
 	}
 	return inject_wrmsr(msr, value);
@@ -710,7 +710,7 @@ bool op_vmcall() {
 
 	uint8_t *dma_start = ic_get_cursor();
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
 	start_cpu();
@@ -773,7 +773,7 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		inited = 1;
 		fuzz_legacy = getenv("FUZZ_LEGACY");
 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
-		log_ops = getenv("LOG_OPS") || BX_CPU(id)->fuzztrace;
+		log_ops = getenv("LOG_OPS") || cpu0_get_fuzztrace();
 	}
 
 	//if (log_ops)

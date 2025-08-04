@@ -64,17 +64,15 @@ void start_cpu() {
 	icount = 0;
 	pio_icount = 0;
 	clear_seen_dma();
-	if (BX_CPU(id)->fuzztrace) {
+	if (cpu0_get_fuzztrace()) {
 		dump_regs();
 	}
 	reset_op_cov();
 
-	BX_CPU(id)->fuzz_executing_input = true;
+	cpu0_set_fuzz_executing_input(true);
 	if (bx_dbg.gdbstub_enabled)
 		hp_gdbstub_debug_loop();
-	while (BX_CPU(id)->fuzz_executing_input) {
-		BX_CPU(id)->cpu_loop();
-	}
+	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip; // reset $RIP
@@ -100,7 +98,7 @@ void start_cpu() {
  */
 
 static void fuzz_emu_stop() {
-	BX_CPU(id)->fuzz_executing_input = false;
+	cpu0_set_fuzz_executing_input(false);
 }
 
 void fuzz_emu_stop_normal(){
@@ -215,7 +213,7 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-	if (BX_CPU(id)->fuzztrace)
+	if (cpu0_get_fuzztrace())
 		printf("NEW INPUT\n");
 	if (!done) {
 		if (!log_writes)
@@ -335,7 +333,8 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	bx_init_pc_system();
 
 	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
-	BX_CPU(id)->fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
+	cpu0_set_fuzztrace(fuzztrace);
 
 	/* Load the snapshot */
 	printf(".loading memory snapshot from %s\n", mem_path);

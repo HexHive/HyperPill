@@ -74,7 +74,7 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
 
 
     uint64_t PC = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
-    if(BX_CPU(id)->fuzztrace)
+    if(cpu0_get_fuzztrace())
         printf("CMP%ld: %lx vs %lx @ %lx\n", size, op1, op2, PC);
 
 

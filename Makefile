@@ -39,6 +39,7 @@ OBJS        = main.o \
 			  gdbstub.o \
               bochsapi/logfunctions.o \
 			  devices.o \
+			  bochsapi/control.o \
 			  bochsapi/system.o \
 			  bochsapi/mem.o \
               bochsapi/siminterface.o \

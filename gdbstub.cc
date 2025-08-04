@@ -868,7 +868,7 @@ static void debug_loop(void)
       // "k" Kill request.
       case 'k':
         printf("Debugger asked us to quit\n");
-        BX_CPU(0)->fuzz_executing_input = 0;
+        cpu0_set_fuzz_executing_input(false);
         break;
 
       case 'D':

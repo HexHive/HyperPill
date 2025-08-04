@@ -79,7 +79,7 @@ void fuzz_hook_memory_access(bx_address phy, unsigned len,
     // contains a mapping for each host physical page, for whether it corresponds to a guest page
     // if an access uses such an address, it is likely a DMA
     if (rw == BX_READ && is_l2_page_bitmap[phy >> 12]) {
-        if(BX_CPU(id)->fuzztrace) {
+        if(cpu0_get_fuzztrace()) {
             /* printf(".dma inject: %lx +%lx ",phy, len); */
         }
         static void* hv = getenv("HYPERV");
