@@ -20,14 +20,15 @@ Our snapshots consist of 3 components:
 <!-- toc -->
 
 Table of Content
-- [x86-64](#x86_64)
+- [x86_64](#x86_64)
   - [Setup L0 KVM](#setup-l0-kvm)
+  - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
   - [Run L1 and L2 VMs](#run-l1-and-l2-vms)
     - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
     - [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
   - [Take the snapshot](#take-the-snapshot)
 - [aarch64](#aarch64)
-  - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
+  - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting-1)
   - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
   - [Take the snapshot](#take-the-snapshot-1)
 - [\[Optional\] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
@@ -82,7 +83,7 @@ debian).
 [L0] $ sudo insmod arch/x86/kvm/kvm-intel.ko dump_invalid_vmcs=1 nested=1
 ```
 
-### Run L1 and L2 VMs
+### Prepare L0's QEMU for snapshotting
 
 ``` bash
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
@@ -101,6 +102,8 @@ debian).
 # within it. Configure a linux VM [L2] within the hypervisor. Running L1 VM with
 # 8GB mem is recommended, so that L1 VM can have a full 4GB mem.
 ```
+
+### Run L1 and L2 VMs
 
 #### Run L1 and L2 VMs for QEMU/KVM
 
@@ -470,14 +473,20 @@ behaviour.
 To do so, execute in L2 to expose an interface to userspace
 
 ```bash
+# Before taking the snapshot, get all file-backed pages in
+[L1] python3 page_in_and_locked.py $(pgrep -f "qemu-system")
+
+[L1 qemu-monitor] info mtree -f
+# Copy the output of the above command to /path/to/snapshots/dir/mtree
+
+[L2] $ lspci -v
+# Copy the output of the above command to /path/to/snapshots/dir/lspci
+
 [L2] insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
 
 # In L2, we use the following tool to trigger a snapshot.
 # We include snap in rootfs.cpio.gz
 [L2] $ snap
-
-# But in other L2 VM, we have to compile
-# /path/to/hyperpill/hyperpill-snap/snap.c
 
 # Now in L0, collect the snapshot data to /path/to/snapshots/dir,
 # where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
