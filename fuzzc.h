@@ -42,6 +42,9 @@ void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_tlb_flush(void);
 
+void cpu_physical_memory_read_fastpath(uint64_t addr, void* dest, size_t len);
+void cpu_physical_memory_write_fastpath(uint64_t addr, const void* src, size_t len);
+
 // backends/xxx/regs
 #if defined(HP_X86_64)
 uint64_t cpu0_get_vmcsptr(void);

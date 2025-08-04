@@ -27,10 +27,6 @@ extern bool verbose;
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 
-
-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
-
 // backends/bochs/system.cc
 void bx_init_pc_system();
 

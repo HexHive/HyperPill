@@ -276,11 +276,11 @@ void icp_init_mem(const char *filename) {
   }
 }
 
-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
+void cpu_physical_memory_read_fastpath(uint64_t addr, void* dest, size_t len){
     memcpy(dest, addr_conv(addr), len);
 }
 
-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
+void cpu_physical_memory_write_fastpath(uint64_t addr, const void* src, size_t len){
     notify_write(addr);
     memcpy(addr_conv(addr), src, len);
 }
