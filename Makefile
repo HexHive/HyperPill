@@ -33,6 +33,7 @@ OBJS        = main.o \
 			  link_map.o \
 			  ept.o \
 			  slat.o \
+			  hmem.o \
 			  cov.o \
 			  vmcs.o \
 			  enum.o \

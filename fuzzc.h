@@ -85,6 +85,12 @@ void fuzz_stacktrace();
 // slat.cc
 uint64_t pow64(uint64_t x, uint64_t y);
 
+// hmem.cc
+extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
+extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
+void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len);
+void fuzz_reset_watched_pages();
+
 // sym2addr_linux.cc
 typedef struct addr_bin_name {
     size_t addr;
