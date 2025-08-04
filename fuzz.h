@@ -7,124 +7,43 @@
 #include <cstring>
 #include <tsl/robin_set.h>
 
-#include "bochs.h"
-#include "cpu/cpu.h"
-#include "memory/memory-bochs.h"
-
-#define PG_PRESENT_BIT  0
-#define PG_RW_BIT       1
-#define PG_USER_BIT     2
-#define PG_PWT_BIT      3
-#define PG_PCD_BIT      4
-#define PG_ACCESSED_BIT 5
-#define PG_DIRTY_BIT    6
-#define PG_PSE_BIT      7
-#define PG_GLOBAL_BIT   8
-#define PG_PSE_PAT_BIT  12
-#define PG_PKRU_BIT     59
-#define PG_NX_BIT       63
-
-#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
-#define PG_RW_MASK       (1 << PG_RW_BIT)
-#define PG_USER_MASK     (1 << PG_USER_BIT)
-#define PG_PWT_MASK      (1 << PG_PWT_BIT)
-#define PG_PCD_MASK      (1 << PG_PCD_BIT)
-#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
-#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
-#define PG_PSE_MASK      (1 << PG_PSE_BIT)
-#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
-#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
-#define PG_ADDRESS_MASK  0x000ffffffffff000LL
-#define PG_HI_USER_MASK  0x7ff0000000000000LL
-#define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
-#define PG_NX_MASK       (1ULL << PG_NX_BIT)
+#include <stdbool.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "fuzzc.h"
 
 extern bool fuzzing;
+extern std::vector<size_t> guest_page_scratchlist;
+
 extern tsl::robin_set<bx_address> cur_input;
 extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
-extern std::vector<size_t> guest_page_scratchlist; 
 
 #define verbose_printf(...) if(verbose) printf(__VA_ARGS__)
 
-enum {
-  BX_LEVEL_PML4 = 3,
-  BX_LEVEL_PDPTE = 2,
-  BX_LEVEL_PDE = 1,
-  BX_LEVEL_PTE = 0
-};
-
-enum {
-  BX_EPT_READ    = 0x01,
-  BX_EPT_WRITE   = 0x02,
-  BX_EPT_EXECUTE = 0x04,
-
-  BX_EPT_MBE_SUPERVISOR_EXECUTE = BX_EPT_EXECUTE,
-  BX_EPT_MBE_USER_EXECUTE = 0x400
-};
-
-/* EPT access mask */
-enum {
-  BX_EPT_ENTRY_NOT_PRESENT        = 0x00,
-  BX_EPT_ENTRY_READ_ONLY          = 0x01,
-  BX_EPT_ENTRY_WRITE_ONLY         = 0x02,
-  BX_EPT_ENTRY_READ_WRITE         = 0x03,
-  BX_EPT_ENTRY_EXECUTE_ONLY       = 0x04,
-  BX_EPT_ENTRY_READ_EXECUTE       = 0x05,
-  BX_EPT_ENTRY_WRITE_EXECUTE      = 0x06,
-  BX_EPT_ENTRY_READ_WRITE_EXECUTE = 0x07
-};
-
-
-uint64_t lookup_gpa_by_hpa(uint64_t hpa);
 
 void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
 void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
-void fuzz_identify_l2_pages();
-void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
-void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
-const char *get_memtype_name(BxMemtype memtype);
-void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
 
 void icp_init_params();
-void icp_init_mem(const char* filename);
-void icp_init_shadow_vmcs_layout(const char* filename);
-void icp_init_vmcs_layout(const char* filename);
-void icp_set_vmcs(uint64_t vmcs);
+void icp_init_vmcs_layoddut(const char* filename);
+
+// backends/bochs/system.cc
 void bx_init_pc_system();
 
-void fuzz_inject_mmio_write(uint64_t addr, uint64_t val);
-void fuzz_inject_pio_read(uint64_t addr, uint64_t val);
-void fuzz_inject_vmcall(uint64_t rcx, uint64_t r8, const void* xmm0, const void* xmm3 );
-
-void fuzz_hook_memory_access(bx_address phy, unsigned len, 
-                             unsigned memtype, unsigned rw, void* data);
-void fuzz_hook_cr3_change(bx_address old, bx_address val);
-void fuzz_reset_exception_counter();
-void clear_l2_bitmaps();
-void restore_l2_bitmaps();
-void snapshot_l2_bitmaps();
-
-void fuzz_reset_memory();
-void fuzz_watch_memory_inc();
-void fuzz_clear_dirty();
-
-
+// backends/bochs/vmcs.cc
 extern uint64_t vmcs_addr;
+void icp_init_shadow_vmcs_layout(const char* filename);
+void icp_set_vmcs(uint64_t vmcs);
 void icp_set_vmcs_map();
 void redo_paging();
 void vmcs_fixup();
 
-bool gva2hpa(bx_address laddr, bx_phy_address *phy);
 int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
-
-void ept_mark_page_table();
-void ept_locate_pc();
-void mark_page_not_guest(bx_phy_address addr, int level);
-bool frame_is_guest(bx_phy_address addr);
 
 void walk_ept(bool enum_mmio);
 void fuzz_walk_ept();
@@ -193,6 +112,10 @@ void init_register_feedback();
 
 // link_map.cc
 void load_link_map(char* map_path, char* obj_regex, size_t base);
+
+// mem.cc
+uint64_t lookup_gpa_by_hpa(uint64_t hpa);
+void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
 
 // sourcecov.cc
 void write_source_cov();

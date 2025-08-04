@@ -119,6 +119,8 @@ uint64_t lookup_gpa_by_hpa(uint64_t hpa){
  * However, the EPT is reset across fuzz iterations, so have to unmark
  * the pages that have been marked during the current fuzz iteration
 */
+#define PG_PRESENT_BIT  0
+#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
 void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     uint64_t pg_entry;
     cpu_physical_memory_read(paddr, &pg_entry, sizeof(pg_entry));

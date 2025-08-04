@@ -3,6 +3,62 @@
 #include <asm-generic/errno.h>
 #include <math.h>
 
+enum {
+  BX_LEVEL_PML4 = 3,
+  BX_LEVEL_PDPTE = 2,
+  BX_LEVEL_PDE = 1,
+  BX_LEVEL_PTE = 0
+};
+
+enum {
+  BX_EPT_READ    = 0x01,
+  BX_EPT_WRITE   = 0x02,
+  BX_EPT_EXECUTE = 0x04,
+
+  BX_EPT_MBE_SUPERVISOR_EXECUTE = BX_EPT_EXECUTE,
+  BX_EPT_MBE_USER_EXECUTE = 0x400
+};
+
+/* EPT access mask */
+enum {
+  BX_EPT_ENTRY_NOT_PRESENT        = 0x00,
+  BX_EPT_ENTRY_READ_ONLY          = 0x01,
+  BX_EPT_ENTRY_WRITE_ONLY         = 0x02,
+  BX_EPT_ENTRY_READ_WRITE         = 0x03,
+  BX_EPT_ENTRY_EXECUTE_ONLY       = 0x04,
+  BX_EPT_ENTRY_READ_EXECUTE       = 0x05,
+  BX_EPT_ENTRY_WRITE_EXECUTE      = 0x06,
+  BX_EPT_ENTRY_READ_WRITE_EXECUTE = 0x07
+};
+
+#define PG_PRESENT_BIT  0
+#define PG_RW_BIT       1
+#define PG_USER_BIT     2
+#define PG_PWT_BIT      3
+#define PG_PCD_BIT      4
+#define PG_ACCESSED_BIT 5
+#define PG_DIRTY_BIT    6
+#define PG_PSE_BIT      7
+#define PG_GLOBAL_BIT   8
+#define PG_PSE_PAT_BIT  12
+#define PG_PKRU_BIT     59
+#define PG_NX_BIT       63
+
+#define PG_PRESENT_MASK  (1 << PG_PRESENT_BIT)
+#define PG_RW_MASK       (1 << PG_RW_BIT)
+#define PG_USER_MASK     (1 << PG_USER_BIT)
+#define PG_PWT_MASK      (1 << PG_PWT_BIT)
+#define PG_PCD_MASK      (1 << PG_PCD_BIT)
+#define PG_ACCESSED_MASK (1 << PG_ACCESSED_BIT)
+#define PG_DIRTY_MASK    (1 << PG_DIRTY_BIT)
+#define PG_PSE_MASK      (1 << PG_PSE_BIT)
+#define PG_GLOBAL_MASK   (1 << PG_GLOBAL_BIT)
+#define PG_PSE_PAT_MASK  (1 << PG_PSE_PAT_BIT)
+#define PG_ADDRESS_MASK  0x000ffffffffff000LL
+#define PG_HI_USER_MASK  0x7ff0000000000000LL
+#define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
+#define PG_NX_MASK       (1ULL << PG_NX_BIT)
+
 const Bit64u BX_PAGING_PHY_ADDRESS_RESERVED_BITS = BX_PHY_ADDRESS_RESERVED_BITS & BX_CONST64(0xfffffffffffff);
 const Bit64u PAGING_EPT_RESERVED_BITS = BX_PAGING_PHY_ADDRESS_RESERVED_BITS;                                  
 
