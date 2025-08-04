@@ -1,6 +1,25 @@
 # HP-Snap Instructions
 
-Here we describe how to collect a snapshot of a hypervisor.
+Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
+
+<!-- toc -->
+
+- [HP-Snap Instructions](#hp-snap-instructions)
+  - [x86-64](#x86-64)
+    - [Setup L0 KVM](#setup-l0-kvm)
+    - [Run L1 and L2 VMs](#run-l1-and-l2-vms)
+      - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
+      - [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
+    - [Take the snapshot](#take-the-snapshot)
+  - [aarch64](#aarch64)
+    - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
+    - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
+    - [Take the snapshot](#take-the-snapshot-1)
+  - [\[Optional\] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
+
+<!-- tocstop -->
+
+## x86-64
 
 We are using the example directory structure outlined below to keep everything
 organized and easy to manage.
@@ -42,7 +61,7 @@ be frozen. In the qemu monitor on L0, run info registers and save the output to
 a file (L1 Registers), run dump-guest-memory /path/to/memory-dump (L1 Memory),
 and on L0, get the VMCS address by running "sudo dmesg".
 
-## Setup L0 KVM
+### Setup L0 KVM
 
 First, fetch a recent version of the Linux Kernel (we tested 6.0 on debian) and
 apply our KVM-patch, or compile the Linux kernel from source (we tested 6.0 on
@@ -53,7 +72,7 @@ ubuntu 22.04).
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar -xvf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-kvm.patch
 [L0] $ make defconfig
 [L0] $ grep CONFIG_KVM .config 
 # Verify that CONFIG_KVM_INTEL is set to =m
@@ -70,7 +89,7 @@ ubuntu 22.04).
 [L0] $ wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.tar.gz
 [L0] $ tar xf linux-6.0.tar.gz
 [L0] $ cd linux-6.0
-[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/hp-snap-kvm.patch
+[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-kvm.patch
 [L0] $ make localmodconfig # just hit enter each time without typing an answer
 [L0] $ scripts/config --disable SYSTEM_TRUSTED_KEYS
 [L0] $ scripts/config --disable SYSTEM_REVOCATION_KEYS
@@ -88,7 +107,7 @@ ubuntu 22.04).
 [L0] $ sudo insmod arch/x86/kvm/kvm-intel.ko dump_invalid_vmcs=1 nested=1
 ```
 
-## Run L1 and L2 VMs
+### Run L1 and L2 VMs
 
 ``` bash
 # Install QEMU Dependencies: https://wiki.qemu.org/Hosts/Linux
@@ -98,17 +117,17 @@ ubuntu 22.04).
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
 [L0] $ tar -xvf qemu-8.0.0.tar.bz2
 [L0] $ cd qemu
-[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/hp-snap-qemu.patch
+[L0] $ patch -p1 < /path/to/HyperPill/hyperpill-snap/x86_64/hp-snap-qemu.patch
 [L0] $ mkdir build; cd build;
 [L0] $ ../configure --target-list=x86_64-softmmu
-[L0] $ ninja -j$(nproc)
+[L0] $ ninja
 
 # Now use the build qemu to create a single-CPU VM [L1] and install a hypervisor
 # within it. Configure a linux VM [L2] within the hypervisor. Running L1 VM with
 # 8GB mem is recommended, so that L1 VM can have a full 4GB mem.
 ```
 
-### Run L1 and L2 VMs for QEMU/KVM
+#### Run L1 and L2 VMs for QEMU/KVM
 
 ``` bash
 [L0] $ wget https://cloud.debian.org/images/cloud/bookworm/daily/20250306-2043/debian-12-nocloud-amd64-daily-20250306-2043.qcow2 --no-check-certificate
@@ -145,8 +164,8 @@ ubuntu 22.04).
 [L1] $ ../configure --target-list=x86_64-softmmu --enable-slirp
 [L1] $ ninja
 
-[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/bzImage
-[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/rootfs.cpio.gz
+[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/x86_64/bzImage
+[L1] $ wget https://github.com/HexHive/HyperPill/raw/main/hyperpill-snap/x86_64/rootfs.cpio.gz
 [L1] $ apt-get install -y swtpm
 [L1] $ swapoff -a
 [L1] $
@@ -203,13 +222,13 @@ qemu-8.0.0/build/qemu-system-x86_64 -machine q35 -accel kvm -m 4G \
     # -device qxl-vga \
 ```
 
-### Run L1 and L2 VMs for macOS Virtualization Framework
+#### Run L1 and L2 VMs for macOS Virtualization Framework
 
 ``` bash
 [L0] $ git clone https://github.com/kholia/OSX-KVM.git
 [L0] $ cd OSX-KVM
 [L0] $ git checkout 422bb3b7137cd13468aee86de3640835e1d774f9
-[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/osx-kvm.patch # to enable vmx
+[L0] $ patch -p 1 < /path/to/HyperPill/hyperpill-snap/x86_64/osx-kvm.patch # to enable vmx
 
 # download ventura image
 [L0] $ follow https://github.com/kholia/OSX-KVM?tab=readme-ov-file#installation-preparation
@@ -233,11 +252,288 @@ for Running GUI Linux in a virtual machine on a Mac
 image, install ubuntu, and restart the ubuntu
 ```
 
-### [Optional] Obtain Symbols for Debugging
+### Take the snapshot
+
+``` bash
+# Before taking the snapshot, get all file-backed pages in
+[L1] python3 page_in_and_locked.py $(pgrep -f "qemu-system")
+
+[L1 qemu-monitor] info mtree -f
+# Copy the output of the above command to /path/to/snapshots/dir/mtree
+
+[L2] $ lspci -v
+# Copy the output of the above command to /path/to/snapshots/dir/lspci
+
+# In L2, we use the following tool to trigger a snapshot.
+# We include snap in rootfs.cpio.gz
+[L2] $ which snap
+[L2] $ snap
+
+# But in other L2 VM, we have to compile snap.c
+[L2] $ cat > snap.c << EOF
+#include <stdint.h>
+#include <stddef.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main() {
+    size_t size = 0x100000; // 1 MB
+    int fd = open("/dev/random", O_RDONLY);
+    sleep(10);
+    int i = 0;
+    void *bloat = -1;
+    if (!fork()) {
+        mlockall(MCL_CURRENT | MCL_FUTURE);
+        while (bloat != NULL) {
+            bloat = malloc(size);
+            if (bloat == NULL) {
+                printf("MMAP FAILED\n");
+            } else {
+                memset(bloat, 1, size);
+                printf("BLOAT %p\n", bloat);
+            }
+        }
+        exit(0);
+    } else {
+        wait(NULL);
+#if defined(__x86_64__)
+        uint64_t rax;
+        __asm__ __volatile__("mov $0xdeadbeef, %rax\n");
+        asm volatile("vmcall");
+#elif defined(__aarch64__)
+        const char *filename = "/proc/dummy_hvc";
+        FILE *fp = fopen(filename, "w");
+        if (!fp) {
+            perror("fopen");
+            return 1;
+        }
+        if (fprintf(fp, "1\n") < 0) {
+            perror("fprintf");
+            fclose(fp);
+            return 1;
+        }
+        fclose(fp);
+        return 0;
+#endif
+    }
+}
+EOF
+[L2] $ gcc snap.c -o snap
+[L2] $ ./snap
+
+# Now in L0, collect the snapshot data to /path/to/snapshots/dir,
+# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+# Attach to qemu monitor:
+[L0] $ telnet localhost 55556
+[L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
+[L0 qemu-monitor] info registers
+# Copy the output of the above command to /path/to/snapshots/dir/regs
+[L0] sudo dmesg | grep "VMCS.*last" | cut -f2 -d"(" | cut -f1 -d ")"
+# Copy the output of the above command to /path/to/snapshots/dir/vmcs
+```
+
+The snapshot should now be ready for input-space-emulation and fuzzing.
+
+After collecting the snapshot, the snapshot directory should contain the
+following files:
+* `dir/mem`
+* `dir/regs`
+* `dir/vmcs`
+
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+
+## aarch64
+
+We will run L1 (an aarch64 guest machine) in QEMU's TCG mode without getting
+virtualization acceleration from L0 (even when available). Once L1 is set up,
+we will run a minimal L2 (also an aarch64 guest machine), but this time it
+uses the hypervisor capabilities running in L1. We illustrate how to do that
+with QEMU/KVM.
+
+### Prepare L0's QEMU for snapshotting
+
+Snapshotting must be done at a very specific moment : an EL1 -> EL2 transition.
+Here we prepare a patched QEMU that will detect this transition and stop the VM
+at this exact moment. This will allow us to snapshot the VM along with the
+hypervisor running inside.
+
+```bash
+[L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
+libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
+build-essential libslirp-dev binutils-aarch64-linux-gnu
+[L0] wget https://download.qemu.org/qemu-8.2.7.tar.bz2
+[L0] tar xf qemu-8.2.7.tar.bz2
+[L0] cd qemu-8.2.7
+[L0] patch -p1 < /path/to/hyperpill/hyperpill-snap/aarch64/helper.patch
+[L0] patch -p1 < /path/to/hyperpill/hyperpill-snap/aarch64/migration.patch
+[L0] mkdir build; cd build;
+[L0] ../configure --target-list=aarch64-softmmu --enable-slirp
+[L0] ninja
+```
+
+### Run L1 and L2 VMs for QEMU/KVM
+
+First, set up L0 to run L1. At the root of the project :
+
+```bash
+[L0] sudo apt-get install -y qemu-system-arm # Only needed for the EFI image.
+[L0] wget https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-nocloud-arm64.qcow2
+[L0] qemu-img resize debian-12-nocloud-arm64.qcow2 30G
+[L0] truncate -s 64m varstore.img
+[L0] truncate -s 64m efi.img
+[L0] dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=efi.img conv=notrunc
+[L0] qemu-img convert -f raw -O qcow2 varstore.img varstore.qcow2
+
+# WARNING : since you are running an emulated aarch64 system on an x86_64 host,
+# enabling KVM to accelerate the VM is impossible. Setting up L1 and running L2
+# will be VERY SLOW !
+#
+# For a much faster experience, the user would need to :
+# 1) acquire a machine with an ARM CPU that has hardware support for nested
+# virtualization acceleration (at least ARMv8.4)
+# 2) have software support for nested virtualization acceleration both from
+# QEMU and Linux (to this date, there is not yet any full support from QEMU)
+
+# WARNING: Increase the number of CPUs and memory to compile QEMU for L2 VM.
+# When taking snapshots, change back to "-smp 1 and -m 8192".
+[L0] qemu-8.2.7/build/qemu-system-aarch64 \
+  -monitor telnet:127.0.0.1:55556,server,nowait \
+  -nographic \
+  -smp 1 -m 8192 \
+  -cpu max \
+  -drive if=pflash,format=raw,file=efi.img,readonly=on \
+  -drive if=pflash,format=qcow2,file=varstore.qcow2 \
+  -device virtio-scsi-pci,id=scsi0 \
+  -drive if=virtio,format=qcow2,file=debian-12-nocloud-arm64.qcow2 \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -device virtio-net-device,netdev=net0 \
+  -M virt,virtualization=on,suppress-vmdesc=on \
+  -global migration.send-configuration=off \
+  -global migration.store-global-state=off \
+  -global migration.send-section-footer=off
+```
+
+Once L1 booted successfully, we prepare it to host a guest VM "L2" :
+
+```bash
+# Type root (no password) to enter L1 VM
+[L1] passwd # set root password
+[L1] apt-get update && apt-get install -y cloud-utils xarchiver openssh-server
+[L1] growpart /dev/vda 1
+[L1] resize2fs /dev/vda1
+[L1] df -h
+[L1] vim /etc/ssh/sshd_config
+# EDIT sshd_config
+# edit the line "PermitRootLogin ..." to # "PermitRootLogin yes"
+[L1] systemctl restart ssh
+
+# Setup the QEMU under test - example 1: QEMU 8.0.0
+# WARNING : this will take hours !
+[L1] apt-get install -y git \
+libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
+build-essential libslirp-dev
+[L1] wget https://download.qemu.org/qemu-8.0.0.tar.bz2
+[L1] tar xf qemu-8.0.0.tar.bz2
+[L1] cd qemu-8.0.0
+[L1] mkdir build; cd build;
+[L1] ../configure --target-list=aarch64-softmmu --enable-slirp --enable-sanitizers
+[L1] ninja -j$(nproc)
+```
+
+For convenience, we already provide a working minimal L2 containing a device
+driver named *dummy_hvc.ko*. This driver is a very important piece of software
+that will trigger an exception, which will be caught by QEMU on L0. Copy the
+kernel and the root filesystem from inside hyperpill's directory to L1 :
+
+```bash
+[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/rootfs.cpio.gz root@localhost:/root
+[L0] scp -P 2222 /path/to/hyperpill/hyperpill-snap/aarch64/Image root@localhost:/root
+```
+
+Then start running L2, **with KVM enabled**.
+
+Note that each arm device is unique and there is not a single snapshot for all.
+I enable a few virtio devices via pci bus (see virt general virtual platform in
+https://qemu-project.gitlab.io/qemu/system/arm/virt.html). With QEMU, a device
+tree blob can be dump via `-machine dumpdtb=path/to/dtb`. The device tree blob
+can be converted to a device tree source via `dtc -I dtb -O dts -o virt.dts
+virt.dtb`.
+
+```bash
+[L1] qemu-8.0.0/build/qemu-system-aarch64 -M virt \
+        -enable-kvm -cpu max -nographic -m 4G \
+        -kernel Image -append "rootwait root=/dev/vda console=ttyAMA0" \
+        -initrd rootfs.cpio.gz \
+        \
+        -drive file=null-co://,if=none,format=raw,id=disk0 \
+        -device virtio-blk-device,drive=disk0 \
+        -netdev user,id=net0 \
+        -device virtio-net-device,netdev=net0 \
+        -device virtio-serial \
+        -device virtio-scsi \
+        -device virtio-rng \
+        -device virtio-balloon \
+        -object cryptodev-backend-builtin,id=cryptodev0 \
+        -device virtio-crypto-pci,id=crypto0,cryptodev=cryptodev0 \
+        -device qemu-xhci -device usb-kbd -device usb-mouse
+```
+
+### Take the snapshot
+
+To trigger an EL1 -> EL2 transition, we make use of a simple Linux device driver
+in L2. It sets up a magic value `0xdeadbeef` in register `x0` and then executes
+the aarch64 `hvc` instruction to trigger a synchronous exception from EL1 to
+EL2. Note that it is impossible to do this from EL0 (or userspace) as the
+aarch64 specification makes an `hvc` instruction executed at EL0 an undefined
+behaviour.
+
+To do so, execute in L2 to expose an interface to userspace
+
+```bash
+[L2] insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
+
+# In L2, we use the following tool to trigger a snapshot.
+# We include snap in rootfs.cpio.gz
+[L2] $ snap
+
+# But in other L2 VM, we have to compile
+# /path/to/hyperpill/hyperpill-snap/snap.c
+
+# Now in L0, collect the snapshot data to /path/to/snapshots/dir,
+# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+# Attach to qemu monitor:
+[L0] telnet localhost 55556
+# it is not necessary to run dump-guest-memory anymore if using qemu
+# as the backend because hp-save-devices-state -r will save all the ram blocks
+# [L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
+[L0 qemu-monitor] hp-save-devices-state -r /path/to/snapshots/dir/mem
+[L0 qemu-monitor] hp-save-devices-state /path/to/snapshots/dir/regs
+[L0] cp efi.img /path/to/snapshots/dir/efi.img
+[L0] cp varstore.qcow2 /path/to/snapshots/dir/varstore.qcow2
+```
+
+The snapshot should now be ready for fuzzing.
+
+After collecting the snapshot, the snapshot directory should contain the
+following files:
+* `dir/efi.img`
+* `dir/varstore.qcow2`
+* `dir/mem`
+* `dir/regs`
+
+where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
+
+## [Optional] Obtain Symbols for Debugging
+
+Adjust the kernel version and architecture accordingly.
 
 ``` bash
 # install the debugging symbols for the Linux kernel
-[L1] uname -r # 6.1.0-23-amd64
+[L1] uname -r # 6.1.0-23-amd64 or 6.1.0-28-arm64
 [L1] sudo apt-get install -y linux-image-$(uname -r)-dbg
 [L1] cd qemu-8.0.0/build && ldd qemu-system-x86_64
 # linux-vdso.so.1 (0x00007ffea85f8000)
@@ -267,74 +563,8 @@ image, install ubuntu, and restart the ubuntu
 [L0] scp -P 2222 root@localhost:/usr/lib/debug/lib/modules/6.1.0-23-amd64/kernel/arch/x86/kvm/kvm.ko .
 # copy the debugging symbols for the QEMU
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libc.so.6 .
+[L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libasan.so.8 .
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libglib-2.0.so.0 .
 [L0] scp -P 2222 root@localhost:/lib/x86_64-linux-gnu/libslirp.so.0 .
 [L0] scp -P 2222 root@localhost:/root/qemu-8.0.0/build/qemu-system-x86_64 .
 ```
-
-## Take the snapshot
-
-``` bash
-# Before taking the snapshot, get all file-backed pages in
-[L1] python3 page_in_and_locked.py $(pgrep -f "qemu-system")
-
-# In L2, we use the following tool to trigger a snapshot.
-# We include snap in rootfs.cpio.gz
-[L2] $ snap
-
-# But in other L2 VM, we have to compile snap.c
-[L2] $ cat > snap.c << EOF
-#include <stdint.h>
-#include <stddef.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-int main() {
-    size_t size = 0x100000; // 1MB
-    int fd = open("/dev/random", O_RDONLY);
-    int i =0;
-    void *bloat = -1;
-    if(!fork()) {
-        mlockall( MCL_CURRENT | MCL_FUTURE );
-
-        while(bloat !=  NULL){
-            bloat = malloc(size);
-            if(bloat == NULL) {
-                printf("MMAP FAILED\n");
-            } else {
-                memset(bloat, 1, size);
-                printf("BLOAT %p\n", bloat);
-            }
-        }
-        exit(0);
-    } else {
-            wait(NULL);
-            uint64_t rax;;
-            __asm__ __volatile__("mov $0xdeadbeef, %rax\n");
-            asm volatile("vmcall");
-    }
-}
-EOF
-
-[L1 qemu-monitor] info mtree -f
-# Copy the output of the above command to /path/to/snapshots/dir/mtree
-[L2] $ lspci -v
-# Copy the output of the above command to /path/to/snapshots/dir/lspci
-[L2] $ gcc snap.c -o snap
-[L2] $ ./snap
-
-# Now in L0, collect the snapshot data to /path/to/snapshots/dir,
-# where dir can be `kvm`, `hyperv`, `macos`, or whatever you want.
-# Attach to qemu monitor:
-[L0] $ telnet localhost 55556
-[L0 qemu-monitor] dump-guest-memory /path/to/snapshots/dir/mem
-[L0 qemu-monitor] info registers
-# Copy the output of the above command to /path/to/snapshots/dir/regs
-[L0] sudo dmesg | grep "VMCS.*last" | cut -f2 -d"(" | cut -f1 -d ")"
-# Copy the output of the above command to /path/to/snapshots/dir/vmcs
-```
-
-The snapshot should now be ready for input-space-emulation and fuzzing.
