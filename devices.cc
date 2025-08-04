@@ -1,5 +1,4 @@
 #include "fuzz.h"
-
 #include "iodev/iodev.h"
 
 bx_devices_c::bx_devices_c() {}

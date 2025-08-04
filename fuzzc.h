@@ -24,6 +24,10 @@ void cpu0_run_loop();
 // backends/xxx/breakpoints
 void apply_breakpoints_linux();
 
+// backends/xxx/dbg
+void icp_init_gdb();
+bool is_gdbstub_enabled();
+
 // backends/xxx/init
 void icp_init_backend();
 

@@ -53,7 +53,7 @@ void start_cpu() {
 	}
 	reset_op_cov();
 	cpu0_set_fuzz_executing_input(true);
-	if (bx_dbg.gdbstub_enabled)
+	if (is_gdbstub_enabled())
 		hp_gdbstub_debug_loop();
 	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
@@ -318,13 +318,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
 #endif
 
-	/* Bochs-specific initialization. (e.g. CPU version/features). */
-	if (getenv("GDB")) {
-		bx_dbg.gdbstub_enabled = 1;
-	}
 	icp_init_backend();
+	icp_init_gdb();
 
-	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);
 	cpu0_set_fuzztrace(fuzztrace);
 
