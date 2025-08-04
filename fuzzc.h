@@ -75,4 +75,15 @@ void pop_stacktrace(void);
 bool empty_stacktrace(void);
 void fuzz_stacktrace();
 
+// sym2addr_linux.cc
+typedef struct addr_bin_name {
+    size_t addr;
+    const char *bin;
+    const char *name;
+    int off;
+} addr_bin_name;
+bool addr_to_sym(addr_bin_name *addr_bin_name);
+bool sym_to_addr(addr_bin_name *addr_bin_name);
+uint64_t sym_to_addr2(const char *bin, const char *name);
+
 #endif

@@ -564,8 +564,10 @@ static void debug_loop(void)
             last_stop_reason == GDBSTUB_TRACE)
         {
           write_signal(&buf[1], SIGTRAP);
-          auto s = addr_to_sym(RIP);
-          const char *current_binary = s.first.c_str();
+          addr_bin_name addr_bin_name;
+          addr_bin_name.addr = RIP;
+          addr_to_sym(&addr_bin_name);
+          const char *current_binary = addr_bin_name.bin;
           if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
             memcpy(last_seen_binary, current_binary, strlen(current_binary));
             buf[0] = 'T';
@@ -603,8 +605,10 @@ static void debug_loop(void)
         {
           write_signal(&buf[1], SIGTRAP);
         }
-        auto s = addr_to_sym(RIP);
-        const char *current_binary = s.first.c_str();
+        addr_bin_name addr_bin_name;
+        addr_bin_name.addr = RIP;
+        addr_to_sym(&addr_bin_name);
+        const char *current_binary = addr_bin_name.bin;
         if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
           memcpy(last_seen_binary, current_binary, strlen(current_binary));
           buf[0] = 'T';
@@ -831,8 +835,10 @@ static void debug_loop(void)
         // qXfer:exec-file:read:annex:offset,length
         else if (strncmp(&buffer[1], "Xfer:exec-file:read::", strlen("Xfer:exec-file:read::")) == 0)
         {
-          auto s = addr_to_sym(RIP);
-          const char *current_binary = s.first.c_str();
+          addr_bin_name addr_bin_name;
+          addr_bin_name.addr = RIP;
+          addr_to_sym(&addr_bin_name);
+          const char *current_binary = addr_bin_name.bin;
           sprintf(obuf, "l%s", current_binary);
           memcpy(last_seen_binary, current_binary, strlen(current_binary));
           put_reply(obuf);

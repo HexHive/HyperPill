@@ -374,11 +374,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
 		if (getenv("HACK_TIMER_MOD")) {
-			timer_mod[0] = sym_to_addr("qemu-system", "timer_mod");
-			timer_mod[1] = sym_to_addr("qemu-system", "timer_mod_anticipate");
-			timer_mod[2] = sym_to_addr("qemu-system", "timer_mod_ns");
-			timer_mod[3] = sym_to_addr("qemu-system", "timer_mod_anticipate_ns");
-			timer_mod[4] = sym_to_addr("qemu-system", "qemu_clock_get_ns");
+			timer_mod[0] = sym_to_addr2("qemu-system", "timer_mod");
+			timer_mod[1] = sym_to_addr2("qemu-system", "timer_mod_anticipate");
+			timer_mod[2] = sym_to_addr2("qemu-system", "timer_mod_ns");
+			timer_mod[3] = sym_to_addr2("qemu-system", "timer_mod_anticipate_ns");
+			timer_mod[4] = sym_to_addr2("qemu-system", "qemu_clock_get_ns");
 			hack_timer_mod = true;
 		}
 	}

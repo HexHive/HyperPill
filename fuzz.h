@@ -125,8 +125,6 @@ void setup_periodic_coverage();
 
 // sym2addr_linux.cc
 void load_symbol_map(char *path);
-bx_address sym_to_addr(std::string bin, std::string name);
-std::pair<std::string, std::string> addr_to_sym(size_t addr);
 
 // symbolize.cc
 void load_symbolization_files(char* path);
