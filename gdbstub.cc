@@ -305,7 +305,7 @@ static int remove_breakpoint(uint64_t addr, int len)
   {
     if (breakpoints[i] == addr)
     {
-      verbose_printf("Removing breakpoint at " FMT_ADDRX64, "\n", addr);
+      verbose_printf("Removing breakpoint at " FMT_ADDRX64 "\n", addr);
       breakpoints[i] = 0;
       return(1);
     }
@@ -317,7 +317,7 @@ static void insert_breakpoint(uint64_t addr)
 {
   unsigned int i;
 
-  verbose_printf("Setting breakpoint at " FMT_ADDRX64, "\n", addr);
+  verbose_printf("Setting breakpoint at " FMT_ADDRX64 "\n", addr);
 
   for (i = 0; i < (unsigned)MAX_BREAKPOINTS; i++)
   {
@@ -351,7 +351,7 @@ static int remove_watchpoint(uint64_t addr) {
   for (unsigned i = 0; i < MAX_WATCHPOINTS; i++) {
     if (watchpoints[i].addr == addr) {
       watchpoints[i].addr = 0;
-      verbose_printf("Removed watchpoint at " FMT_ADDRX64, "\n", addr);
+      verbose_printf("Removed watchpoint at " FMT_ADDRX64 "\n", addr);
       return 1;
     }
   }
@@ -372,7 +372,7 @@ static int insert_watchpoint(uint64_t addr, uint8_t len, uint8_t rwa) {
       if (i >= nr_watchpoints) {
         nr_watchpoints = i + 1;
       }
-      verbose_printf("Set watchpoint at " FMT_ADDRX64, "\n", addr);
+      verbose_printf("Set watchpoint at " FMT_ADDRX64 "\n", addr);
       return 1;
     }
   }
@@ -692,7 +692,7 @@ static void debug_loop(void)
         ++ebuf;
         value = read_little_endian_hex(ebuf);
 
-        verbose_printf("reg %d set to " FMT_ADDRX64, "\n", reg, value);
+        verbose_printf("reg %d set to " FMT_ADDRX64 "\n", reg, value);
         switch (reg)
         {
           case 0:
