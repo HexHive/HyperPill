@@ -103,7 +103,7 @@ std::vector<uint32_t> get_pio_icounts() {
         inject_in(i, 0);
         start_cpu();
         icount_read = get_pio_icount();
-        reset_bx_vm();
+        reset_vm();
 
         pio_icounts[i] = icount_read + icount_write;
         printf("Port %x %lx\n", i, pio_icounts[i]);
@@ -199,7 +199,7 @@ void enum_mmio_regions(void) {
             }
 
             reset_sysret_status();
-            reset_bx_vm();
+            reset_vm();
             reset_cur_cov();
         }
         if (mmio_start) {

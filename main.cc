@@ -145,7 +145,7 @@ unsigned long int get_pio_icount() {
 	return pio_icount;
 }
 
-void reset_bx_vm() {
+void reset_vm() {
 	bx_cpu = shadow_bx_cpu;
 	if (BX_CPU(id)->vmcs_map)
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
@@ -246,13 +246,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	if (len == 0 || fuzz_unhealthy_input || !done) {
 		uint8_t *dummy = (uint8_t *)"AAA";
 		__fuzzer_set_output(dummy, 1);
-		reset_bx_vm();
+		reset_vm();
 		done = 1;
 		return 0;
 	}
 	done = 1;
 
-	reset_bx_vm();
+	reset_vm();
 
 	/*
 	 * The IC_TEST mode
@@ -295,7 +295,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 			exit(1);
 		}
 		free(newdata);
-		reset_bx_vm();
+		reset_vm();
 	}
 	return fuzz_unhealthy_input != 0;
 }
@@ -447,7 +447,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
 	fuzz_watch_memory_inc();
-	reset_bx_vm();
+	reset_vm();
 
 	/* Enumerate or Load the cached list of PIO and MMIO Regions */
 	fuzzenum = true;

@@ -162,7 +162,7 @@ void start_cpu();
 void dump_regs();
 unsigned long int get_icount();
 unsigned long int get_pio_icount();
-void reset_bx_vm();
+void reset_vm();
 
 #include "conveyor.h"
 
