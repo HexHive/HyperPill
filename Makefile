@@ -24,7 +24,6 @@ OBJS        = main.o \
 			  regs.o \
 			  breakpoints.o \
 			  db.o \
-			  manual_ranges.o \
 			  instrument.o \
 			  feedback.o \
 			  fuzz.o \
