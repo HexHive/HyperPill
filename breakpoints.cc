@@ -120,8 +120,8 @@ void apply_breakpoints_linux() {
             });
     add_breakpoint(sym_to_addr2("libasan.so", "__asan::ScopedInErrorReport::~ScopedInErrorReport"), [](bxInstruction_c *i) {
             // every error through asan should reach this
-            printf("ASAN error report\n");
             fuzz_stacktrace();
+		    fuzz_emu_stop_crash("ASAN error report\n");
             });
     add_breakpoint(sym_to_addr2("libc.so", "abort@@GLIBC_2.2.5"), [](bxInstruction_c *i) {
             fuzz_emu_stop_crash("abort");

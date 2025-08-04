@@ -72,6 +72,9 @@ void bx_instr_clflush(unsigned cpu, bx_address laddr, bx_phy_address paddr) {}
 void bx_instr_cache_cntrl(unsigned cpu, unsigned what) {}
 void bx_instr_prefetch_hint(unsigned cpu, unsigned what, unsigned seg, bx_address offset) {}
 
+extern void handle_breakpoints(bxInstruction_c *i);
+extern void handle_syscall_hooks(bxInstruction_c *i);
+
 void bx_instr_before_execution(unsigned cpu, bxInstruction_c *i) {
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);

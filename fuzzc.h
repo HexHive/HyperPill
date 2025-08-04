@@ -22,8 +22,6 @@ void cpu0_set_fuzz_executing_input(bool fuzzing);
 void cpu0_run_loop();
 
 // backends/xxx/breakpoints
-void handle_breakpoints(bxInstruction_c *i);
-void handle_syscall_hooks(bxInstruction_c *i);
 void apply_breakpoints_linux();
 
 // backends/xxx/init
