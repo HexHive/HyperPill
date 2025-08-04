@@ -4,7 +4,8 @@
 #include <map>
 
 uint8_t* random_register_data;
-size_t random_register_data_len = 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
+size_t random_register_data_len = init_random_register_data_len();
+
 std::map<int, std::tuple<uint8_t*, size_t>> register_contents;
 
 std::unordered_set<uint64_t> indicator_values;
@@ -154,7 +155,7 @@ void init_register_feedback() {
             for(int j=0; j<sizeof(value); j++)
                 ptr[j] = rand();
             memcpy(cursor, &value, sizeof(value));
-            BX_CPU(id)->set_reg64(i, value);
+            cpu0_set_general_purpose_reg64(i, value);
             register_contents[i] = std::make_pair(cursor, 8);
             cursor += 8;
             printf("REG%d: %lx\n", i, value);

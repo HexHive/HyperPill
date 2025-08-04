@@ -280,6 +280,10 @@ void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
 }
 
+size_t init_random_register_data_len(void) {
+    return 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
+}
+
 uint64_t cpu0_get_vmcsptr(void) {
     return BX_CPU(id)->vmcsptr;
 }
@@ -294,4 +298,12 @@ void save_cpu() {
 
 void restore_cpu() {
     bx_cpu = shadow_bx_cpu;
+}
+
+void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
+    BX_CPU(id)->set_reg64(reg, value);
+}
+
+uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
+    return BX_CPU(id)->get_reg64(reg);
 }

@@ -91,7 +91,6 @@ void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
 
 void icp_init_params();
 void icp_init_mem(const char* filename);
-void icp_init_regs(const char* filename);
 void icp_init_shadow_vmcs_layout(const char* filename);
 void icp_init_vmcs_layout(const char* filename);
 void icp_set_vmcs(uint64_t vmcs);
