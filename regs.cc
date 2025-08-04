@@ -255,3 +255,11 @@ void icp_set_vmcs(uint64_t vmcs) {
 
 void fuzz_reset_registers() {
 }
+
+uint64_t cpu0_get_pc(void) {
+  return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+}
+
+void cpu0_set_pc(uint64_t rip) {
+	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
+}

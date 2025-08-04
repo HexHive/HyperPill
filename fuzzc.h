@@ -12,6 +12,10 @@ void cpu0_run_loop();
 void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf);
 
+// backends/xxx/regs
+uint64_t cpu0_get_pc(void);
+void cpu0_set_pc(uint64_t rip);
+
 // cov.cc
 void print_stacktrace();
 void add_edge(uint64_t prev_rip, uint64_t new_rip);

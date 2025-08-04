@@ -60,7 +60,7 @@ void start_cpu() {
 		return;
 
 	srand(1); /* rdrand */
-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip;
+	cpu0_set_pc(guest_rip);
 	icount = 0;
 	pio_icount = 0;
 	clear_seen_dma();
@@ -75,7 +75,7 @@ void start_cpu() {
 	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
-	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip; // reset $RIP
+	cpu0_set_pc(guest_rip); // reset $RIP
 
 	bx_address phy;
 	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
@@ -390,7 +390,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	ept_locate_pc();
 
 	/* Save guest RIP so that we can restore it after each fuzzer input */
-	guest_rip = BX_CPU(id)->get_rip();
+	guest_rip = cpu0_get_pc();
 
 	/* For addr -> symbol */
 	if (getenv("SYMBOLS_DIR"))
