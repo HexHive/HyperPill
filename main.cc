@@ -126,13 +126,13 @@ void reset_vm() {
 	fuzz_reset_memory();
 }
 
-void fuzz_instr_interrupt(unsigned cpu, unsigned vector) {
+void fuzz_interrupt(unsigned cpu, unsigned vector) {
 	if (vector == 3) {
         fuzz_emu_stop_crash("debug interrupt");
 	}
 }
 
-void fuzz_instr_after_execution(bxInstruction_c *i) {
+void fuzz_after_execution(bxInstruction_c *i) {
 	if (hack_timer_mod && i->getIaOpcode() == 0x4b8 /*CALL_Jq*/) {
 		static uint64_t rdi, rsi; // context
 		uint64_t rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
@@ -162,9 +162,7 @@ void fuzz_instr_after_execution(bxInstruction_c *i) {
 	}
 }
 
-void fuzz_instr_before_execution(bxInstruction_c *i) {
-	handle_breakpoints(i);
-	handle_syscall_hooks(i);
+void fuzz_before_execution(uint64_t ic) {
 	if (!fuzzing && !fuzzenum)
 		return;
 
@@ -173,8 +171,8 @@ void fuzz_instr_before_execution(bxInstruction_c *i) {
 		printf("icount abort %d\n", icount);
 	    fuzz_emu_stop_unhealthy();
 	}
-    icount++;
-    pio_icount++;
+    icount += ic;
+    pio_icount += ic;
 }
 
 static void usage() {

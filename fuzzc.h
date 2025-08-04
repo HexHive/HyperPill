@@ -26,6 +26,19 @@ void init_cpu();
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
 uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
 
+// fuzz.cc
+void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void* data);
+
+// main.cc
+void fuzz_emu_stop_normal();
+void fuzz_emu_stop_unhealthy();
+void fuzz_emu_stop_crash(const char *type);
+void fuzz_hook_exception(unsigned vector, unsigned error_code);
+void fuzz_hook_hlt();
+void fuzz_interrupt(unsigned cpu, unsigned vector);
+void fuzz_after_execution(bxInstruction_c *i);
+void fuzz_before_execution(uint64_t icount);
+
 // cov.cc
 void print_stacktrace();
 void add_edge(uint64_t prev_rip, uint64_t new_rip);

@@ -97,15 +97,12 @@ void icp_set_vmcs(uint64_t vmcs);
 void bx_init_pc_system();
 
 void clear_seen_dma();
-void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void* data);
 void fuzz_inject_mmio_write(uint64_t addr, uint64_t val);
 void fuzz_inject_pio_read(uint64_t addr, uint64_t val);
 void fuzz_inject_vmcall(uint64_t rcx, uint64_t r8, const void* xmm0, const void* xmm3 );
 
 void fuzz_hook_memory_access(bx_address phy, unsigned len, 
                              unsigned memtype, unsigned rw, void* data);
-void fuzz_hook_exception(unsigned vector, unsigned error_code);
-void fuzz_hook_hlt();
 void fuzz_hook_cr3_change(bx_address old, bx_address val);
 void fuzz_reset_exception_counter();
 void clear_l2_bitmaps();
@@ -116,16 +113,9 @@ void fuzz_reset_memory();
 void fuzz_watch_memory_inc();
 void fuzz_clear_dirty();
 
-void fuzz_instr_before_execution(bxInstruction_c *i);
-void fuzz_instr_after_execution(bxInstruction_c *i);
-void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
 bool ignore_pc(bx_address pc);
 bool found_pc(uint64_t pc);
 void add_pc_range(size_t base, size_t len);
-
-void fuzz_emu_stop_normal();
-void fuzz_emu_stop_unhealthy();
-void fuzz_emu_stop_crash(const char *type);
 
 extern uint64_t vmcs_addr;
 void icp_set_vmcs_map();
