@@ -1,71 +1,46 @@
 # HP-Snap Instructions
 
-Here we describe how to collect a snapshot of a hypervisor (x86-64 or aarch64).
+Here we describe how to collect a snapshot of a hypervisor (x86_64 or aarch64).
 
-<!-- toc -->
-
-- [HP-Snap Instructions](#hp-snap-instructions)
-  - [x86-64](#x86-64)
-    - [Setup L0 KVM](#setup-l0-kvm)
-    - [Run L1 and L2 VMs](#run-l1-and-l2-vms)
-      - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
-      - [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
-    - [Take the snapshot](#take-the-snapshot)
-  - [aarch64](#aarch64)
-    - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
-    - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
-    - [Take the snapshot](#take-the-snapshot-1)
-  - [\[Optional\] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
-
-<!-- tocstop -->
-
-## x86-64
-
-We are using the example directory structure outlined below to keep everything
-organized and easy to manage.
+We use the following directory structure to keep everything organized and
+manageable:
 
 ``` bash
 .
 ├── HyperPill
 ├── snapshots
-├── linux-6.0.tar.gz
-├── qemu-8.0.0.tar.bz2
+├── fuzz # working directory
 ```
 
 Our snapshots consist of 3 components:
 - L1 Memory
 - L1 Registers
-- Location of the VMCS12 in L1's Physical Memory
+- Location of the VMCS12 in L1's Physical Memory (x86_64)
 
-A few requirements:
+<!-- toc -->
 
-- We need to make the snapshot as L2 is exiting into L1. (L1 returns from a
-vmresume instruction). To do this we run a custom kvm.ko on L0 which detects a
-special hypercall (0xdeadbeef) and pauses L1 for us to make the snapshot.
+Table of Content
+- [x86-64](#x86_64)
+  - [Setup L0 KVM](#setup-l0-kvm)
+  - [Run L1 and L2 VMs](#run-l1-and-l2-vms)
+    - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm)
+    - [Run L1 and L2 VMs for macOS Virtualization Framework](#run-l1-and-l2-vms-for-macos-virtualization-framework)
+  - [Take the snapshot](#take-the-snapshot)
+- [aarch64](#aarch64)
+  - [Prepare L0's QEMU for snapshotting](#prepare-l0s-qemu-for-snapshotting)
+  - [Run L1 and L2 VMs for QEMU/KVM](#run-l1-and-l2-vms-for-qemukvm-1)
+  - [Take the snapshot](#take-the-snapshot-1)
+- [\[Optional\] Obtain Symbols for Debugging](#optional-obtain-symbols-for-debugging)
 
-- We want to make sure as much of L2's physical memory is in the resident set as
-possible. To do this, we mmap and fill as much memory as possible on L2 until
-the kernel kills our process for oom reasons. Only then we call our hypercall.
+<!-- tocstop -->
 
-- By default, qemu doesn't dump all the registers we need, so we need to apply
-qemu.patch to get the rest.
-
-So the typical workflow for making a snapshot is:
-
-- Setup L0 KVM: Load the modified kvm.ko into the L0 kernel.
-- Run L1 and L2 VMs: Start the target hypervisor as L1 using qemu and start a VM
-in the target hypervisor as L2.
-- Take the snapshot: In L2, run snap.c, which will try to use as much memory as
-possible, before calling the hypercall. At this point the L1 and L2 VMs should
-be frozen. In the qemu monitor on L0, run info registers and save the output to
-a file (L1 Registers), run dump-guest-memory /path/to/memory-dump (L1 Memory),
-and on L0, get the VMCS address by running "sudo dmesg".
+## x86_64
 
 ### Setup L0 KVM
 
 First, fetch a recent version of the Linux Kernel (we tested 6.0 on debian) and
 apply our KVM-patch, or compile the Linux kernel from source (we tested 6.0 on
-ubuntu 22.04).
+debian).
 
 ```bash
 # Fetch a recent version of the Linux kernel and apply our KVM-patch
@@ -110,10 +85,10 @@ ubuntu 22.04).
 ### Run L1 and L2 VMs
 
 ``` bash
-# Install QEMU Dependencies: https://wiki.qemu.org/Hosts/Linux
-[L0] $ sudo apt-get install git libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build libslirp-dev
-[L0] $ sudo apt-get install python3 python3-pip python3-venv # Recent QEMU may require python3-venv
-
+[L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
+         libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
+         build-essential libslirp-dev binutils-aarch64-linux-gnu \
+         python3 python3-pip python3-venv # Recent QEMU may require python3-venv
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
 [L0] $ tar -xvf qemu-8.0.0.tar.bz2
 [L0] $ cd qemu
@@ -241,7 +216,7 @@ qemu-8.0.0/build/qemu-system-x86_64 -machine q35 -accel kvm -m 4G \
 https://www.freecodecamp.org/news/how-to-download-and-install-xcode/ and install
 xcode 14.3.1 for macos ventura
 
-[L1] $ download ubuntu\'s desktop ISO image via
+[L1] $ download ubuntu desktop ISO image via
 https://releases.ubuntu.com/jammy/ubuntu-22.04.4-desktop-amd64.iso
 
 [L1] $ download [the sample
@@ -363,15 +338,16 @@ hypervisor running inside.
 
 ```bash
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
-libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
-build-essential libslirp-dev binutils-aarch64-linux-gnu
+         libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
+         build-essential libslirp-dev binutils-aarch64-linux-gnu \
+         python3 python3-pip python3-venv # Recent QEMU may require python3-venv
 [L0] wget https://download.qemu.org/qemu-8.2.7.tar.bz2
 [L0] tar xf qemu-8.2.7.tar.bz2
 [L0] cd qemu-8.2.7
 [L0] patch -p1 < /path/to/hyperpill/hyperpill-snap/aarch64/helper.patch
 [L0] patch -p1 < /path/to/hyperpill/hyperpill-snap/aarch64/migration.patch
 [L0] mkdir build; cd build;
-[L0] ../configure --target-list=aarch64-softmmu --enable-slirp
+[L0] ../configure --target-list=aarch64-softmmu
 [L0] ninja
 ```
 
