@@ -54,6 +54,7 @@ std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icoun
     return pio_regions;
 }
 
+static
 std::vector<bool> identify_ports_by_icount_distribution(
         std::vector<uint32_t> icounts) {
     std::vector<bool> pio_regions(0xFFFF+1, 0);
@@ -79,17 +80,7 @@ std::vector<bool> identify_ports_by_icount_distribution(
     return pio_regions;
 }
 
-// read number of whitespaces at the start of a line
-uint32_t get_indentation(std::string line) {
-    uint32_t indentation = 0;
-    for (auto& c : line) {
-        if (c == ' ')
-            indentation++;
-    }
-    return indentation;
-}
-
-
+static
 std::vector<uint32_t> get_pio_icounts() {
     // idealy, we sum the icounts of injected pio read and write
     // however, out to port 0x20 in KVM results in an infinite loop
@@ -116,6 +107,7 @@ std::vector<uint32_t> get_pio_icounts() {
     return pio_icounts;
 }
 
+static
 std::map<uint16_t, uint16_t> merge_pio_regions(std::vector<bool> pio_regions) {
     std::map<uint16_t, uint16_t> regions;
 
