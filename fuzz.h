@@ -31,6 +31,7 @@ extern std::vector<size_t> guest_page_scratchlist;
 #endif
 
 extern tsl::robin_set<hp_address> cur_input;
+extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
 
@@ -39,8 +40,8 @@ extern bool verbose;
 // backends/bochs/system.cc
 void bx_init_pc_system();
 
-// backends/bochs/vmcs.cc
 #if defined(HP_X86_64)
+// backends/bochs/vmcs.cc
 extern uint64_t vmcs_addr;
 void icp_init_shadow_vmcs_layout(const char* filename);
 void icp_set_vmcs(uint64_t vmcs);
@@ -60,7 +61,7 @@ bool inject_read(hp_address addr, int size);
 #if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size);
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value);
-uint32_t inject_pci_read(uint9_t device, uint8_t function, uint8_t offset);
+uint32_t inject_pci_read(uint8_t device, uint8_t function, uint8_t offset);
 bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
 uint64_t inject_rdmsr(hp_address msr);
 bool inject_wrmsr(hp_address msr, uint64_t value);
@@ -76,15 +77,6 @@ bool op_msr_write();
 #endif
 void insert_register_value_into_fuzz_input(int idx);
 bool op_vmcall();
-extern int in_clock_step;
-enum {
-	CLOCK_STEP_NONE,
-	CLOCK_STEP_GET_DEADLINE,
-	CLOCK_STEP_GET_NS,
-	CLOCK_STEP_WARP,
-	CLOCK_STEP_DONE
-};
-bool op_clock_step();
 void fuzz_run_input(const uint8_t* Data, size_t Size);
 #if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size);
@@ -99,9 +91,6 @@ unsigned long int get_icount();
 unsigned long int get_pio_icount();
 #endif
 void start_cpu();
-#if defined(HP_X86_64)
-unsigned long int get_pio_icount();
-#endif
 void reset_vm();
 
 #include "conveyor.h"
@@ -122,6 +111,8 @@ void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, 
 // enum.cc
 #if defined(HP_X86_64)
 void enum_pio_regions();
+void enum_handle_ept_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end);
 #endif
 void enum_handle_slat_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end);
@@ -138,14 +129,15 @@ void init_register_feedback();
 // link_map.cc
 void load_link_map(char* map_path, char* obj_regex, size_t base);
 
-// mem.cc
+// hmem.cc
 extern size_t guest_mem_size;
 uint64_t lookup_gpa_by_hpa(uint64_t hpa);
-void add_persistent_memory_range(hp_address start, size_t len);
+void add_persistent_memory_range(hp_phy_address start, hp_phy_address len);
 
 // slat.cc
 void walk_slat();
 void fuzz_walk_slat();
+void slat_locate_pc();
 void slat_mark_page_table();
 
 // sourcecov.cc
@@ -160,5 +152,8 @@ void load_symbol_map(char *path);
 // symbolize.cc
 void load_symbolization_files(char* path);
 void symbolize(size_t pc);
+
+void hp_gdbstub_debug_loop();
+int hp_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);
 
 #endif

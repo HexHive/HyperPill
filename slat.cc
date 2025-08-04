@@ -7,6 +7,16 @@ uint64_t pow64(uint64_t x, uint64_t y){
     }
     return result;
 }
+
+void enum_handle_slat_gap(unsigned int gap_reason,
+        bx_address gap_start, bx_address gap_end) {
+#if defined(HP_X86_64)
+    enum_handle_ept_gap(gap_reason, gap_start, gap_end);
+#elif defined(HP_AARCH64)
+    enum_handle_s2pt_gap(gap_reason, gap_start, gap_end);
+#endif
+}
+
 void walk_slat(){
     uint64_t addr = 0;
     uint64_t phy = 0;
@@ -67,6 +77,14 @@ void fuzz_walk_slat() {
     walk_slat();
     /* walk_ept_kvm(BX_LEVEL_PML4, pml4_gpa, 0); */
     printf("Total Identified L2 Pages: %lx\n", guest_mem_size);
+}
+
+void slat_locate_pc() {
+#if defined(HP_X86_64)
+    ept_locate_pc();
+#elif defined(HP_AARCH64)
+    s2pt_locate_pc();
+#endif
 }
 
 void slat_mark_page_table() {

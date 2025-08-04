@@ -62,11 +62,11 @@ OBJS_GENERIC= \
 			  feedback.o \
 			  link_map.o \
 			  main.o \
-			  mem.o \
+			  hmem.o \
 			  slat.o \
 			  sourcecov.o \
 			  sym2addr_linux.o \
-			  symbolize.o \
+			  symbolize.o
 
 ifeq ($(BACKEND), bochs)
 VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \

@@ -40,7 +40,7 @@ void handle_breakpoints(bxInstruction_c *insn) {
     auto rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
     if(rip < min_bp || rip > max_bp)
         return;
-    for (unsigned int i =1; i<bp_index; i++){
+    for (unsigned int i =0; i<bp_index; i++){
         if(breakpoints[i].first  == rip)
             breakpoints[i].second(insn);
     }
@@ -50,7 +50,10 @@ bx_address add_breakpoint(bx_address addr, const breakpoint_handler_t h) {
     if(!addr)
         return addr;
     assert(bp_index < MAX_BPS);
-    printf("Applying breakpoint to: %lx %s\n", addr, addr_to_sym(addr).second.c_str());
+    addr_bin_name addr_bin_name;
+    addr_bin_name.addr = addr;
+    addr_to_sym(&addr_bin_name);
+    printf("Applying breakpoint to: %lx %s\n", addr, addr_bin_name.name);
     breakpoints[bp_index++] = std::make_pair(addr, h);
     if(addr > max_bp)
         max_bp = addr;
@@ -120,23 +123,23 @@ void apply_breakpoints_linux() {
             fuzz_stacktrace();
 		    fuzz_emu_stop_crash("ASAN error report\n");
             });
+    add_breakpoint(sym_to_addr2("libc.so", "abort@@GLIBC_2.2.5"), [](bxInstruction_c *i) {
+            fuzz_emu_stop_crash("abort");
+    });
+
     add_breakpoint(sym_to_addr2("vmm", "__stdio_write"), bp__stdio_write);
     add_breakpoint(sym_to_addr2("ld-musl", "__stdio_write"), bp__stdio_write);
     //add_breakpoint(sym_to_addr2("ld-musl", "out"), bp__stdio_write);
-    add_breakpoint(sym_to_addr2("vmlinux", "crash_kexec"), [](bxInstruction_c *i) { 
+    add_breakpoint(sym_to_addr2("vmlinux", "crash_kexec"), [](bxInstruction_c *i) {
             printf("kexec crash\n");
             print_stacktrace();
     });
-    add_breakpoint(sym_to_addr2("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) { 
+    add_breakpoint(sym_to_addr2("vmlinux", "qi_flush_iec"), [](bxInstruction_c *i) {
             i->execute1 = BX_CPU_C::RETnear64_Iw;
             i->modRMForm.Iw[0] = 0;
             i->modRMForm.Iw[1] = 0;
             BX_CPU(id)->gen_reg[BX_64BIT_REG_RAX].rrx = 0;
             BX_CPU(id)->async_event = 1;
-    });
-    add_breakpoint(sym_to_addr2("vmlinux", "asm_exc_page_fault"), [](bxInstruction_c *i) {
-            printf("page fault at: 0x%lx\n", BX_CPU(id)->cr2);
-            // fuzz_emu_stop_crash("page fault");
     });
 }
 

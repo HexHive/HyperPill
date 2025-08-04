@@ -8,16 +8,6 @@
 #define HP_AARCH64
 #endif
 
-#if defined(HP_X86_64)
-typedef bx_address hp_address;
-typedef bx_phy_address hp_phy_address;
-typedef bxInstruction_c hp_instruction;
-#elif defined(HP_AARCH64)
-typedef uint64_t hp_address;
-typedef uint64_t hp_phy_address;
-typedef void hp_instruction;
-#endif
-
 #ifdef __cplusplus
 #if defined(HP_BACKEND_QEMU)
 extern "C" {
@@ -34,7 +24,15 @@ extern "C" {
 #define NM_PREFIX "aarch64-linux-gnu-"
 #endif
 
-extern size_t maxaddr;
+#if defined(HP_X86_64)
+typedef bx_address hp_address;
+typedef bx_phy_address hp_phy_address;
+typedef bxInstruction_c hp_instruction;
+#elif defined(HP_AARCH64)
+typedef uint64_t hp_address;
+typedef uint64_t hp_phy_address;
+typedef void hp_instruction;
+#endif
 
 // backends/xxx/control
 bool cpu0_get_fuzztrace(void);
@@ -44,11 +42,11 @@ void cpu0_set_fuzz_executing_input(bool fuzzing);
 void cpu0_run_loop();
 
 // backends/xxx/breakpoints
-void handle_syscall_hooks(hp_instruction *i);
 void apply_breakpoints_linux();
 
 // backends/xxx/dbg
 void icp_init_gdb();
+bool is_gdbstub_enabled();
 
 // backends/xxx/init
 void icp_init_backend();
@@ -69,9 +67,13 @@ void icp_init_mem(const char* filename);
 void cpu0_read_virtual(hp_address start, size_t size, void *data);
 void cpu0_write_virtual(hp_address start, size_t size, void *data);
 bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf);
+hp_phy_address cpu0_virt2phy(hp_address start);
 void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf);
 void cpu0_tlb_flush(void);
+
+void cpu_physical_memory_read_fastpath(uint64_t addr, void* dest, size_t len);
+void cpu_physical_memory_write_fastpath(uint64_t addr, const void* src, size_t len);
 
 // backends/xxx/regs
 #if defined(HP_X86_64)
@@ -102,12 +104,15 @@ void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
 int gpa2hpa(hp_phy_address guest_paddr, hp_phy_address *phy, int *translation_level);
 bool gva2hpa(hp_address laddr, hp_phy_address *phy);
-void slat_locate_pc();
 #if defined(HP_X86_64)
+void ept_locate_pc();
 void ept_mark_page_table();
 #elif defined(HP_AARCH64)
+void s2pt_locate_pc();
 void s2pt_mark_page_table();
 #endif
+
+bool frame_is_guest(hp_phy_address addr);
 
 // fuzz.cc
 void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void* data);
@@ -146,7 +151,7 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
 // slat.cc
 uint64_t pow64(uint64_t x, uint64_t y);
 
-// mem.cc
+// hmem.cc
 extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
 void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len);

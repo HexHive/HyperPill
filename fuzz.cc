@@ -13,7 +13,6 @@ enum cmds {
 	OP_MSR_WRITE,
 #endif
 	OP_VMCALL,
-	OP_CLOCK_STEP,
 };
 #define FUZZ_LEGACY_S    OP_READ
 #if defined(HP_X86_64)
@@ -171,7 +170,7 @@ bool inject_halt() {
 // INJECTORS
 bool inject_write(hp_address addr, int size, uint64_t val) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
-#if defined (HP_X86_64)
+#if defined(HP_X86_64)
 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
 
 	uint32_t exit_reason =
@@ -203,19 +202,19 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 	switch (size) {
 	case Byte:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu0_mem_write_physical_page(phy, 2, (void *)"\x88\x02");
+		cpu_physical_memory_write_fastpath(phy, "\x88\x02", 2);
 		break;
 	case Word:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu0_mem_write_physical_page(phy, 3, (void *)"\x66\x89\x02");
+		cpu_physical_memory_write_fastpath(phy, "\x66\x89\x02", 3);
 		break;
 	case Long:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu0_mem_write_physical_page(phy, 2, (void *)"\x89\x02");
+		cpu_physical_memory_write_fastpath(phy, "\x89\x02", 2);
 		break;
 	case Quad:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu0_mem_write_physical_page(phy, 3, (void *)"\x48\x89\x02");
+		cpu_physical_memory_write_fastpath(phy, "\x48\x89\x02", 3);
 		break;
 	}
 #elif defined(HP_AARCH64)
@@ -272,31 +271,31 @@ bool inject_read(hp_address addr, int size) {
 	}
 	switch (size) {
 	case Byte:
-		cpu0_mem_write_physical_page(phy, 3,
-					  (void *)"\x67\x8a\x01" // mov al,BYTE PTR
+		cpu_physical_memory_write_fastpath(phy,
+					  "\x67\x8a\x01", // mov al,BYTE PTR
 							  // [ecx]
-					  );
+					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Word:
-		cpu0_mem_write_physical_page(phy, 4,
-					  (void *)"\x67\x66\x8b\x01" // mov ax,WORD PTR
+		cpu_physical_memory_write_fastpath(phy,
+					  "\x67\x66\x8b\x01", // mov ax,WORD PTR
 							      // [ecx]
-					  );
+					  4);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 4);
 		break;
 	case Long:
-		cpu0_mem_write_physical_page(phy, 3,
-					  (void *)"\x67\x8b\x01" // mov eax,DWORD PTR
+		cpu_physical_memory_write_fastpath(phy,
+					  "\x67\x8b\x01", // mov eax,DWORD PTR
 							  // [ecx]
-					  );
+					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Quad:
-		cpu0_mem_write_physical_page(phy, 3,
-					  (void *)"\x48\x8b\x01" // mov rax,QWORD PTR
+		cpu_physical_memory_write_fastpath(phy,
+					  "\x48\x8b\x01", // mov rax,QWORD PTR
 							  // [rcx]
-					  );
+					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	}
@@ -342,22 +341,22 @@ bool inject_in(uint16_t addr, uint16_t size) {
 	case Byte:
 		// writes the 'in' instruction with the appropriate size into
 		// code
-		cpu0_mem_write_physical_page(phy, 1, // L0 physical addr of $rip in
+		cpu_physical_memory_write_fastpath(phy, // L0 physical addr of $rip in
 					       // L2, inside the saved VMCS
 					  // uses VMREAD to read the VMCS's
 					  // $rip, which is a GVA look for
 					  // existing code somewhere that
 					  // alreaedy does the conversion
-					  (void *)"\xec");
+					  "\xec", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu0_mem_write_physical_page(phy, 2, (void *)"\x66\xed");
+		cpu_physical_memory_write_fastpath(phy, "\x66\xed", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu0_mem_write_physical_page(phy, 1, (void *)"\xed");
+		cpu_physical_memory_write_fastpath(phy, "\xed", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -387,16 +386,16 @@ bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	}
 	switch (size) {
 	case Byte:
-		cpu0_mem_write_physical_page(phy, 1, (void *)"\xee");
+		cpu_physical_memory_write_fastpath(phy, "\xee", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu0_mem_write_physical_page(phy, 2, (void *)"\x66\xef");
+		cpu_physical_memory_write_fastpath(phy, "\x66\xef", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu0_mem_write_physical_page(phy, 1, (void *)"\xef");
+		cpu_physical_memory_write_fastpath(phy, "\xef", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -436,7 +435,7 @@ bool inject_pci_write(uint8_t device, uint8_t function, uint8_t offset,
 	return true;
 }
 
-bool inject_wrmsr(hp_address msr, uint64_t value) {
+bool inject_wrmsr(bx_address msr, uint64_t value) {
 	bx_address phy;
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, value & 0xFFFFFFFF);
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, value >> 32);
@@ -447,7 +446,7 @@ bool inject_wrmsr(hp_address msr, uint64_t value) {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu0_mem_write_physical_page(phy, 2, (void *)"\x0f\x30");
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x30", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_WRMSR);
 
@@ -456,7 +455,7 @@ bool inject_wrmsr(hp_address msr, uint64_t value) {
 	return true;
 }
 
-uint64_t inject_rdmsr(hp_address msr) {
+uint64_t inject_rdmsr(bx_address msr) {
 	bx_address phy;
 	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
@@ -464,7 +463,7 @@ uint64_t inject_rdmsr(hp_address msr) {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu0_mem_write_physical_page(phy, 2, (void *)"\x0f\x32");
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x32", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_RDMSR);
 
@@ -523,7 +522,6 @@ bool op_write() {
 	if (!inject_write(addr, size, value))
 		return false;
 
-	verbose_printf("op_write()\n");
 	start_cpu();
 
 	return true;
@@ -550,7 +548,6 @@ bool op_read() {
 	if (!inject_read(addr, size))
 		return false;
 
-	verbose_printf("op_read()\n");
 	start_cpu();
 	return true;
 }
@@ -786,10 +783,12 @@ bool op_vmcall() {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu0_mem_write_physical_page(phy, 3, (void *)"\x0f\x01\xc1");
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x01\xc1", 3);
 
 	memcpy(BX_CPU(id)->gen_reg, vmcall_gpregs, sizeof(BX_CPU(id)->gen_reg));
 	memcpy(BX_CPU(id)->vmm, vmcall_xmmregs, sizeof(BX_CPU(id)->vmm));
+
+	uint8_t *dma_start = ic_get_cursor();
 
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
@@ -813,8 +812,6 @@ bool op_vmcall() {
 	}
 	aarch64_set_esr_el2_for_hvc();
 #endif
-	uint8_t *dma_start = ic_get_cursor();
-
 	start_cpu();
 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],
 	 * BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX)); */
@@ -856,30 +853,8 @@ bool op_vmcall() {
 	return true;
 }
 
-bool op_clock_step() {
-	if (!getenv("END_WITH_CLOCK_STEP")) {
-		verbose_printf("END_WITH_CLOCK_STEP is not set.\n");
-		return false;
-	} else if (in_clock_step < 0) {
-		verbose_printf("END_WITH_CLOCK_STEP is not effective because SYMBOL_MAPPING is not well estabilished.\n");
-		return false;
-	}
-	verbose_printf("OP_CLOCK_STEP\n");
-	in_clock_step = CLOCK_STEP_GET_DEADLINE;
-
-	uint64_t addr = mmio_regions.begin()->first;
-	if (!inject_write(addr, 0 /*Byte*/, 0xff)) {
-        in_clock_step = 0;
-        return false;
-	}
-    start_cpu();
-    in_clock_step = CLOCK_STEP_NONE;
-    return true;
-}
-
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
-    verbose_printf("FUZZ RUN INPUT\n");
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,
@@ -894,13 +869,12 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
 	uint8_t op;
 
-	static void *fuzz_legacy, *fuzz_hypercalls, *end_with_clockstep;
+	static void *fuzz_legacy, *fuzz_hypercalls;
 	static int inited;
 	if (!inited) {
 		inited = 1;
 		fuzz_legacy = getenv("FUZZ_LEGACY");
 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
-		end_with_clockstep = getenv("END_WITH_CLOCK_STEP");
 		log_ops = getenv("LOG_OPS") || cpu0_get_fuzztrace();
 	}
 
@@ -943,9 +917,6 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 			   dma_len) >= 8)
 			break;
 	} while (ic_advance_until_token(SEPARATOR, 4));
-
-	if (end_with_clockstep)
-		op_clock_step();
 
 	size_t dummy;
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log

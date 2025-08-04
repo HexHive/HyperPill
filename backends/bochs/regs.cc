@@ -193,6 +193,9 @@ void icp_init_regs(const char* filename) {
     BX_CPU(id)->cr2 = GETREG64(CR2);
     BX_CPU(id)->cr3 = GETREG64(CR3);
     BX_CPU(id)->cr4.set32(GETREG32(CR4));
+    if (!getenv("NOCOV")) {
+        BX_CPU(id)->cr4.set_SMAP(false);
+    }
     
     BX_CPU(id)->xcr0.set32(0b11100111);
 
@@ -209,7 +212,7 @@ void icp_init_regs(const char* filename) {
     BX_CPU(id)->set_TSC(GETREG64(tsc_deadline));
     BX_CPU(id)->msr.tsc_aux = GETREG64(tsc_aux);
     
-    BX_CPU(id)->msr.pat._uint64_t = GETREG64(pat);
+    BX_CPU(id)->msr.pat._u64 = GETREG64(pat);
     BX_CPU(id)->msr.apicbase = GETREG64(apicbase);
     
 
@@ -270,10 +273,6 @@ void dump_regs() {
 	fflush(stderr);
 }
 
-uint64_t cpu0_vmcs_read_guest_rip() {
-    return BX_CPU(id)->VMread64(VMCS_GUEST_RIP);
-}
-
 uint64_t cpu0_get_pc(void) {
   return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
 }
@@ -309,9 +308,9 @@ void init_cpu() {
 }
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {
-    BX_CPU(id)->set_reg64(i, value);
+    BX_CPU(id)->set_reg64(reg, value);
 }
 
 uint64_t cpu0_get_general_purpose_reg64(unsigned reg) {
-    return BX_CPU(id)->get_reg64(i);
+    return BX_CPU(id)->get_reg64(reg);
 }

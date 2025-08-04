@@ -1,9 +1,9 @@
 #include "fuzz.h"
 #include <cstdint>
 
-int in_clock_step = CLOCK_STEP_NONE;
-bool hack_qtest_allowed = false;
-uint64_t clock_step_rip[5] = {0};
+int in_timer_mode = 0;
+uint64_t timer_mod[5] = {0};
+bool hack_timer_mod = false;
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -56,8 +56,9 @@ void start_cpu() {
 		dump_regs();
 	}
 	reset_op_cov();
-	verbose_printf("set fuzz_executing_input 1\n");
 	cpu0_set_fuzz_executing_input(true);
+	if (is_gdbstub_enabled())
+		hp_gdbstub_debug_loop();
 	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
@@ -66,6 +67,7 @@ void start_cpu() {
 #if defined(HP_X86_64)
 	bx_address phy;
 	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	assert(res == 1); // Guest page table should be guarded
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;
 	}
@@ -85,7 +87,6 @@ void start_cpu() {
  */
 
 static void fuzz_emu_stop() {
-	verbose_printf("set fuzz_executing_input 0\n");
 	cpu0_set_fuzz_executing_input(false);
 }
 
@@ -134,7 +135,6 @@ unsigned long int get_pio_icount() {
 #endif
 
 void reset_vm() {
-	verbose_printf("Resetting VM !\n");
 	restore_cpu();
 #if defined(HP_X86_64)
 	icp_set_vmcs_map();
@@ -149,71 +149,32 @@ void fuzz_interrupt(unsigned cpu, unsigned vector) {
 }
 
 void fuzz_after_execution(hp_instruction *i) {
-#if defined(X86_64)
-	addr_bin_name addr_bin_name;
-	addr_bin_name.bin = "qemu-system";
-	if (in_clock_step && (clock_step_rip[CLOCK_STEP_NONE] == BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx)) {
-		// ns = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-		// qtest_clock_warp(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + ns);
-		//
-		// clock_step_rip[CLOCK_STEP_NONE] must be in userspace to bypass SMEP
-		// printf("clock-step\n");
-		static uint64_t anchor, callsite, deadline, current;
-		if (in_clock_step == CLOCK_STEP_GET_DEADLINE) {
-			anchor = BX_CPU(id)->pop_64() - 5;
-			// printf("Get anchor %lx\n", anchor);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
-			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_DEADLINE];
-			BX_CPU(id)->push_64(anchor);
-			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_GET_NS) {
-			anchor = BX_CPU(id)->pop_64() - 5;
-			deadline = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
-			// printf("get_deadline_ns()=0x%lx\n", deadline);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
- 			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_GET_NS];
- 			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_GET_NS];
- 			BX_CPU(id)->push_64(anchor);
- 			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_WARP) {
- 			anchor = BX_CPU(id)->pop_64() - 5;
- 			current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
-			// printf("get_current()=0x%lx\n", current);
-			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr2("qemu-system", "qtest_allowed");
-				bool __qtest_allowed = 1;
-				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
+#if defined(HP_X86_64)
+	if (hack_timer_mod && i->getIaOpcode() == 0x4b8 /*CALL_Jq*/) {
+		static uint64_t rdi, rsi; // context
+		uint64_t rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
+		if (rip == timer_mod[0] || rip == timer_mod[1] || rip == timer_mod[2] || rip == timer_mod[3]) {
+			if (in_timer_mode == 0) {
+				uint64_t anchor = BX_CPU(id)->pop_64() - 5; // assume CALL_Ja
+				rdi = BX_CPU(id)->gen_reg[BX_64BIT_REG_RDI].rrx;
+				rsi = BX_CPU(id)->gen_reg[BX_64BIT_REG_RSI].rrx;
+				// printf("call timer_mod(ts=0x%lx, expire_time=0x%lx), ", rdi, rsi);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, 1 /*CLOCK_VIRTUAL*/);
+				BX_CPU(id)->prev_rip = timer_mod[4];
+				BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = timer_mod[4];
+				BX_CPU(id)->push_64(anchor);
+				BX_CPU(id)->invalidate_prefetch_q();
+				in_timer_mode++;
+			} else if (in_timer_mode == 1) {
+				uint64_t current = BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX);
+				// printf("while current=0x%lx\n", current);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RSI, current);
+				BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, rdi);
+				BX_CPU(id)->prev_rip = rip;
+				BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
+				BX_CPU(id)->invalidate_prefetch_q();
+				in_timer_mode = 2;
 			}
-			// printf("dest=0x%lx\n", deadline + current + 100000);
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RDI, deadline + current + 100000);
-			BX_CPU(id)->prev_rip = clock_step_rip[CLOCK_STEP_WARP];
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = clock_step_rip[CLOCK_STEP_WARP];
-			BX_CPU(id)->push_64(anchor);
-			BX_CPU(id)->invalidate_prefetch_q();
-			in_clock_step++;
-		} else if (in_clock_step == CLOCK_STEP_DONE) {
-			// avoid expected reentrancy
-			callsite = BX_CPU(id)->pop_64() - 5;
-			// printf("Get callsite %lx\n", callsite);
-			if (callsite != anchor) {
-				// printf("unexpected reentrancy\n");
-				BX_CPU(id)->push_64(callsite + 5);
-				return;
-			}
-			if (hack_qtest_allowed) {
-				uint64_t qtest_allowed = sym_to_addr2("qemu-system", "qtest_allowed");
-				bool __qtest_allowed = 0;
-				BX_CPU(0)->access_write_linear(qtest_allowed, 1, 3, BX_WRITE, 0x0, (void *)&__qtest_allowed);
-			}
-			BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, 0);
-			BX_CPU(id)->prev_rip = callsite + 5;
-			BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = callsite + 5;
-			BX_CPU(id)->invalidate_prefetch_q();
-			// printf("done!!!!\n");
-			in_clock_step = CLOCK_STEP_NONE;
 		}
 	}
 #endif
@@ -232,7 +193,6 @@ void fuzz_before_execution(uint64_t ic) {
 #if defined(HP_X86_64)
     pio_icount += ic;
 #endif
-
 }
 
 static void usage() {
@@ -249,7 +209,6 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-    verbose_printf("NEW INPUT\n");
 	if (!done) {
 		if (!log_writes)
 			log_writes = getenv("LOG_WRITES");
@@ -442,21 +401,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* For symbol - > addr (for breakpoints)*/
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
-		if (getenv("END_WITH_CLOCK_STEP")) {
-			// see kvm_cpu_exe() in accel/kvm/kvm-all.c
-			clock_step_rip[CLOCK_STEP_NONE] = sym_to_addr2("qemu-system", "address_space_rw");
-			clock_step_rip[CLOCK_STEP_GET_DEADLINE] = sym_to_addr2("qemu-system", "qemu_clock_deadline_ns_all");
-			clock_step_rip[CLOCK_STEP_GET_NS] = sym_to_addr2("qemu-system", "qemu_clock_get_ns");
-			// since qemu-v9.1.0-rc0
-			clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr2("qemu-system", "qemu_clock_advance_virtual_time");
-			if (!clock_step_rip[CLOCK_STEP_WARP]) {
-				clock_step_rip[CLOCK_STEP_WARP] = sym_to_addr2("qemu-system", "qtest_clock_warp");
-				hack_qtest_allowed = true;
-			}
-			clock_step_rip[CLOCK_STEP_DONE] = 0;
-			if (clock_step_rip[CLOCK_STEP_NONE] == 0) {
-				in_clock_step = -1; // invalid
-			}
+		if (getenv("HACK_TIMER_MOD")) {
+			timer_mod[0] = sym_to_addr2("qemu-system", "timer_mod");
+			timer_mod[1] = sym_to_addr2("qemu-system", "timer_mod_anticipate");
+			timer_mod[2] = sym_to_addr2("qemu-system", "timer_mod_ns");
+			timer_mod[3] = sym_to_addr2("qemu-system", "timer_mod_anticipate_ns");
+			timer_mod[4] = sym_to_addr2("qemu-system", "qemu_clock_get_ns");
+			hack_timer_mod = true;
 		}
 	}
 
@@ -465,6 +416,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #if defined(HP_X86_64)
 	vmcs_fixup();
 #endif
+	slat_mark_page_table();
 	init_register_feedback();
 
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))

@@ -111,6 +111,8 @@ uint8_t* backing_addr(uint64_t addr){
     return overlays[overlay_map[addr>>12]]+addr;
 }
 
+extern tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
+
 void fuzz_reset_memory() {
     if(watch_level<=1)
         return;
@@ -274,22 +276,22 @@ void icp_init_mem(const char *filename) {
   }
 }
 
-void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len){
+void cpu_physical_memory_read_fastpath(uint64_t addr, void* dest, size_t len){
     memcpy(dest, addr_conv(addr), len);
 }
 
-void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
+void cpu_physical_memory_write_fastpath(uint64_t addr, const void* src, size_t len){
     notify_write(addr);
     memcpy(addr_conv(addr), src, len);
 }
 
 BOCHSAPI BX_MEM_C bx_mem;
 
-void cpu0_read_virtual(hp_address start, size_t size, void *data) {
+void cpu0_read_virtual(bx_address start, size_t size, void *data) {
   BX_CPU(0)->access_read_linear(start, size, 0, BX_READ, 0x0, data);
 }
 
-void cpu0_write_virtual(hp_address start, size_t size, void *data) {
+void cpu0_write_virtual(bx_address start, size_t size, void *data) {
   BX_CPU(0)->access_write_linear(start, size, 0, BX_WRITE, 0x0, data);
 }
 
@@ -311,11 +313,11 @@ bx_phy_address cpu0_virt2phy(bx_address start) {
   return phystart;
 }
 
-void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
+void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf) {
 	BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, (void *)buf);
 }
 
-void cpu0_mem_read_physical_page(hp_phy_address addr, size_t len, void *buf) {
+void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf) {
 	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
 }
 

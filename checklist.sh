@@ -1,4 +1,4 @@
-export PATH_TO_HYPERPILL_MAIN=../HyperPill-vanilla
+export PATH_TO_HYPERPILL_MAIN=../HyperPill
 
 diff -au $PATH_TO_HYPERPILL_MAIN/conveyor.cc conveyor.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/cov.cc cov.cc
@@ -20,14 +20,14 @@ diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/dbg.cc backends/bochs/dbg.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/devices.cc backends/bochs/devices.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc backends/bochs/ept.cc
-diff -au $PATH_TO_HYPERPILL_MAIN/ept.cc slat.cc
+diff -au $PATH_TO_HYPERPILL_MAIN/slat.cc slat.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/gui.cc backends/bochs/gui.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/instrument.cc backends/bochs/instrument.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/logfunctions.cc backends/bochs/logfunctions.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc backends/bochs/mem.cc
-diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/mem.cc mem.cc
+diff -au $PATH_TO_HYPERPILL_MAIN/hmem.cc mem.cc
 
 diff -au $PATH_TO_HYPERPILL_MAIN/bochsapi/paramtree.cc backends/bochs/paramtree.cc
 diff -au $PATH_TO_HYPERPILL_MAIN/regs.cc backends/bochs/regs.cc

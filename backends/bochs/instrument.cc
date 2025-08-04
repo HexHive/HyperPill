@@ -2,6 +2,7 @@
 
 void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy,
                          unsigned len, unsigned memtype, unsigned rw, void *dataptr) {
+  hp_gdbstub_mem_check(cpu, lin, len, rw);
   fuzz_hook_memory_access(phy, len, memtype, rw, dataptr);
 }
 void bx_instr_phy_access(unsigned cpu, bx_address phy, unsigned len,
@@ -71,10 +72,13 @@ void bx_instr_clflush(unsigned cpu, bx_address laddr, bx_phy_address paddr) {}
 void bx_instr_cache_cntrl(unsigned cpu, unsigned what) {}
 void bx_instr_prefetch_hint(unsigned cpu, unsigned what, unsigned seg, bx_address offset) {}
 
+extern void handle_breakpoints(bxInstruction_c *i);
+extern void handle_syscall_hooks(bxInstruction_c *i);
+
 void bx_instr_before_execution(unsigned cpu, bxInstruction_c *i) {
 	handle_breakpoints(i);
 	handle_syscall_hooks(i);
-    fuzz_before_execution(i);
+    fuzz_before_execution(1);
 }
 void bx_instr_after_execution(unsigned cpu, bxInstruction_c *i) {
     fuzz_after_execution(i);

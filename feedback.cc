@@ -29,13 +29,17 @@ bool fuzz_hook_vmlaunch() {
     if(vmcs_addr == cpu0_get_vmcsptr()) {
         fuzz_emu_stop_normal();
         return true;
+    } else {
+        verbose_printf("Warning: vmcsptr has been changed from 0x%08lx to 0x%08lx\n",
+            vmcs_addr, cpu0_get_vmcsptr());
+        fuzz_emu_stop_unhealthy();
+        return true;
     }
 
     return false;
 }
 #elif defined(HP_AARCH64)
 bool fuzz_hook_back_to_el1_kernel(void) {
-    verbose_printf("ERET to EL1\n");
     fuzz_emu_stop_normal();
     return true;
 }

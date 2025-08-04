@@ -12,7 +12,7 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 
-std::vector<std::tuple<hp_address, hp_address, unsigned int>> s2pt_exit_ranges; // Start, Base, Reason
+std::vector<std::tuple<hp_address, hp_address, unsigned int>> slat_exit_ranges; // Start, Base, Reason
 
 #if defined(HP_X86_64)
 static
@@ -145,27 +145,32 @@ void enum_pio_regions() {
 }
 #endif
 
-void enum_handle_slat_gap(unsigned int gap_reason,
-        hp_address gap_start, hp_address gap_end) {
-    s2pt_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
 #if defined(HP_X86_64)
+void enum_handle_ept_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end) {
+    slat_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
     else if(gap_reason == VMX_VMEXIT_EPT_VIOLATION)
         printf("%lx +%lx Potential Violation\n", gap_start, gap_end - gap_start);
+    else
+        abort();
+}
 #elif defined(HP_AARCH64)
+void enum_handle_s2pt_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end) {
 #define EXCP_DATA_ABORT      4
     if(gap_reason == EXCP_DATA_ABORT) 
         printf("%lx +%lx Potential Data Abort\n", gap_start, gap_end - gap_start);
-#endif
     // TODO
 }
+#endif
 
 void enum_mmio_regions(void) {
     tsl::robin_set<uint64_t> seen_icounts;
     std::vector<std::pair<hp_address,hp_address>> mmio_ranges;
     hp_address mmio_start = 0;
-    for (auto &a : s2pt_exit_ranges){
+    for (auto &a : slat_exit_ranges){
         hp_address addr = std::get<0>(a);
         hp_address base = addr;
         hp_address end = std::get<1>(a);
