@@ -258,6 +258,20 @@ void icp_set_vmcs(uint64_t vmcs) {
 void fuzz_reset_registers() {
 }
 
+void dump_regs() {
+	static const char *general_64bit_regname[17] = {
+		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
+		"r9",  "r10", "r11", "r12", "r13", "r14", "r15", "rip"
+	};
+	for (int i = 0; i <= BX_GENERAL_REGISTERS; i++) {
+		printf("REG%d (%s) = %016lx\n", i, general_64bit_regname[i],
+		       BX_CPU(id)->gen_reg[i].rrx);
+	}
+	printf("FLAGS: %x\n", BX_CPU(id)->eflags);
+	fflush(stdout);
+	fflush(stderr);
+}
+
 uint64_t cpu0_get_pc(void) {
   return BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
 }

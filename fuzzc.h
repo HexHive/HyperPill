@@ -14,6 +14,7 @@ void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf);
 
 // backends/xxx/regs
 uint64_t cpu0_get_vmcsptr(void);
+void dump_regs();
 uint64_t cpu0_get_pc(void);
 void cpu0_set_pc(uint64_t rip);
 bool cpu0_get_user_pl(void);

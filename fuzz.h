@@ -146,7 +146,6 @@ void ept_locate_pc();
 void mark_page_not_guest(bx_phy_address addr, int level);
 bool frame_is_guest(bx_phy_address addr);
 void start_cpu();
-void dump_regs();
 unsigned long int get_icount();
 unsigned long int get_pio_icount();
 void reset_vm();

@@ -32,20 +32,6 @@ static void dump_hex(const uint8_t *data, size_t len) {
 	printf("\n");
 }
 
-void dump_regs() {
-	static const char *general_64bit_regname[17] = {
-		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
-		"r9",  "r10", "r11", "r12", "r13", "r14", "r15", "rip"
-	};
-	for (int i = 0; i <= BX_GENERAL_REGISTERS; i++) {
-		printf("REG%d (%s) = %016lx\n", i, general_64bit_regname[i],
-		       BX_CPU(id)->gen_reg[i].rrx);
-	}
-	printf("FLAGS: %x\n", BX_CPU(id)->eflags);
-	fflush(stdout);
-	fflush(stderr);
-}
-
 static void init_cpu(void) {
 	BX_CPU(id)->initialize();
 	BX_CPU(id)->reset(BX_RESET_HARDWARE);
