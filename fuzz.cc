@@ -198,19 +198,19 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 	switch (size) {
 	case Byte:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu_physical_memory_write(phy, "\x88\x02", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x88\x02", 2);
 		break;
 	case Word:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x66\x89\x02", 3);
+		cpu_physical_memory_write_fastpath(phy, "\x66\x89\x02", 3);
 		break;
 	case Long:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu_physical_memory_write(phy, "\x89\x02", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x89\x02", 2);
 		break;
 	case Quad:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x48\x89\x02", 3);
+		cpu_physical_memory_write_fastpath(phy, "\x48\x89\x02", 3);
 		break;
 	}
 #endif
@@ -246,28 +246,28 @@ bool inject_read(hp_address addr, int size) {
 	}
 	switch (size) {
 	case Byte:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x8a\x01", // mov al,BYTE PTR
 							  // [ecx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x66\x8b\x01", // mov ax,WORD PTR
 							      // [ecx]
 					  4);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 4);
 		break;
 	case Long:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x8b\x01", // mov eax,DWORD PTR
 							  // [ecx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Quad:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x48\x8b\x01", // mov rax,QWORD PTR
 							  // [rcx]
 					  3);
@@ -296,7 +296,7 @@ bool inject_in(uint16_t addr, uint16_t size) {
 	case Byte:
 		// writes the 'in' instruction with the appropriate size into
 		// code
-		cpu_physical_memory_write(phy, // L0 physical addr of $rip in
+		cpu_physical_memory_write_fastpath(phy, // L0 physical addr of $rip in
 					       // L2, inside the saved VMCS
 					  // uses VMREAD to read the VMCS's
 					  // $rip, which is a GVA look for
@@ -306,12 +306,12 @@ bool inject_in(uint16_t addr, uint16_t size) {
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy, "\x66\xed", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x66\xed", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu_physical_memory_write(phy, "\xed", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xed", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -341,16 +341,16 @@ bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	}
 	switch (size) {
 	case Byte:
-		cpu_physical_memory_write(phy, "\xee", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xee", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy, "\x66\xef", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x66\xef", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu_physical_memory_write(phy, "\xef", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xef", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -401,7 +401,7 @@ bool inject_wrmsr(bx_address msr, uint64_t value) {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x30", 2);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x30", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_WRMSR);
 
@@ -418,7 +418,7 @@ uint64_t inject_rdmsr(bx_address msr) {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x32", 2);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x32", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_RDMSR);
 
@@ -732,7 +732,7 @@ bool op_vmcall() {
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x01\xc1", 3);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x01\xc1", 3);
 
 	memcpy(BX_CPU(id)->gen_reg, vmcall_gpregs, sizeof(BX_CPU(id)->gen_reg));
 	memcpy(BX_CPU(id)->vmm, vmcall_xmmregs, sizeof(BX_CPU(id)->vmm));

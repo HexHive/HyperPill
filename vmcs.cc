@@ -87,25 +87,25 @@ void redo_paging() {
 
     // Map the first 2MB of memory using 4k pages
     uint64_t entry = (pdpt_addr | 0x3);
-    cpu_physical_memory_write(pml4, &entry, sizeof(entry));
+    cpu_physical_memory_write_fastpath(pml4, &entry, sizeof(entry));
     entry = (pd_addr | 0x3);
-    cpu_physical_memory_write(pdpt, &entry, sizeof(entry));
+    cpu_physical_memory_write_fastpath(pdpt, &entry, sizeof(entry));
     entry = (pt_addr | 0x3);
-    cpu_physical_memory_write(pd, &entry, sizeof(entry));
+    cpu_physical_memory_write_fastpath(pd, &entry, sizeof(entry));
     /* uint64_t entry = (code_addr | 0xc3); */
-    /* cpu_physical_memory_write(pd, &entry, sizeof(entry)); */
+    /* cpu_physical_memory_write_fastpath(pd, &entry, sizeof(entry)); */
 
     for (int i=1; i<512; i++) {
         entry = 0x40000000*i + 0x83;
-        cpu_physical_memory_write(pdpt + i*sizeof(entry), &entry, sizeof(entry));
+        cpu_physical_memory_write_fastpath(pdpt + i*sizeof(entry), &entry, sizeof(entry));
     }
     for (int i=1; i<512; i++) {
         entry = 0x200000*i + 0x83;
-        cpu_physical_memory_write(pd + i*sizeof(entry), &entry, sizeof(entry));
+        cpu_physical_memory_write_fastpath(pd + i*sizeof(entry), &entry, sizeof(entry));
     }
     for (int i=0; i<512; i++) {
         entry = 0x1000*i + 0xc3;
-        cpu_physical_memory_write(pt + i*sizeof(entry), &entry, sizeof(entry));
+        cpu_physical_memory_write_fastpath(pt + i*sizeof(entry), &entry, sizeof(entry));
     }
 
     if(!fuzzing) {
