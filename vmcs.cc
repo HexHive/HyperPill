@@ -110,7 +110,7 @@ void redo_paging() {
 
     if(!fuzzing) {
         uint64_t phy;
-        if(!vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
+        if(!gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy)){
             fflush(stdout);
             printf("failed to redo paging\n");
             abort();

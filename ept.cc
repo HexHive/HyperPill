@@ -129,7 +129,7 @@ int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address
 
 // Translate GVA -> GPA -> HPA
 __attribute__((optnone))
-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy)
+bool gva2hpa(bx_address laddr, bx_phy_address *phy)
 {
   bx_phy_address paddress;
   bx_address offset_mask = 0xfff;
@@ -199,10 +199,10 @@ page_fault:
 
 void ept_locate_pc() {
     bx_address phyaddr;
-    vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr);
+    gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr);
     printf("%lx -> %lx\n", BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phyaddr);
     
-    vmcs_linear2phy(0, &phyaddr);
+    gva2hpa(0, &phyaddr);
     printf("%lx -> %lx\n", 0, phyaddr);
 }
 
@@ -369,7 +369,7 @@ void ept_mark_page_table() {
 
     // unmark the page containing the current guest RIP
     // alternatively, check that (addr != guest RIP) in the DMA hook
-    if(vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr)) {
+    if(gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phyaddr)) {
         mark_page_not_guest(phyaddr, BX_LEVEL_PTE);
     } else {
         fprintf(stderr, "GUEST_RIP page not mapped");

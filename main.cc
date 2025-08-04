@@ -78,7 +78,7 @@ void start_cpu() {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = guest_rip; // reset $RIP
 
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	assert(res == 1); // Guest page table should be guarded
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;

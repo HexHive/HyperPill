@@ -151,7 +151,7 @@ void dump_indicators();
 void aggregate_indicators();
 void indicator_cb(void(*cb)(uint64_t));
 
-bool vmcs_linear2phy(bx_address laddr, bx_phy_address *phy);
+bool gva2hpa(bx_address laddr, bx_phy_address *phy);
 int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
 
 void ept_mark_page_table();
