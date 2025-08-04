@@ -89,7 +89,7 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, l, (void *)buf);
+		cpu0_mem_write_physical_page(addr, l, (void *)buf);
 		memcpy(data, buf, l);
 	} else if (sectionlen > 0x1000) {
 	} else {
@@ -97,13 +97,13 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 		size_t source = addr + len + 1 - sectionlen;
 		if ((source + len) >> 12 != (source >> 12))
 			source -= len;
-		BX_MEM(0)->readPhysicalPage(BX_CPU(id), source, len, buf);
+		cpu0_mem_read_physical_page(source, len, buf);
 
 		if (BX_CPU(id)->fuzztrace || log_ops) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, buf);
+		cpu0_mem_write_physical_page(addr, len, buf);
 	}
 }
 

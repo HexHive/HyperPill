@@ -39,6 +39,7 @@
 #define PG_PKRU_MASK     (15ULL << PG_PKRU_BIT)
 #define PG_NX_MASK       (1ULL << PG_NX_BIT)
 
+#include "fuzzc.h"
 
 extern bool fuzzing;
 extern tsl::robin_set<bx_address> cur_input;

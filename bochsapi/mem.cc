@@ -389,3 +389,11 @@ void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len){
 }
 
 BOCHSAPI BX_MEM_C bx_mem;
+
+void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf) {
+	BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, (void *)buf);
+}
+
+void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf) {
+	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
+}
