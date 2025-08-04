@@ -23,13 +23,13 @@ struct Hasher {
 tsl::robin_set<std::tuple<uint64_t, uint64_t, uint64_t>, Hasher> structset;
 
 bool fuzz_hook_vmlaunch() {
-    /* printf("Vmlaunch:%lx\n", BX_CPU(id)->vmcsptr); */
-    if(vmcs_addr == BX_CPU(id)->vmcsptr){
+    /* printf("Vmlaunch:%lx\n", cpu0_get_vmcsptr()); */
+    if(vmcs_addr == cpu0_get_vmcsptr()) {
         fuzz_emu_stop_normal();
         return true;
     } else {
         verbose_printf("Warning: vmcsptr has been changed from 0x%08lx to 0x%08lx\n",
-            vmcs_addr, BX_CPU(id)->vmcsptr);
+            vmcs_addr, cpu0_get_vmcsptr());
         fuzz_emu_stop_unhealthy();
         return true;
     }

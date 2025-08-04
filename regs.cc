@@ -266,6 +266,14 @@ void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
 }
 
+uint64_t cpu0_get_vmcsptr(void) {
+    return BX_CPU(id)->vmcsptr;
+}
+
+bool cpu0_get_user_pl(void) {
+    return BX_CPU(id)->user_pl;
+}
+
 void save_cpu() {
     shadow_bx_cpu = bx_cpu;
 }
