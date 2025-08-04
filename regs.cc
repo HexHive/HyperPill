@@ -10,6 +10,8 @@
 #include "cpu/cpu.h"
 #include "cpu/vmx.h"
 
+BX_CPU_C bx_cpu = BX_CPU_C(0);
+BX_CPU_C shadow_bx_cpu;
 
 //std::cout << "  submatch " << i << ": " << piece << '\n';
 #define GETREG32(REG) \
@@ -262,4 +264,12 @@ uint64_t cpu0_get_pc(void) {
 
 void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
+}
+
+void save_cpu() {
+    shadow_bx_cpu = bx_cpu;
+}
+
+void restore_cpu() {
+    bx_cpu = shadow_bx_cpu;
 }

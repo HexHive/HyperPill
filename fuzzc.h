@@ -15,6 +15,8 @@ void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf);
 // backends/xxx/regs
 uint64_t cpu0_get_pc(void);
 void cpu0_set_pc(uint64_t rip);
+void save_cpu();
+void restore_cpu();
 
 // cov.cc
 void print_stacktrace();

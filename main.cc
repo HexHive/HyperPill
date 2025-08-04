@@ -15,9 +15,6 @@ bool fuzz_should_abort = false;    /* We got a crash. */
 bool fuzzing;
 static bool executing_input;
 
-BOCHSAPI BX_CPU_C bx_cpu = BX_CPU_C(0);
-BOCHSAPI BX_CPU_C shadow_bx_cpu;
-
 uint64_t vmcs_addr;
 uint64_t guest_rip; /* Entrypoint. Reset after each op */
 
@@ -144,7 +141,7 @@ unsigned long int get_pio_icount() {
 }
 
 void reset_vm() {
-	bx_cpu = shadow_bx_cpu;
+	restore_cpu();
 	if (BX_CPU(id)->vmcs_map)
 		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 	fuzz_reset_memory();
@@ -441,7 +438,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * make a copy of the bochs CPU state, which we use to reset the CPU
 	 * state after each fuzzer input
 	 */
-	shadow_bx_cpu = bx_cpu;
+	save_cpu();
 
 	/* Start tracking accesses to the memory so we can roll-back changes
 	 * after each fuzzer input */
