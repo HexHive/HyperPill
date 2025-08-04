@@ -322,9 +322,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (getenv("GDB")) {
 		bx_dbg.gdbstub_enabled = 1;
 	}
-	icp_init_params();
-	init_cpu();
-	bx_init_pc_system();
+	icp_init_backend();
 
 	BX_CPU(id)->fuzzdebug_gdb = getenv("GDB");
 	bool fuzztrace = (getenv("FUZZ_DEBUG_DISASM") != 0);

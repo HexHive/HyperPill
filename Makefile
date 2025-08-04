@@ -49,6 +49,7 @@ OBJS        = $(OBJS_GENERIC) \
 			  vmcs.o \
               bochsapi/logfunctions.o \
 			  bochsapi/control.o \
+			  bochsapi/init.o \
 			  bochsapi/system.o \
               bochsapi/siminterface.o \
 			  bochsapi/paramtree.o \

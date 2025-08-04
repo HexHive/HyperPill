@@ -31,9 +31,6 @@ extern bool verbose;
 void cpu_physical_memory_read(uint64_t addr, void* dest, size_t len);
 void cpu_physical_memory_write(uint64_t addr, const void* src, size_t len);
 
-void icp_init_params();
-void icp_init_vmcs_layoddut(const char* filename);
-
 // backends/bochs/system.cc
 void bx_init_pc_system();
 
