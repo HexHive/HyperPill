@@ -113,26 +113,13 @@ void clear_l2_bitmaps();
 void restore_l2_bitmaps();
 void snapshot_l2_bitmaps();
 
-uint32_t get_sysret_status();
-void reset_sysret_status();
-
 void fuzz_reset_memory();
 void fuzz_watch_memory_inc();
 void fuzz_clear_dirty();
 
-void fuzz_instr_cnear_branch_taken(bx_address branch_rip,
-                                 bx_address new_rip);
-void fuzz_instr_cnear_branch_not_taken(bx_address branch_rip);
-void fuzz_instr_ucnear_branch(unsigned what, bx_address branch_rip,
-                            bx_address new_rip);
-void fuzz_instr_far_branch(unsigned what, Bit16u prev_cs,
-                         bx_address prev_rip, Bit16u new_cs,
-                         bx_address new_rip);
 void fuzz_instr_before_execution(bxInstruction_c *i);
 void fuzz_instr_after_execution(bxInstruction_c *i);
 void fuzz_instr_interrupt(unsigned cpu, unsigned vector);
-void add_edge(bx_address prev_rip, bx_address new_rip);
-void print_stacktrace();
 bool ignore_pc(bx_address pc);
 bool found_pc(uint64_t pc);
 void add_pc_range(size_t base, size_t len);
@@ -234,9 +221,6 @@ void check_write_coverage();
 void handle_breakpoints(bxInstruction_c *i);
 void handle_syscall_hooks(bxInstruction_c *i);
 void apply_breakpoints_linux();
-
-//stacktrace
-void fuzz_stacktrace();
 
 void hp_gdbstub_debug_loop();
 int hp_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);

@@ -43,7 +43,7 @@ static size_t last_new = 0;
 
 void print_stacktrace(){
     printf("Stacktrace:\n");
-    if(our_stacktrace.empty())
+    if(empty_stacktrace())
         return;
     for (auto r = our_stacktrace.rbegin(); r != our_stacktrace.rend(); ++r)
     {
@@ -94,16 +94,23 @@ void reset_cur_cov() {
     libfuzzer_coverage[0] = 1;
 }
 
-void fuzz_instr_cnear_branch_taken(bx_address branch_rip, bx_address new_rip) {
-    add_edge(branch_rip, new_rip);
+uint32_t get_sysret_status(void) { return status; }
+
+void reset_sysret_status(void) { status = 0; }
+
+void set_sysret_status(uint32_t new_status) { status = new_status; }
+
+void add_stacktrace(bx_address branch_rip, bx_address new_rip) {
+    our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
 }
 
-void fuzz_instr_cnear_branch_not_taken(bx_address branch_rip) {}
+void pop_stacktrace(void) {
+    our_stacktrace.pop_back();
+}
 
-uint32_t get_sysret_status() { return status; }
-
-void reset_sysret_status() { status = 0; }
-
+bool empty_stacktrace(void) {
+    return our_stacktrace.empty();
+}
 
 void fuzz_stacktrace(){
     /* if(master_fuzzer) */
@@ -113,35 +120,4 @@ void fuzz_stacktrace(){
     if(!log_crashes)
         return;
     print_stacktrace();
-
-}
-void fuzz_instr_ucnear_branch(unsigned what, bx_address branch_rip,
-                              bx_address new_rip) {
-    if (what == BX_INSTR_IS_SYSRET)
-        status |= 1; // sysret
-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl ) {
-        our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
-        /* fuzz_stacktrace(); */
-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl&& !our_stacktrace.empty()) {
-        our_stacktrace.pop_back();
-        /* fuzz_stacktrace(); */
-    }
-    add_edge(branch_rip, new_rip);
-}
-
-void fuzz_instr_far_branch(unsigned what, Bit16u prev_cs, bx_address prev_rip,
-                           Bit16u new_cs, bx_address new_rip) {
-    if (what == BX_INSTR_IS_SYSRET)
-        status |= 1; // sysret
-
-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl) {
-        our_stacktrace.push_back(std::make_pair(prev_rip, new_rip));
-        /* fuzz_stacktrace(); */
-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl && !our_stacktrace.empty()) {
-        our_stacktrace.pop_back();
-        /* fuzz_stacktrace(); */
-    }
-
-    if (what == BX_INSTR_IS_IRET && (new_rip >> 63) == 0)
-        add_edge(prev_rip, new_rip);
 }

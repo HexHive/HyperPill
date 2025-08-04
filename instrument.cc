@@ -25,16 +25,39 @@ void bx_instr_debug_promt() {}
 void bx_instr_debug_cmd(const char *cmd) {}
 
 void bx_instr_cnear_branch_taken(unsigned cpu, bx_address branch_eip, bx_address new_eip) {
-    fuzz_instr_cnear_branch_taken(branch_eip, new_eip);
+    add_edge(branch_eip, new_eip);
 }
 void bx_instr_cnear_branch_not_taken(unsigned cpu, bx_address branch_eip) {
-    fuzz_instr_cnear_branch_not_taken(branch_eip);
+    // empty
 }
 void bx_instr_ucnear_branch(unsigned cpu, unsigned what, bx_address branch_eip, bx_address new_eip) {
-    fuzz_instr_ucnear_branch(what, branch_eip, new_eip);
+    if (what == BX_INSTR_IS_SYSRET) {
+        uint32_t status = get_sysret_status();
+        set_sysret_status(status |= 1); // sysret
+    }
+    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl ) {
+        add_stacktrace(branch_eip, new_eip);
+        /* fuzz_stacktrace(); */
+    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl&& !empty_stacktrace()) {
+        pop_stacktrace();
+        /* fuzz_stacktrace(); */
+    }
+    add_edge(branch_eip, new_eip);
 }
 void bx_instr_far_branch(unsigned cpu, unsigned what, Bit16u prev_cs, bx_address prev_eip, Bit16u new_cs, bx_address new_eip) {
-    fuzz_instr_far_branch(what, prev_cs, prev_eip, new_cs, new_eip);
+    if (what == BX_INSTR_IS_SYSRET) {
+        uint32_t status = get_sysret_status();
+        set_sysret_status(status |= 1); // sysret
+    }
+    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl) {
+        add_stacktrace(prev_eip, new_eip);
+        /* fuzz_stacktrace(); */
+    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl && !empty_stacktrace()) {
+        pop_stacktrace();
+        /* fuzz_stacktrace(); */
+    }
+    if (what == BX_INSTR_IS_IRET && (new_eip >> 63) == 0)
+        add_edge(prev_eip, new_eip);
 }
 
 void bx_instr_opcode(unsigned cpu, bxInstruction_c *i, const Bit8u *opcode, unsigned len, bool is32, bool is64) {}

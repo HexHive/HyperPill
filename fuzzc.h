@@ -12,4 +12,16 @@ void cpu0_run_loop();
 void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf);
 
+// cov.cc
+void print_stacktrace();
+void add_edge(uint64_t prev_rip, uint64_t new_rip);
+// sysret (x86) -> eret (AARCH64)
+uint32_t get_sysret_status();
+void reset_sysret_status();
+void set_sysret_status(uint32_t new_status);
+void add_stacktrace(bx_address branch_rip, bx_address new_rip);
+void pop_stacktrace(void);
+bool empty_stacktrace(void);
+void fuzz_stacktrace();
+
 #endif
