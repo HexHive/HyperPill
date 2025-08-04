@@ -5,7 +5,8 @@ ifeq ($(OS),Linux)
 	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
-CXX ?= clang++
+CC         ?= clang
+CXX        ?= clang++
 VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a vendor/lib/libavx.a vendor/lib/libfpu.a vendor/libfuzzer-ng/libFuzzer.a vendor/lib/pc_system.o
 VENDOR_OBJS =
 
@@ -16,39 +17,43 @@ INCLUDES    = -I vendor/bochs \
 			  -I vendor/include \
 			  -I vendor/robin-map/include
 CFLAGS      = $(INCLUDES) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
-CXXFLAGS=-stdlib=libc++
+CXXFLAGS    =-stdlib=libc++
 
 LIBFUZZER_FLAGS = -max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 ${LIBFUZZER_ARGS}
 
-OBJS        = main.o \
-			  regs.o \
-			  breakpoints.o \
-			  db.o \
-			  instrument.o \
-			  feedback.o \
-			  fuzz.o \
+OBJS_GENERIC= \
 			  conveyor.o \
-			  symbolize.o \
-			  sym2addr_linux.o \
-			  link_map.o \
-			  ept.o \
-			  slat.o \
-			  hmem.o \
 			  cov.o \
-			  vmcs.o \
+			  db.o \
+			  fuzz.o \
 			  enum.o \
+			  feedback.o \
+			  link_map.o \
+			  main.o \
+			  hmem.o \
+			  slat.o \
 			  sourcecov.o \
-			  gdbstub.o \
-              bochsapi/logfunctions.o \
+			  sym2addr_linux.o \
+			  symbolize.o \
+			  gdbstub.o
+
+OBJS        = $(OBJS_GENERIC) \
+			  breakpoints.o \
 			  devices.o \
+			  ept.o \
+			  instrument.o \
+			  bochsapi/mem.o \
+			  regs.o \
+			  vmcs.o \
+              bochsapi/logfunctions.o \
 			  bochsapi/control.o \
 			  bochsapi/system.o \
-			  bochsapi/mem.o \
               bochsapi/siminterface.o \
 			  bochsapi/paramtree.o \
 			  bochsapi/gui.o \
 			  bochsapi/apic.o \
               bochsapi/dbg.o
+
 all: rebuild_bochs $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
 	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o fuzz
 
@@ -86,4 +91,3 @@ clean:
 	rm -rf vendor/bochs-build vendor/lib vendor/include
 	rm -rf bochsapi/*.o
 	rm -rf ./*.o
-
