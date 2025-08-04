@@ -13,7 +13,6 @@ bool fuzz_do_not_continue = false; /* Don't inject new instructions. */
 bool fuzz_should_abort = false;    /* We got a crash. */
 
 bool fuzzing;
-static bool executing_input;
 
 #if defined(HP_X86_64)
 uint64_t vmcs_addr;
@@ -113,8 +112,7 @@ void fuzz_emu_stop_crash(const char *type){
 }
 
 void fuzz_hook_exception(unsigned vector, unsigned error_code) {
-	if (verbose)
-		printf("Exception: 0x%x 0x%x\n", vector, error_code);
+	verbose_printf("Exception: 0x%x 0x%x\n", vector, error_code);
 }
 
 void fuzz_hook_hlt() {
@@ -207,8 +205,6 @@ static void usage() {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
-	if (cpu0_get_fuzztrace())
-		printf("NEW INPUT\n");
 	if (!done) {
 		if (!log_writes)
 			log_writes = getenv("LOG_WRITES");
