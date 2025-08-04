@@ -399,3 +399,7 @@ void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf) {
 void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf) {
 	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
 }
+
+void cpu0_tlb_flush(void) {
+	BX_CPU(id)->TLB_flush();
+}

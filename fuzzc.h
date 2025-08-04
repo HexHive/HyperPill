@@ -26,6 +26,7 @@ void fuzz_reset_memory();
 void icp_init_mem(const char* filename);
 void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf);
 void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf);
+void cpu0_tlb_flush(void);
 
 // backends/xxx/regs
 uint64_t cpu0_get_vmcsptr(void);

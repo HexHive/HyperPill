@@ -384,7 +384,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		}
 	}
 
-	BX_CPU(id)->TLB_flush();
+	cpu0_tlb_flush();
 	fuzz_walk_slat();
 	vmcs_fixup();
 	slat_mark_page_table();

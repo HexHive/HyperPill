@@ -254,10 +254,6 @@ void icp_set_vmcs(uint64_t vmcs) {
     BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
 }
 
-
-void fuzz_reset_registers() {
-}
-
 void icp_set_vmcs_map() {
     if (BX_CPU(id)->vmcs_map)
         BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
