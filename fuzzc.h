@@ -82,6 +82,10 @@ void pop_stacktrace(void);
 bool empty_stacktrace(void);
 void fuzz_stacktrace();
 
+// feedback.cc
+bool fuzz_hook_vmlaunch();
+void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
+
 // slat.cc
 uint64_t pow64(uint64_t x, uint64_t y);
 

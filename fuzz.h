@@ -45,6 +45,7 @@ void vmcs_fixup();
 
 // fuzz.cc
 void clear_seen_dma();
+unsigned int num_mmio_regions();
 bool inject_halt();
 bool inject_write(bx_address addr, int size, uint64_t val);
 bool inject_read(bx_address addr, int size);
