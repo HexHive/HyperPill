@@ -128,6 +128,7 @@ void fuzz_emu_stop_unhealthy();
 void fuzz_emu_stop_crash(const char *type);
 
 extern uint64_t vmcs_addr;
+void icp_set_vmcs_map();
 void redo_paging();
 void vmcs_fixup();
 

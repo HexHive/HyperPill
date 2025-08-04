@@ -258,6 +258,11 @@ void icp_set_vmcs(uint64_t vmcs) {
 void fuzz_reset_registers() {
 }
 
+void icp_set_vmcs_map() {
+    if (BX_CPU(id)->vmcs_map)
+        BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
+}
+
 void dump_regs() {
 	static const char *general_64bit_regname[17] = {
 		"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8",
@@ -298,6 +303,12 @@ void save_cpu() {
 
 void restore_cpu() {
     bx_cpu = shadow_bx_cpu;
+}
+
+void init_cpu() {
+	BX_CPU(id)->initialize();
+	BX_CPU(id)->reset(BX_RESET_HARDWARE);
+	BX_CPU(id)->sanity_checks();
 }
 
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value) {

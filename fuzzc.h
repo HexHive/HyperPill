@@ -22,6 +22,7 @@ size_t init_random_register_data_len();
 bool cpu0_get_user_pl(void);
 void save_cpu();
 void restore_cpu();
+void init_cpu();
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
 uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
 

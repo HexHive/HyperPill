@@ -32,12 +32,6 @@ static void dump_hex(const uint8_t *data, size_t len) {
 	printf("\n");
 }
 
-static void init_cpu(void) {
-	BX_CPU(id)->initialize();
-	BX_CPU(id)->reset(BX_RESET_HARDWARE);
-	BX_CPU(id)->sanity_checks();
-}
-
 void start_cpu() {
 	if (fuzzing && (fuzz_unhealthy_input || fuzz_do_not_continue))
 		return;
@@ -128,8 +122,7 @@ unsigned long int get_pio_icount() {
 
 void reset_vm() {
 	restore_cpu();
-	if (BX_CPU(id)->vmcs_map)
-		BX_CPU(id)->vmcs_map->set_access_rights_format(VMCS_AR_OTHER);
+	icp_set_vmcs_map();
 	fuzz_reset_memory();
 }
 
