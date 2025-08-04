@@ -137,11 +137,11 @@ void write_source_cov() {
 		while (len) {
 			/* printf("Reading pd %lx\n", pd+offset); */
 			if(len> 0x1000) {
-				BX_CPU(0)->access_read_linear(pdstart+offset, 0x1000, 0, BX_READ, 0x0, pd + offset);
+				cpu0_read_virtual(pdstart+offset, 0x1000, pd + offset);
 				len -= 0x1000;
 				offset += 0x1000;
 			} else {
-				BX_CPU(0)->access_read_linear(pdstart+offset, len, 0, BX_READ, 0x0, pd + offset);
+				cpu0_read_virtual(pdstart+offset, len, pd + offset);
 				len = 0;
 			}
 		}
@@ -150,11 +150,11 @@ void write_source_cov() {
 		while (len) {
 			/* printf("Reading pn %lx\n", pn+offset); */
 			if(len> 0x1000) {
-				BX_CPU(0)->access_read_linear(pnstart+offset, 0x1000, 0, BX_READ, 0x0, pn + offset);
+				cpu0_read_virtual(pnstart+offset, 0x1000, pn + offset);
 				len -= 0x1000;
 				offset += 0x1000;
 			} else {
-				BX_CPU(0)->access_read_linear(pnstart+offset, len, 0, BX_READ, 0x0, pn + offset);
+				cpu0_read_virtual(pnstart+offset, len, pn + offset);
 				len = 0;
 			}
 		}
@@ -166,11 +166,11 @@ void write_source_cov() {
     while (len) {
         /* printf("Reading pc %lx\n", pc+offset); */
         if(len> 0x1000) {
-            BX_CPU(0)->access_read_linear(pcstart+offset, 0x1000, 0, BX_READ, 0x0, pc + offset);
+            cpu0_read_virtual(pcstart+offset, 0x1000, pc + offset);
             len -= 0x1000;
             offset += 0x1000;
         } else {
-            BX_CPU(0)->access_read_linear(pcstart+offset, len, 0, BX_READ, 0x0, pc + offset);
+            cpu0_read_virtual(pcstart+offset, len, pc + offset);
             len = 0;
         }
     }
@@ -252,13 +252,11 @@ void init_sourcecov(size_t baseaddr) {
         if(pcstop - page < 0x1000)
             len = pcstop - page;
 
-        Bit32u lpf_mask = 0xfff; // 4K pages
-        Bit32u pkey = 0;
-        bx_phy_address phystart = 
-            BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
+        bx_phy_address phystart;
+        phystart = cpu0_virt2phy(start);
 
-        BX_CPU(0)->access_write_linear(start, len, 0, BX_WRITE, 0x0, pc);
-        phystart = (phystart & ~((Bit64u) lpf_mask)) | (start & lpf_mask);
+        cpu0_write_virtual(start, len, pc);
+        phystart = (phystart & ~((uint64_t) 0xfff)) | (start & 0xfff);
         add_persistent_memory_range(phystart, len);
     }
 
