@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <map>
 #include "fuzz.h"
+#include <regex>
+#include <fstream>
 
 
 sqlite3 *db;
