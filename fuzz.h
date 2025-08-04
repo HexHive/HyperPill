@@ -43,12 +43,6 @@ void icp_set_vmcs_map();
 void redo_paging();
 void vmcs_fixup();
 
-int vmcs_translate_guest_physical_ept(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
-
-void walk_ept(bool enum_mmio);
-void fuzz_walk_ept();
-void fuzz_walk_cr3();
-
 // fuzz.cc
 void clear_seen_dma();
 bool inject_halt();
@@ -114,8 +108,15 @@ void init_register_feedback();
 void load_link_map(char* map_path, char* obj_regex, size_t base);
 
 // mem.cc
+extern size_t guest_mem_size;
 uint64_t lookup_gpa_by_hpa(uint64_t hpa);
 void add_persistent_memory_range(bx_phy_address start, bx_phy_address len);
+
+// slat.cc
+void walk_slat();
+void fuzz_walk_slat();
+void slat_locate_pc();
+void slat_mark_page_table();
 
 // sourcecov.cc
 void write_source_cov();

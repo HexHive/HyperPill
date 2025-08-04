@@ -45,9 +45,11 @@ uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
 void mark_page_not_guest(bx_phy_address addr, int level);
 void mark_l2_guest_page(uint64_t paddr, uint64_t len, uint64_t addr);
 void mark_l2_guest_pagetable(uint64_t paddr, uint64_t len, uint8_t level);
+int gpa2hpa(bx_phy_address guest_paddr, bx_phy_address *phy, int *translation_level);
 bool gva2hpa(bx_address laddr, bx_phy_address *phy);
 void ept_locate_pc();
 void ept_mark_page_table();
+
 bool frame_is_guest(bx_phy_address addr);
 
 // fuzz.cc
@@ -74,6 +76,9 @@ void add_stacktrace(bx_address branch_rip, bx_address new_rip);
 void pop_stacktrace(void);
 bool empty_stacktrace(void);
 void fuzz_stacktrace();
+
+// slat.cc
+uint64_t pow64(uint64_t x, uint64_t y);
 
 // sym2addr_linux.cc
 typedef struct addr_bin_name {

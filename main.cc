@@ -328,14 +328,15 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	/* Dump disassembly and CMP hooks? */
 
-	fuzz_walk_ept();
+	// Second Level Address Translation (SLAT)
+	// Intel's implementation of SLAT is Extended Page Table (EPT)
+	fuzz_walk_slat();
 
 	/* WIP: Tweak the VMCS/L2 state. E.g. set up our own page-tables for L2
 	 * and ensure that the hypervisor thinks L2 is running privileged
 	 * code/ring0 code.
 	 */
 	vmcs_fixup();
-	/* fuzz_walk_cr3(); */
 
 	/*
 	 * Previously, we identified all of L2's pages. However, we want to
@@ -358,10 +359,10 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	 * crash in practice (if the page-table was corrupted by the fuzzer, the
 	 * MMIO exit wouldn't have happened in the first place
 	 */
-	ept_mark_page_table();
+	slat_mark_page_table();
 
-	/* Translate the guest's RIP in the VMCS to a physical-address */
-	ept_locate_pc();
+	/* Translate the guest's RIP to a physical-address */
+	slat_locate_pc();
 
 	/* Save guest RIP so that we can restore it after each fuzzer input */
 	guest_rip = cpu0_get_pc();
@@ -384,9 +385,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	}
 
 	BX_CPU(id)->TLB_flush();
-	fuzz_walk_ept();
+	fuzz_walk_slat();
 	vmcs_fixup();
-	ept_mark_page_table();
+	slat_mark_page_table();
 	init_register_feedback();
 
 	if (getenv("LINK_MAP") && getenv("LINK_OBJ_REGEX"))

@@ -154,7 +154,7 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
 
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	/* printf("Exit reason: %lx\n", exit_reason); */
 	if (!exit_reason)
 		return false;
@@ -204,7 +204,7 @@ bool inject_read(bx_address addr, int size) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
 
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, exit_reason);
 
 	BX_CPU(id)->VMwrite32(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);

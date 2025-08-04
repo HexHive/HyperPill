@@ -32,6 +32,7 @@ OBJS        = main.o \
 			  sym2addr_linux.o \
 			  link_map.o \
 			  ept.o \
+			  slat.o \
 			  cov.o \
 			  vmcs.o \
 			  enum.o \
