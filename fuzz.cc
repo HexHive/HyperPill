@@ -6,19 +6,29 @@
 enum cmds {
 	OP_READ,
 	OP_WRITE,
+#if defined(HP_X86_64)
 	OP_IN,
 	OP_OUT,
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
+#endif
 	OP_VMCALL,
 };
+#define FUZZ_LEGACY_S    OP_READ
+#if defined(HP_X86_64)
+#define FUZZ_LEGACY_E    OP_OUT
+#endif
+#if defined(HP_X86_64)
+#define FUZZ_HYPERCALL_S OP_MSR_WRITE
+#endif
+#define FUZZ_HYPERCALL_E OP_VMCALL
 
 static bool log_ops = false;
 
-std::map<bx_address, uint32_t> mmio_regions;
+std::map<hp_address, uint32_t> mmio_regions;
 std::map<uint16_t, uint16_t> pio_regions;
 
-static tsl::robin_map<bx_address, size_t> seen_dma;
+static tsl::robin_map<hp_address, size_t> seen_dma;
 uint16_t dma_start = 0;
 uint16_t dma_len = 0;
 
@@ -57,7 +67,7 @@ void clear_seen_dma() {
 	seen_dma.clear();
 }
 
-void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
+void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 	uint8_t *buf;
 
 	if (!fuzzing)
@@ -108,10 +118,11 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 }
 
 unsigned int num_mmio_regions() {
+	assert(mmio_regions.size());
 	return mmio_regions.size();
 }
 
-static bx_address mmio_region(int idx) {
+static hp_address mmio_region(int idx) {
 	for (auto &it : mmio_regions) {
 		if (idx == 0) {
 			return it.first;
@@ -121,10 +132,11 @@ static bx_address mmio_region(int idx) {
 	return 0;
 }
 
-static bx_address mmio_region_size(bx_address addr) {
+static hp_address mmio_region_size(hp_address addr) {
 	return mmio_regions[addr];
 }
 
+#if defined(HP_X86_64)
 static unsigned int num_pio_regions() {
 	return pio_regions.size();
 }
@@ -141,16 +153,20 @@ static uint16_t pio_region(int idx) {
 static uint16_t pio_region_size(uint16_t addr) {
 	return pio_regions[addr];
 }
+#endif
 
+#if defined(HP_X86_64)
 bool inject_halt() {
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_HLT);
 	BX_CPU(id)->VMwrite32(VMCS_VMEXIT_QUALIFICATION, 0);
 	return true;
 }
+#endif
 
 // INJECTORS
-bool inject_write(bx_address addr, int size, uint64_t val) {
+bool inject_write(hp_address addr, int size, uint64_t val) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
+#if defined(HP_X86_64)
 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
 
 	uint32_t exit_reason =
@@ -197,12 +213,14 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 		cpu_physical_memory_write(phy, "\x48\x89\x02", 3);
 		break;
 	}
+#endif
 	return true;
 }
 
-bool inject_read(bx_address addr, int size) {
+bool inject_read(hp_address addr, int size) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
 
+#if defined(HP_X86_64)
 	uint32_t exit_reason =
 		gpa2hpa(addr, NULL, NULL);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, exit_reason);
@@ -256,9 +274,11 @@ bool inject_read(bx_address addr, int size) {
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	}
+#endif
 	return true;
 }
 
+#if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size) {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint64_t field_64 = 0;
@@ -407,6 +427,7 @@ uint64_t inject_rdmsr(bx_address msr) {
 	return (BX_CPU(id)->get_reg64(BX_64BIT_REG_RDX) << 32) |
 	       (BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX) & 0xFFFFFFFF);
 }
+#endif
 
 /* OPERATIONS */
 
@@ -423,7 +444,7 @@ bool op_write() {
 		return false;
 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
 		return false;
-	bx_address addr = mmio_region(base);
+	hp_address addr = mmio_region(base);
 
 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
 		return false;
@@ -474,7 +495,7 @@ bool op_read() {
 		return false;
 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
 		return false;
-	bx_address addr = mmio_region(base);
+	hp_address addr = mmio_region(base);
 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
 		return false;
 	addr += offset;
@@ -486,6 +507,7 @@ bool op_read() {
 	return true;
 }
 
+#if defined(HP_X86_64)
 bool op_out() {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint8_t size;
@@ -500,11 +522,11 @@ bool op_out() {
 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
 		return false;
 
-	bx_address addr = pio_region(base);
+	hp_address addr = pio_region(base);
 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
 		return false;
 
-	bx_address phy;
+	hp_address phy;
 	addr += offset;
 	uint64_t field_64 = 0;
 	if (addr == 0x160)
@@ -549,7 +571,7 @@ bool op_in() {
 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
 		return false;
 
-	bx_address addr = pio_region(base);
+	hp_address addr = pio_region(base);
 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
 		return false;
 	addr += offset;
@@ -595,7 +617,7 @@ bool op_pci_write() {
 						      // around BARS
 		return false;
 
-	bx_address phy;
+	hp_address phy;
 	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
@@ -625,9 +647,12 @@ bool op_msr_write() {
 	}
 	return inject_wrmsr(msr, value);
 }
+#endif
 
+#if defined(HP_X86_64)
 static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
+#endif
 static uint32_t vmcall_enabled_regs;
 
 void insert_register_value_into_fuzz_input(int idx) {
@@ -658,10 +683,14 @@ bool op_vmcall() {
 					// before rewriting regs
 	size_t local_dma_len; // Used to make a copy of dma data before
 			      // rewriting regs
+#if defined(HP_X86_64)
+	// disallow RAX, RSP and RBP to be fuzzed.
 	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
+#endif
 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
 		return false;
 
+#if defined(HP_X86_64)
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
 
 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
@@ -713,6 +742,7 @@ bool op_vmcall() {
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
+#endif
 	start_cpu();
 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],
 	 * BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX)); */
@@ -740,6 +770,7 @@ bool op_vmcall() {
 	            fuzz_emu_stop_unhealthy();
 		}
 	}
+#if defined(HP_X86_64)
 	for (int i = 0; i < BX_XMM_REGISTERS; i++) {
 		if ((vmcall_enabled_regs >> (16 + i)) & 1) {
 			if (!ic_append(&vmcall_xmmregs[i],
@@ -747,6 +778,7 @@ bool op_vmcall() {
                 fuzz_emu_stop_unhealthy();
 		}
 	}
+#endif
 
 	if (!ic_append(local_dma, local_dma_len))
         fuzz_emu_stop_unhealthy();
@@ -758,10 +790,12 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,
+	#if defined(HP_X86_64)
 		[OP_IN] = op_in,
 		[OP_OUT] = op_out,
 		[OP_PCI_WRITE] = op_pci_write,
 		[OP_MSR_WRITE] = op_msr_write,
+	#endif
 		[OP_VMCALL] = op_vmcall,
 	};
 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
@@ -786,19 +820,19 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		dma_start = ic_get_cursor() - input_start;
 		dma_len = 0;
 		if (fuzz_legacy) {
-			if (ic_ingest8(&op, OP_READ, OP_OUT, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_LEGACY_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else if (fuzz_hypercalls) {
-			if (ic_ingest8(&op, OP_MSR_WRITE, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_HYPERCALL_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else { /* Fuzz Everything */
-			if (ic_ingest8(&op, 0, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
@@ -820,25 +854,33 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
 }
 
+#if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size) {
 	pio_regions[addr] = size;
 	printf("pio_regions %d = %lx + %lx\n", pio_regions.size(), addr, size);
 }
+#endif
+
 void add_mmio_region(uint64_t addr, uint64_t size) {
 	mmio_regions[addr] = size;
 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
 	       size);
 }
-void add_mmio_range_alt(uint64_t addr, uint64_t end) {
+
+void add_mmio_range_all(uint64_t addr, uint64_t end) {
 	add_mmio_region(addr, end - addr);
 }
+
 void init_regions(const char *path) {
 	open_db(path);
 	if (getenv("FUZZ_ENUM")) {
+#if defined(HP_X86_64)
 		enum_pio_regions();
+#endif
 		enum_mmio_regions();
         exit(0);
 	}
+
 	if (getenv("MANUAL_RANGES")) {
 		load_manual_ranges(getenv("MANUAL_RANGES"),
 				   getenv("RANGE_REGEX"), pio_regions,

@@ -45,7 +45,7 @@ void insert_pio(uint16_t addr, uint16_t len){
     sqlite3_finalize(res);
 }
 
-void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions) {
+void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions) {
     sqlite3_stmt *res;
     const char *sql = "SELECT Address, Length from PIO";
     int rc = sqlite3_prepare_v2(db, sql, -1, &res, 0);
@@ -70,7 +70,8 @@ void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address
     }
 }
 
-void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<bx_address, uint32_t> &mmio_regions) {
+void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions,
+                        std::map<hp_address, uint32_t> &mmio_regions) {
     assert(range_file);
     assert(range_regex);
         

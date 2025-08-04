@@ -12,8 +12,10 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 
-std::vector<std::tuple<bx_address, bx_address, unsigned int>> slat_exit_ranges; // Start, Base, Reason
+std::vector<std::tuple<hp_address, hp_address, unsigned int>> slat_exit_ranges; // Start, Base, Reason
 
+#if defined(HP_X86_64)
+static
 std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -141,9 +143,11 @@ void enum_pio_regions() {
         insert_pio(a.first, a.second);
     }
 }
+#endif
 
+#if defined(HP_X86_64)
 void enum_handle_ept_gap(unsigned int gap_reason,
-        bx_address gap_start, bx_address gap_end) {
+        hp_address gap_start, hp_address gap_end) {
     slat_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
@@ -152,17 +156,20 @@ void enum_handle_ept_gap(unsigned int gap_reason,
     else
         abort();
 }
+#endif
 
 void enum_mmio_regions(void) {
     tsl::robin_set<uint64_t> seen_icounts;
-    std::vector<std::pair<bx_address,bx_address>> mmio_ranges;
-    bx_address mmio_start = 0;
+    std::vector<std::pair<hp_address,hp_address>> mmio_ranges;
+    hp_address mmio_start = 0;
     for (auto &a : slat_exit_ranges){
-        bx_address addr = std::get<0>(a);
-        bx_address base = addr;
-        bx_address end = std::get<1>(a);
+        hp_address addr = std::get<0>(a);
+        hp_address base = addr;
+        hp_address end = std::get<1>(a);
         unsigned int reason = std::get<2>(a);
+#if defined(HP_X86_64)
         printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
+#endif
         while(addr < end && addr - base < 0x10000000) { 
             bool new_icount = 0;
             inject_write(addr, 2,1);

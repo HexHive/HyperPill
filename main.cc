@@ -15,7 +15,10 @@ bool fuzz_should_abort = false;    /* We got a crash. */
 bool fuzzing;
 static bool executing_input;
 
+#if defined(HP_X86_64)
 uint64_t vmcs_addr;
+#endif
+
 uint64_t guest_rip; /* Entrypoint. Reset after each op */
 
 static void *log_writes;
@@ -24,7 +27,10 @@ static bool fuzzenum;
 uint64_t icount_limit_floor = 200000;
 uint64_t icount_limit = 50000000;
 
-static unsigned long int icount, pio_icount;
+static unsigned long int icount;
+#if defined(HP_X86_64)
+static unsigned long int pio_icount;
+#endif
 
 static void dump_hex(const uint8_t *data, size_t len) {
 	for (int i = 0; i < len; i++)
@@ -39,13 +45,14 @@ void start_cpu() {
 	srand(1); /* rdrand */
 	cpu0_set_pc(guest_rip);
 	icount = 0;
+#if defined(HP_X86_64)
 	pio_icount = 0;
+#endif
 	clear_seen_dma();
 	if (cpu0_get_fuzztrace()) {
 		dump_regs();
 	}
 	reset_op_cov();
-
 	cpu0_set_fuzz_executing_input(true);
 	if (bx_dbg.gdbstub_enabled)
 		hp_gdbstub_debug_loop();
@@ -54,12 +61,14 @@ void start_cpu() {
 		return;
 	cpu0_set_pc(guest_rip); // reset $RIP
 
+#if defined(HP_X86_64)
 	bx_address phy;
 	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	assert(res == 1); // Guest page table should be guarded
 	if (phy > maxaddr || !res) {
 		fuzz_do_not_continue = true;
 	}
+#endif
 }
 
 /*
@@ -80,6 +89,7 @@ static void fuzz_emu_stop() {
 
 void fuzz_emu_stop_normal(){
     fuzz_emu_stop();
+    fuzz_do_not_continue = 1;
 }
 
 void fuzz_emu_stop_unhealthy(){
@@ -116,13 +126,17 @@ unsigned long int get_icount() {
 	return icount;
 }
 
+#if defined(HP_X86_64)
 unsigned long int get_pio_icount() {
 	return pio_icount;
 }
+#endif
 
 void reset_vm() {
 	restore_cpu();
+#if defined(HP_X86_64)
 	icp_set_vmcs_map();
+#endif
 	fuzz_reset_memory();
 }
 
@@ -132,7 +146,8 @@ void fuzz_interrupt(unsigned cpu, unsigned vector) {
 	}
 }
 
-void fuzz_after_execution(bxInstruction_c *i) {
+void fuzz_after_execution(hp_instruction *i) {
+#if defined(HP_X86_64)
 	if (hack_timer_mod && i->getIaOpcode() == 0x4b8 /*CALL_Jq*/) {
 		static uint64_t rdi, rsi; // context
 		uint64_t rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
@@ -160,6 +175,7 @@ void fuzz_after_execution(bxInstruction_c *i) {
 			}
 		}
 	}
+#endif
 }
 
 void fuzz_before_execution(uint64_t ic) {
@@ -172,15 +188,19 @@ void fuzz_before_execution(uint64_t ic) {
 	    fuzz_emu_stop_unhealthy();
 	}
     icount += ic;
+#if defined(HP_X86_64)
     pio_icount += ic;
+#endif
 }
 
 static void usage() {
 	printf("The following environment variables must be set:\n");
 	printf("ICP_MEM_PATH\n");
 	printf("ICP_REGS_PATH\n");
+#if defined(HP_X86_64)
 	printf("ICP_VMCS_LAYOUT_PATH\n");
 	printf("ICP_VMCS_ADDR\n");
+#endif
 	exit(-1);
 }
 
@@ -230,7 +250,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	 * The IC_TEST mode
 	 */
 	if (ic_test && !fuzz_unhealthy_input) {
-		tsl::robin_set<bx_address> original_coverage = cur_input;
+		tsl::robin_set<hp_address> original_coverage = cur_input;
 		size_t len, len2;
 		uint8_t *output = ic_get_output(&len);
 		uint8_t *newdata = (uint8_t *)malloc(len);
@@ -279,6 +299,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	char *icp_db_path = getenv("ICP_DB_PATH");
 	verbose = getenv("VERBOSE");
 
+#if defined(HP_X86_64)
 	/* The Layout of the VMCS is specific to the CPU where the snapshot was
 	 * collected, so we also need to load a mapping of VMCS encodings to
 	 * offsets
@@ -295,8 +316,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (!(mem_path && regs_path && vmcs_shadow_layout_path &&
 	      vmcs_addr_str))
 		usage();
+#endif
 
+#if defined(HP_X86_64)
 	vmcs_addr = strtoll(vmcs_addr_str, NULL, 16);
+#endif
 
 	/* Bochs-specific initialization. (e.g. CPU version/features). */
 	if (getenv("GDB")) {
@@ -315,16 +339,20 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	icp_init_mem(mem_path);
 	fuzz_watch_memory_inc();
 
+#if defined(HP_X86_64)
 	icp_init_shadow_vmcs_layout(vmcs_shadow_layout_path);
+#endif
 	printf(".loading register snapshot from %s\n", regs_path);
 	icp_init_regs(regs_path);
 
+#if defined(HP_X86_64)
 	/* The current VMCS address is part of the CPU-state, but it is not part
 	 * of the memory or register snapshot. As such, we load it (and adjacent
 	 * internal Bochs pointers) separately.
 	 */
 	printf(".vmcs addr set  to %lx\n", vmcs_addr);
 	icp_set_vmcs(vmcs_addr);
+#endif
 
 	/* Dump disassembly and CMP hooks? */
 
@@ -332,11 +360,13 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	// Intel's implementation of SLAT is Extended Page Table (EPT)
 	fuzz_walk_slat();
 
+#if defined(HP_X86_64)
 	/* WIP: Tweak the VMCS/L2 state. E.g. set up our own page-tables for L2
 	 * and ensure that the hypervisor thinks L2 is running privileged
 	 * code/ring0 code.
 	 */
 	vmcs_fixup();
+#endif
 
 	/*
 	 * Previously, we identified all of L2's pages. However, we want to
@@ -386,7 +416,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	cpu0_tlb_flush();
 	fuzz_walk_slat();
+#if defined(HP_X86_64)
 	vmcs_fixup();
+#endif
 	slat_mark_page_table();
 	init_register_feedback();
 
@@ -394,6 +426,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 		load_link_map(getenv("LINK_MAP"), getenv("LINK_OBJ_REGEX"),
 			      strtoll(getenv("LINK_OBJ_BASE"), NULL, 16));
 
+#if defined(HP_X86_64)
 	uint32_t pciid = 0;
 	if (getenv("PCI_ID")) {
 		pciid = strtol(getenv("PCI_ID"), NULL, 16);
@@ -408,12 +441,16 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 				}
 			}
 	}
+#endif
 	if (getenv("KVM")) {
+#if defined(HP_X86_64)
 		add_pc_range(0, 0x7fffffffffff);
+#endif
 		apply_breakpoints_linux();
     }
+
 	/*
-	 * make a copy of the bochs CPU state, which we use to reset the CPU
+	 * make a copy of the CPU state, which we use to reset the CPU
 	 * state after each fuzzer input
 	 */
 	save_cpu();

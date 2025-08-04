@@ -47,7 +47,8 @@ static uint64_t get_addr_of_symbol(const char* symbolname)
     char addr[100];
 
     char cmd[500];
-    snprintf(cmd, 500, "nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
+    snprintf(cmd, 500, NM_PREFIX"nm --defined-only -n %s | grep %s | cut -f1 -d ' '", getenv("LINK_OBJ_PATH"), symbolname);
+
     fp = popen(cmd, "r");
     if (fp == NULL) {
         printf("Failed to run command %s\n", cmd);
@@ -252,7 +253,7 @@ void init_sourcecov(size_t baseaddr) {
         if(pcstop - page < 0x1000)
             len = pcstop - page;
 
-        bx_phy_address phystart;
+        hp_phy_address phystart;
         phystart = cpu0_virt2phy(start);
 
         cpu0_write_virtual(start, len, pc);

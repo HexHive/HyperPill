@@ -3,12 +3,12 @@
 #include <tsl/robin_map.h>
 #include <tsl/robin_set.h> 
 
-tsl::robin_map<bx_address, bool> ignore_edges;
-tsl::robin_set<bx_address> seen_edges;
-tsl::robin_map<bx_address, uint64_t> all_edges;
-tsl::robin_map<bx_address, uint64_t> edge_to_idx;
+tsl::robin_map<hp_address, bool> ignore_edges;
+tsl::robin_set<hp_address> seen_edges;
+tsl::robin_map<hp_address, uint64_t> all_edges;
+tsl::robin_map<hp_address, uint64_t> edge_to_idx;
 
-tsl::robin_set<bx_address> cur_input;
+tsl::robin_set<hp_address> cur_input;
 
 std::vector<std::pair<size_t, size_t>> pc_ranges;
 std::vector<std::pair<size_t, size_t>> our_stacktrace;
@@ -23,7 +23,7 @@ void add_pc_range(size_t base, size_t len) {
     pc_ranges.push_back(std::make_pair(base, len));
 }
 
-bool ignore_pc(bx_address pc) {
+bool ignore_pc(hp_address pc) {
     if (pc_ranges.size() == 0) // No ranges = fuzz everthing
         return false;
     if (ignore_edges.find(pc) == ignore_edges.end()) {
@@ -53,7 +53,7 @@ void print_stacktrace(){
     fflush(stderr);
 }
 
-void add_edge(bx_address prev_rip, bx_address new_rip) {
+void add_edge(hp_address prev_rip, hp_address new_rip) {
     time_t t;
 
     symbolize(new_rip);
@@ -102,7 +102,7 @@ void reset_sysret_status(void) { status = 0; }
 
 void set_sysret_status(uint32_t new_status) { status = new_status; }
 
-void add_stacktrace(bx_address branch_rip, bx_address new_rip) {
+void add_stacktrace(hp_address branch_rip, hp_address new_rip) {
     our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
 }
 

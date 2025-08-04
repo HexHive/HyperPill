@@ -8,10 +8,11 @@ uint64_t pow64(uint64_t x, uint64_t y){
     return result;
 }
 
-
 void enum_handle_slat_gap(unsigned int gap_reason,
         bx_address gap_start, bx_address gap_end) {
+#if defined(HP_X86_64)
     enum_handle_ept_gap(gap_reason, gap_start, gap_end);
+#endif
 }
 
 void walk_slat(){
@@ -47,7 +48,9 @@ void walk_slat(){
 
         addr += size;
         addr &= (~(pow64(512, translation_level)-1));
+#if defined(HP_X86_64)
     } while(addr!=0 && addr < 0x1000*pow64(512, 4));
+#endif
     if(gap_reason)
         enum_handle_slat_gap(gap_reason, gap_start, addr-1);
 }
@@ -73,9 +76,13 @@ void fuzz_walk_slat() {
 }
 
 void slat_locate_pc() {
+#if defined(HP_X86_64)
     ept_locate_pc();
+#endif
 }
 
 void slat_mark_page_table() {
+#if defined(HP_X86_64)
     ept_mark_page_table();
+#endif
 }

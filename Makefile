@@ -1,8 +1,9 @@
 NPROCS     := 1
 OS         := $(shell uname -s)
+ARCH       ?= x86_64
 
-ifeq ($(OS),Linux)
-	NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
+ifeq ($(OS), Linux)
+NPROCS     := $(shell grep -c ^processor /proc/cpuinfo)
 endif
 
 CC         ?= clang
@@ -16,7 +17,8 @@ INCLUDES    = -I vendor/bochs \
 			  -I vendor/bochs/gui \
 			  -I vendor/include \
 			  -I vendor/robin-map/include
-CFLAGS      = $(INCLUDES) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
+ARCH_FLAGS  = -DHP_X86_64
+CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
 LIBFUZZER_FLAGS = -max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profile=1 ${LIBFUZZER_ARGS}

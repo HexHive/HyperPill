@@ -23,6 +23,7 @@ struct Hasher {
 
 tsl::robin_set<std::tuple<uint64_t, uint64_t, uint64_t>, Hasher> structset;
 
+#if defined(HP_X86_64)
 bool fuzz_hook_vmlaunch() {
     /* printf("Vmlaunch:%lx\n", cpu0_get_vmcsptr()); */
     if(vmcs_addr == cpu0_get_vmcsptr()) {
@@ -37,6 +38,7 @@ bool fuzz_hook_vmlaunch() {
 
     return false;
 }
+#endif
 
 extern "C" void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2);
 extern "C" void __sanitizer_cov_trace_cmp2_pc(uint64_t PC, uint16_t Arg1, uint16_t Arg2);
@@ -141,15 +143,19 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
 }
 
 void init_register_feedback() {
+#if defined(HP_X86_64)
     // 16 General-Purpose Registers + 16 XMM Registers
+#endif
     /* int fd = open("/dev/random", O_RDONLY); */
     srand(0);
     random_register_data = (uint8_t*) malloc(random_register_data_len);
     /* read(fd, random_register_data, random_register_data_len); */
     uint8_t* cursor = random_register_data;
+#if defined(HP_X86_64)
     for(int i=0; i<16; i++) {
             if(i == BX_64BIT_REG_RSP || i == BX_64BIT_REG_RBP)
                 continue;
+#endif
             uint64_t value;
             uint8_t* ptr = (uint8_t*)&value;
             for(int j=0; j<sizeof(value); j++)
@@ -160,6 +166,7 @@ void init_register_feedback() {
             cursor += 8;
             printf("REG%d: %lx\n", i, value);
     }
+#if defined(HP_X86_64)
     for(int i=0; i<BX_XMM_REGISTERS+1; i++) {
             uint8_t* ptr = (uint8_t*)&BX_CPU(id)->vmm[i];
             for(int j=0; j<sizeof(BX_CPU(id)->vmm[i]); j++)
@@ -168,4 +175,5 @@ void init_register_feedback() {
             register_contents[16+i] = std::make_pair(cursor, sizeof(BX_CPU(id)->vmm[i]));
             cursor += sizeof(BX_CPU(id)->vmm[i]);
     }
+#endif
 }

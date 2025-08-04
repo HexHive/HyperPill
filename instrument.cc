@@ -1,6 +1,4 @@
-#include "bochs.h"
 #include "fuzz.h"
-#include "cpu/cpu.h"
 
 void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy,
                          unsigned len, unsigned memtype, unsigned rw, void *dataptr) {
