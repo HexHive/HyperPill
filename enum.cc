@@ -156,6 +156,14 @@ void enum_handle_ept_gap(unsigned int gap_reason,
     else
         abort();
 }
+#elif defined(HP_AARCH64)
+void enum_handle_s2pt_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end) {
+#define EXCP_DATA_ABORT      4
+    if(gap_reason == EXCP_DATA_ABORT)
+        printf("%lx +%lx Potential Data Abort\n", gap_start, gap_end - gap_start);
+    // TODO
+}
 #endif
 
 void enum_mmio_regions(void) {
@@ -169,6 +177,8 @@ void enum_mmio_regions(void) {
         unsigned int reason = std::get<2>(a);
 #if defined(HP_X86_64)
         printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
+#elif defined(HP_AARCH64)
+        printf("S2PT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, "data abort");
 #endif
         while(addr < end && addr - base < 0x10000000) { 
             bool new_icount = 0;

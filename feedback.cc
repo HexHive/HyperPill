@@ -38,6 +38,11 @@ bool fuzz_hook_vmlaunch() {
 
     return false;
 }
+#elif defined(HP_AARCH64)
+bool fuzz_hook_back_to_el1_kernel(void) {
+    fuzz_emu_stop_normal();
+    return true;
+}
 #endif
 
 extern "C" void __sanitizer_cov_trace_cmp1_pc(uint64_t PC, uint8_t Arg1, uint8_t Arg2);
@@ -145,6 +150,8 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size){
 void init_register_feedback() {
 #if defined(HP_X86_64)
     // 16 General-Purpose Registers + 16 XMM Registers
+#elif defined(HP_AARCH64)
+    // 31 General-Purpose Registers
 #endif
     /* int fd = open("/dev/random", O_RDONLY); */
     srand(0);
@@ -155,6 +162,8 @@ void init_register_feedback() {
     for(int i=0; i<16; i++) {
             if(i == BX_64BIT_REG_RSP || i == BX_64BIT_REG_RBP)
                 continue;
+#elif defined(HP_AARCH64)
+    for(int i=0; i<8; i++) {
 #endif
             uint64_t value;
             uint8_t* ptr = (uint8_t*)&value;

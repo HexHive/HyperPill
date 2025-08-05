@@ -6,12 +6,23 @@
 #include "cpu/cpu.h"
 #include "memory/memory-bochs.h"
 #define NM_PREFIX ""
+#elif defined(HP_AARCH64)
+#include <libgen.h>
+#define NM_PREFIX "aarch64-linux-gnu-"
 #endif
 
 #if defined(HP_X86_64)
 typedef bx_address hp_address;
 typedef bx_phy_address hp_phy_address;
 typedef bxInstruction_c hp_instruction;
+#elif defined(HP_AARCH64)
+typedef uint64_t hp_address;
+typedef uint64_t hp_phy_address;
+typedef void hp_instruction;
+#endif
+
+#if defined(HP_BACKEND_QEMU)
+extern "C" {
 #endif
 
 // backends/xxx/control
@@ -30,6 +41,12 @@ bool is_gdbstub_enabled();
 
 // backends/xxx/init
 void icp_init_backend();
+
+// backends/xxx/instrument
+#if defined(HP_AARCH64)
+void write_pcs_execution(uint64_t pc, uint64_t pc_last);
+void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
+#endif
 
 // backends/xxx/mem
 void fuzz_hook_memory_access(hp_address phy, unsigned len,
@@ -63,6 +80,14 @@ void save_cpu();
 void restore_cpu();
 void cpu0_set_general_purpose_reg64(unsigned reg, uint64_t value);
 uint64_t cpu0_get_general_purpose_reg64(unsigned reg);
+#if defined(HP_AARCH64)
+void aarch64_set_esr_el2_for_hvc();
+void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read);
+void aarch64_set_far_el2(uint64_t far);
+uint64_t aarch64_get_far_el2(void);
+void aarch64_set_hpfar_el2(uint64_t addr);
+uint64_t aarch64_get_hpfar_el2(void);
+#endif
 
 // backends/xxx/ept/s2pt
 void mark_page_not_guest(hp_phy_address addr, int level);
@@ -73,6 +98,9 @@ bool gva2hpa(hp_address laddr, hp_phy_address *phy);
 #if defined(HP_X86_64)
 void ept_locate_pc();
 void ept_mark_page_table();
+#elif defined(HP_AARCH64)
+void s2pt_locate_pc();
+void s2pt_mark_page_table();
 #endif
 
 bool frame_is_guest(hp_phy_address addr);
@@ -105,6 +133,8 @@ void fuzz_stacktrace();
 // feedback.cc
 #if defined(HP_X86_64)
 bool fuzz_hook_vmlaunch();
+#elif defined(HP_AARCH64)
+bool fuzz_hook_back_to_el1_kernel(void);
 #endif
 void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
 
@@ -127,5 +157,9 @@ typedef struct addr_bin_name {
 bool addr_to_sym(addr_bin_name *addr_bin_name);
 bool sym_to_addr(addr_bin_name *addr_bin_name);
 uint64_t sym_to_addr2(const char *bin, const char *name);
+
+#if defined(HP_BACKEND_QEMU)
+}
+#endif
 
 #endif

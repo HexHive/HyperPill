@@ -8,9 +8,13 @@ Building
 ``` bash
 sudo apt-get install libssl-dev libsqlite3-dev \
     bison clang build-essential debuginfod elfutils \
-    python3-pip libcapstone4 libcapstone-dev
+    python3-pip libcapstone4  libcapstone-dev \
+    binutils-aarch64-linux-gnu
 CC=clang CXX=clang++ make
+ARCH=aarch64 CC=clang CXX=clang++ make # for aarch64 hypervisors
 ```
+
+Note: ARCH is unrelated to the host machine architecture.
 
 Using
 --------
@@ -72,6 +76,7 @@ Step 1: enumerate input-spaces
 export SNAPSHOT_BASE=/path/to/snapshots/kvm
 export PROJECT_ROOT=/path/to/HyperPill
 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
+ARCH=aarch64 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 You may skip enumeration by providing a manual QEMU mtree file.
@@ -86,6 +91,7 @@ Step 2: start fuzzing
 ``` bash
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
+KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 If `dir/layout` is valid, new PCs will be automatically symbolized. Crash files
@@ -95,6 +101,7 @@ Step 3: reproduce a crash
 
 ``` bash
 KVM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-04975a...
+KVM=1 ARCH=aarch64 $PROJECT_ROOT/scripts/run_hyperpill.sh crash-48f2f7
 ```
 
 Step 4: debug a crash

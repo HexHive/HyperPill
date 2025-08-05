@@ -24,7 +24,11 @@ static void *log_writes;
 static bool fuzzenum;
 
 uint64_t icount_limit_floor = 200000;
+#if defined(HP_BACKEND_BOCHS)
 uint64_t icount_limit = 50000000;
+#elif defined(HP_BACKEND_QEMU)
+uint64_t icount_limit = 5000000;
+#endif
 
 static unsigned long int icount;
 #if defined(HP_X86_64)
@@ -312,6 +316,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	if (!(mem_path && regs_path && vmcs_shadow_layout_path &&
 	      vmcs_addr_str))
 		usage();
+#elif defined(HP_AARCH64)
+	if (!(mem_path && regs_path))
+		usage();
 #endif
 
 #if defined(HP_X86_64)
@@ -348,6 +355,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	// Second Level Address Translation (SLAT)
 	// Intel's implementation of SLAT is Extended Page Table (EPT)
+	// AARCH64's implementation of SLAT is Stage-2 Page Tabels (S2PT)
 	fuzz_walk_slat();
 
 #if defined(HP_X86_64)

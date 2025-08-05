@@ -39,6 +39,8 @@ void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len) {
     cpu0_mem_read_physical_page(paddr, sizeof(pg_entry), &pg_entry);
 #if defined(HP_X86_64)
     hp_phy_address new_addr = pg_entry & 0x3fffffffff000ULL;
+#elif defined(HP_AARCH64)
+    hp_phy_address new_addr = pg_entry & 0x0fffffffff000ULL;
 #endif
     uint8_t new_pgtable_lvl = is_l2_pagetable_bitmap[paddr >> 12] - 1;
     uint8_t pg_present_or_valid = pg_entry & PG_PRESENT_MASK;

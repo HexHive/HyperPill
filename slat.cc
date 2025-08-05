@@ -12,6 +12,8 @@ void enum_handle_slat_gap(unsigned int gap_reason,
         bx_address gap_start, bx_address gap_end) {
 #if defined(HP_X86_64)
     enum_handle_ept_gap(gap_reason, gap_start, gap_end);
+#elif defined(HP_AARCH64)
+    enum_handle_s2pt_gap(gap_reason, gap_start, gap_end);
 #endif
 }
 
@@ -50,6 +52,8 @@ void walk_slat(){
         addr &= (~(pow64(512, translation_level)-1));
 #if defined(HP_X86_64)
     } while(addr!=0 && addr < 0x1000*pow64(512, 4));
+#elif defined(HP_AARCH64)
+    } while(addr!=0 && addr < 0x1000*pow64(512, 3));
 #endif
     if(gap_reason)
         enum_handle_slat_gap(gap_reason, gap_start, addr-1);
@@ -78,11 +82,15 @@ void fuzz_walk_slat() {
 void slat_locate_pc() {
 #if defined(HP_X86_64)
     ept_locate_pc();
+#elif defined(HP_AARCH64)
+    s2pt_locate_pc();
 #endif
 }
 
 void slat_mark_page_table() {
 #if defined(HP_X86_64)
     ept_mark_page_table();
+#elif defined(HP_AARCH64)
+    s2pt_mark_page_table();
 #endif
 }

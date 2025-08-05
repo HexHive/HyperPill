@@ -17,9 +17,13 @@ enum cmds {
 #define FUZZ_LEGACY_S    OP_READ
 #if defined(HP_X86_64)
 #define FUZZ_LEGACY_E    OP_OUT
+#elif defined(HP_AARCH64)
+#define FUZZ_LEGACY_E    OP_WRITE
 #endif
 #if defined(HP_X86_64)
 #define FUZZ_HYPERCALL_S OP_MSR_WRITE
+#elif defined(HP_AARCH64)
+#define FUZZ_HYPERCALL_S OP_VMCALL
 #endif
 #define FUZZ_HYPERCALL_E OP_VMCALL
 
@@ -213,6 +217,27 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		cpu_physical_memory_write_fastpath(phy, "\x48\x89\x02", 3);
 		break;
 	}
+#elif defined(HP_AARCH64)
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	cpu0_set_general_purpose_reg64(1, val);
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!write%d %lx %lx\n", size, addr, val);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(Byte, 1, 1); // question
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(Word, 1, 1);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(Long, 1, 1);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(Quad, 1, 1);
+		break;
+	}
 #endif
 	return true;
 }
@@ -272,6 +297,26 @@ bool inject_read(hp_address addr, int size) {
 							  // [rcx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
+		break;
+	}
+#elif defined(HP_AARCH64)
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!read%d %lx\n", size, addr);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(Byte, 0, 0);
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(Word, 0, 0);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(Long, 0, 0);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(Quad, 0, 0);
 		break;
 	}
 #endif
@@ -652,6 +697,8 @@ bool op_msr_write() {
 #if defined(HP_X86_64)
 static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
+#elif defined(HP_AARCH64)
+static uint64_t vmcall_gpregs[31];
 #endif
 static uint32_t vmcall_enabled_regs;
 
@@ -686,6 +733,10 @@ bool op_vmcall() {
 #if defined(HP_X86_64)
 	// disallow RAX, RSP and RBP to be fuzzed.
 	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
+#elif defined(HP_AARCH64)
+	// Only 17 XRegs according to the SMCCC v1.2
+	// X0-X7 Arguments and return values
+	const uint64_t fuzzable_regs_bitmap = (0b11111111);
 #endif
 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
 		return false;
@@ -742,6 +793,24 @@ bool op_vmcall() {
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
 	}
+#elif defined(HP_AARCH64)
+	// If the op was skipped, we need to reset the register state
+	for (int i = 0; i < 31; i++) {
+		vmcall_gpregs[i] = cpu0_get_general_purpose_reg64(i);
+	}
+	vmcall_enabled_regs &= fuzzable_regs_bitmap;
+	for (int i = 0; i < 8; i++) {
+		if ((vmcall_enabled_regs >> i) & 1) {
+			if (i == 31 /*SP*/)
+				continue;
+			uint64_t val;
+			if (ic_ingest64(&val, 0, -1)) {
+				return false;
+			}
+			cpu0_set_general_purpose_reg64(i, val);
+		}
+	}
+	aarch64_set_esr_el2_for_hvc();
 #endif
 	start_cpu();
 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],

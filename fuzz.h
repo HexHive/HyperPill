@@ -2,10 +2,13 @@
 #define FUZZ_H
 
 #include <stdint.h>
+
+#ifdef __cplusplus
 #include <map>
 #include <vector>
 #include <cstring>
 #include <tsl/robin_set.h>
+#endif
 
 #include <stdbool.h>
 #include <unistd.h>
