@@ -779,7 +779,6 @@ bool op_vmcall() {
 		}
 	}
 #endif
-
 	if (!ic_append(local_dma, local_dma_len))
         fuzz_emu_stop_unhealthy();
 	return true;

@@ -5,7 +5,7 @@ HyperPill
 
 Building
 --------
-```
+``` bash
 sudo apt-get install libssl-dev libsqlite3-dev \
     bison clang build-essential debuginfod elfutils \
     python3-pip libcapstone4 libcapstone-dev

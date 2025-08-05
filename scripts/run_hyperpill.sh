@@ -16,7 +16,7 @@ LIBFUZZER_FLAGS="-max_len=8192 -rss_limit_mb=-1 -detect_leaks=0 -use_value_profi
     $LIBFUZZER_ARGS $CORPUS_DIR
     "
 else
-LIBFUZZER_FLAGS="$crash"
+LIBFUZZER_FLAGS="-rss_limit_mb=-1 -detect_leaks=0 $crash"
 fi
 
 if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
@@ -25,8 +25,14 @@ if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
 fi
 export NOCOV=1
 
+if [ -z "$ARCH" ]; then
+    export ARCH=x86_64
+fi
+
+if [ "$ARCH" == "x86_64" ]; then
 export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
 export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
+fi
 export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"
 export ICP_MEM_PATH="$SNAPSHOT_BASE/mem"
 if [ -e "$SNAPSHOT_BASE/mem.md5sum" ]; then
