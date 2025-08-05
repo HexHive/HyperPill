@@ -1,7 +1,7 @@
 NPROCS     := 1
 OS         := $(shell uname -s)
 ARCH       ?= x86_64
-BACKEND    ?= qemu
+BACKEND    ?= bochs
 ifeq ($(ARCH), x86_64)
 BACKEND     = bochs
 BACKEND_FLAG= -DHP_BACKEND_BOCHS
@@ -48,7 +48,7 @@ ARCH_FLAGS  = -I vendor/qemu/target/arm \
 			  -DCONFIG_DEVICES=\"aarch64-softmmu-config-devices.h\"
 endif
 else
-    $(error Unsupported architecture: $(ARCH))
+    $(error Unsupported backend: $(BACKEND))
 endif
 CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
@@ -112,7 +112,7 @@ OBJS        = backends/qemu/breakpoints.o \
 			  backends/qemu/dbg.o \
 			  $(OBJS_GENERIC)
 else
-    $(error Unsupported architecture: $(ARCH))
+    $(error Unsupported backend: $(BACKEND))
 endif
 
 all: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
@@ -121,6 +121,8 @@ ifeq ($(ARCH), x86_64)
 else ifeq ($(ARCH), aarch64)
 	. ./Makefile.qemu.env && export QEMU_LDFLAGS && \
 	$(CXX) $(CFLAGS) $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) $$QEMU_LDFLAGS -o fuzz
+else
+    $(error Unsupported architecture: $(ARCH))
 endif
 
 %.o: %.cc $(DEPS)
@@ -190,7 +192,7 @@ ifeq ($(ARCH), aarch64)
 		ar cr vendor/lib/qemu_system_aarch64.a $$LIBCOMMON $$LIBQEMU_AARCH64_SOFTMMU $$QEMU_SYSTEM_AARCH64
 endif
 else
-    $(error Unsupported architecture: $(ARCH))
+    $(error Unsupported backend: $(BACKEND))
 endif
 
 
