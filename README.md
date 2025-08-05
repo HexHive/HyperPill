@@ -48,6 +48,13 @@ Here `dir` can be `kvm` or any other custom name.
 Tip: Run `md5sum mem | cut -d ' ' -f 1 > mem.md5sum` to avoid unnecessary
 remapping of the snapshot.
 
+
+``` bash
+export SNAPSHOT_BASE=/path/to/snapshots/kvm
+export PROJECT_ROOT=/path/to/HyperPill
+cd fuzz
+```
+
 For elf-based hypervisors, it is recommended to store relevant binaries in
 `dir/symbols` for symbolization and breakpointing.  See
 [hyperpill-snap](hyperpill-snap/) for instructions on downloading the debugging
@@ -57,6 +64,7 @@ To enable automatic symbolization, extract the symbol map:
 
 ``` bash
 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
+ARCH=aarch64 KVM=1 SYMBOLS_DIR=$SNAPSHOT_BASE/symbols $PROJECT_ROOT/scripts/run_hyperpill.sh 2>&1 | grep Symbolization
 ```
 
 Save the output to `dir/layout`. Example output:
@@ -73,8 +81,6 @@ Symbolization Range: 7f4ec7f05e80 - 7f4ec7f91a1e size: 8bb9e file: dir/symbols/l
 Step 1: enumerate input-spaces
 
 ``` bash
-export SNAPSHOT_BASE=/path/to/snapshots/kvm
-export PROJECT_ROOT=/path/to/HyperPill
 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ARCH=aarch64 KVM=1 FUZZ_ENUM=1 $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
@@ -91,7 +97,7 @@ Step 2: start fuzzing
 ``` bash
 mkdir CORPUS
 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
-KVM=1 ARCH=aarch64 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
+ARCH=aarch64 KVM=1 CORPUS_DIR=./CORPUS NSLOTS=$(nproc) $PROJECT_ROOT/scripts/run_hyperpill.sh
 ```
 
 If `dir/layout` is valid, new PCs will be automatically symbolized. Crash files
