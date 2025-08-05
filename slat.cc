@@ -9,7 +9,7 @@ uint64_t pow64(uint64_t x, uint64_t y){
 }
 
 void enum_handle_slat_gap(unsigned int gap_reason,
-        bx_address gap_start, bx_address gap_end) {
+        hp_address gap_start, hp_address gap_end) {
 #if defined(HP_X86_64)
     enum_handle_ept_gap(gap_reason, gap_start, gap_end);
 #elif defined(HP_AARCH64)

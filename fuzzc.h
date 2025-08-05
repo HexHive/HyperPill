@@ -1,6 +1,12 @@
 #ifndef FUZZC_H
 #define FUZZC_H
 
+#if defined(HP_BACKEND_QEMU)
+#ifdef __cplusplus
+extern "C" {
+#endif
+#endif
+
 #if defined(HP_X86_64)
 #include "bochs.h"
 #include "cpu/cpu.h"
@@ -19,10 +25,6 @@ typedef bxInstruction_c hp_instruction;
 typedef uint64_t hp_address;
 typedef uint64_t hp_phy_address;
 typedef void hp_instruction;
-#endif
-
-#if defined(HP_BACKEND_QEMU)
-extern "C" {
 #endif
 
 // backends/xxx/control
@@ -142,6 +144,7 @@ void fuzz_hook_cmp(uint64_t op1, uint64_t op2, size_t size);
 uint64_t pow64(uint64_t x, uint64_t y);
 
 // hmem.cc
+extern size_t maxaddr;
 extern uint8_t* is_l2_page_bitmap; /* Page is in L2 */
 extern uint8_t* is_l2_pagetable_bitmap; /* Page is in L2 */
 void fuzz_mark_l2_guest_page(uint64_t paddr, uint64_t len);
@@ -159,7 +162,9 @@ bool sym_to_addr(addr_bin_name *addr_bin_name);
 uint64_t sym_to_addr2(const char *bin, const char *name);
 
 #if defined(HP_BACKEND_QEMU)
+#ifdef __cplusplus
 }
+#endif
 #endif
 
 #endif

@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <string.h>
 
 #include "fuzzc.h"
 
@@ -24,7 +25,6 @@ extern std::vector<size_t> guest_page_scratchlist;
 #endif
 
 extern tsl::robin_set<hp_address> cur_input;
-extern size_t maxaddr;
 extern bool master_fuzzer;
 extern bool verbose;
 
@@ -105,6 +105,9 @@ void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, 
 #if defined(HP_X86_64)
 void enum_pio_regions();
 void enum_handle_ept_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end);
+#elif defined(HP_AARCH64)
+void enum_handle_s2pt_gap(unsigned int gap_reason,
         hp_address gap_start, hp_address gap_end);
 #endif
 void enum_handle_slat_gap(unsigned int gap_reason,

@@ -787,12 +787,6 @@ bool op_vmcall() {
 
 	memcpy(BX_CPU(id)->gen_reg, vmcall_gpregs, sizeof(BX_CPU(id)->gen_reg));
 	memcpy(BX_CPU(id)->vmm, vmcall_xmmregs, sizeof(BX_CPU(id)->vmm));
-
-	uint8_t *dma_start = ic_get_cursor();
-
-	if (cpu0_get_fuzztrace() || log_ops) {
-		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
-	}
 #elif defined(HP_AARCH64)
 	// If the op was skipped, we need to reset the register state
 	for (int i = 0; i < 31; i++) {
@@ -812,13 +806,20 @@ bool op_vmcall() {
 	}
 	aarch64_set_esr_el2_for_hvc();
 #endif
+	uint8_t *dma_start = ic_get_cursor();
+
+	if (cpu0_get_fuzztrace() || log_ops) {
+#if defined(HP_X86_64)
+		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
+#endif
+	}
 	start_cpu();
 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],
 	 * BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX)); */
 
 	uint8_t *dma_end = ic_get_cursor();
 
-	local_dma_len = dma_end - dma_start;
+	local_dma_len = (size_t)(dma_end - dma_start);
 	if (local_dma_len > sizeof(local_dma)) {
 	    fuzz_emu_stop_unhealthy();
 		return false;

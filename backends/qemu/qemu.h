@@ -1,10 +1,6 @@
 #ifndef HYPERPILL_QEMU_H
 #define HYPERPILL_QEMU_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/thread.h"
@@ -30,10 +26,6 @@ extern "C" {
 #include "qemu/plugin-memory.h"
 #include "plugin.h"
 
-typedef uint64_t hp_address;
-typedef uint64_t hp_phy_address;
-typedef void hp_instruction;
-
 #define QEMU_CPU(x) first_cpu
 
 int hp_qemu_plugin_load();
@@ -49,10 +41,6 @@ void after_exec_tb_fn(int cpu_index, TranslationBlock *tb);
 
 #define GENMASK(h, l) (((~(0UL)) << (l)) & (~(0UL) >> (64 - 1 - (h))))
 #define GENMASK_ULL(h, l) (((~(0UL)) << (l)) & (~(0UL) >> (64 - 1 - (h))))
-
-#ifdef __cplusplus
-}
-#endif
 
 #include "fuzzc.h"
 

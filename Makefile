@@ -169,7 +169,7 @@ else ifeq ($(BACKEND), qemu)
 	cd vendor/qemu-build; test -f config.status || ../qemu/configure \
 		--disable-vnc --disable-sdl --disable-bpf --enable-slirp \
 		--enable-capstone --target-list=aarch64-softmmu
-	cd vendor/qemu-build; ninja -j $(NPROCS)
+	cd vendor/qemu-build; ninja
 
 	# cd vendor/qemu; meson subprojects download dtc
 	# cd vendor/qemu/subprojects/dtc/; make
@@ -199,8 +199,6 @@ tests: rebuild_emulator $(OBJS) $(VENDOR_LIBS) vendor/libfuzzer-ng/libFuzzer.a
 ifeq ($(ARCH), x86_64)
 	$(CXX) $(CFLAGS) -I. tests/cve-2021-3947.cc $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o tests/cve-2021-3947
 	$(CXX) $(CFLAGS) -I. tests/cve-2022-0216.cc $(OBJS) $(VENDOR_OBJS) $(VENDOR_LIBS) $(LDFLAGS) -o tests/cve-2022-0216
-else
-    $(error Unsupported architecture: $(ARCH))
 endif
 
 clean:
