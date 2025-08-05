@@ -27,6 +27,10 @@ void cpu0_set_pc(uint64_t pc) {
     (ARM_CPU(QEMU_CPU(0))->env).pc = pc;
 }
 
+void cpu0_invalidate_prefetch() {
+
+}
+
 size_t init_random_register_data_len(void) {
 	// 31 64-bit generial-prpose registers, X0-X30
     // but only X0-X7 are used as arguments and return values

@@ -35,6 +35,7 @@
 
 #define NEED_CPU_REG_SHORTCUTS 1
 
+#define GDBSTUB_STOP_NO_REASON          (0xac0)
 static int last_stop_reason = GDBSTUB_STOP_NO_REASON;
 
 #define GDBSTUB_EXECUTION_BREAKPOINT    (0xac1)
@@ -245,7 +246,7 @@ void bx_gdbstub_break(void)
 
 int bx_gdbstub_check(uint64_t eip)
 {
-  if(!BX_CPU(0)->fuzzdebug_gdb)
+  if(!is_gdbstub_enabled())
       return 0;
   unsigned int i;
   unsigned char ch;
@@ -305,7 +306,7 @@ static int remove_breakpoint(uint64_t addr, int len)
   {
     if (breakpoints[i] == addr)
     {
-      verbose_printf("Removing breakpoint at " FMT_ADDRX64 "\n", addr);
+      verbose_printf("Removing breakpoint at %lx\n", addr);
       breakpoints[i] = 0;
       return(1);
     }
@@ -317,7 +318,7 @@ static void insert_breakpoint(uint64_t addr)
 {
   unsigned int i;
 
-  verbose_printf("Setting breakpoint at " FMT_ADDRX64 "\n", addr);
+  verbose_printf("Setting breakpoint at %lx\n", addr);
 
   for (i = 0; i < (unsigned)MAX_BREAKPOINTS; i++)
   {
@@ -351,7 +352,7 @@ static int remove_watchpoint(uint64_t addr) {
   for (unsigned i = 0; i < MAX_WATCHPOINTS; i++) {
     if (watchpoints[i].addr == addr) {
       watchpoints[i].addr = 0;
-      verbose_printf("Removed watchpoint at " FMT_ADDRX64 "\n", addr);
+      verbose_printf("Removed watchpoint at %lx\n", addr);
       return 1;
     }
   }
@@ -372,7 +373,7 @@ static int insert_watchpoint(uint64_t addr, uint8_t len, uint8_t rwa) {
       if (i >= nr_watchpoints) {
         nr_watchpoints = i + 1;
       }
-      verbose_printf("Set watchpoint at " FMT_ADDRX64 "\n", addr);
+      verbose_printf("Set watchpoint at %lx\n", addr);
       return 1;
     }
   }
@@ -421,7 +422,7 @@ static void do_breakpoint(int insert, char* buffer)
 
 int hp_gdbstub_mem_check(unsigned cpu,
     uint64_t lin, unsigned len, unsigned rw) {
-  if (!BX_CPU(0)->fuzzdebug_gdb) {
+  if (!is_gdbstub_enabled()) {
     return 0;
   }
 
@@ -458,9 +459,10 @@ static int access_linear(uint64_t laddress,
                         unsigned int rw,
                         uint8_t* data)
 {
-  bx_phy_address phys;
+  hp_phy_address phys;
   bool valid;
 
+#if defined(HP_BACKEND_BOCHS)
   if (((laddress & 0xfff) + len) > 4096)
   {
     valid = access_linear(laddress,
@@ -484,28 +486,10 @@ static int access_linear(uint64_t laddress,
   } else {
     valid = BX_MEM(0)->dbg_fetch_mem(BX_CPU(0), phys, len, data);
   }
+#endif
 
   return(valid);
 }
-
-#define RAX (BX_CPU_THIS_PTR gen_reg[0].rrx)
-#define RCX (BX_CPU_THIS_PTR gen_reg[1].rrx)
-#define RDX (BX_CPU_THIS_PTR gen_reg[2].rrx)
-#define RBX (BX_CPU_THIS_PTR gen_reg[3].rrx)
-#define RSP (BX_CPU_THIS_PTR gen_reg[4].rrx)
-#define RBP (BX_CPU_THIS_PTR gen_reg[5].rrx)
-#define RSI (BX_CPU_THIS_PTR gen_reg[6].rrx)
-#define RDI (BX_CPU_THIS_PTR gen_reg[7].rrx)
-#define R8  (BX_CPU_THIS_PTR gen_reg[8].rrx)
-#define R9  (BX_CPU_THIS_PTR gen_reg[9].rrx)
-#define R10 (BX_CPU_THIS_PTR gen_reg[10].rrx)
-#define R11 (BX_CPU_THIS_PTR gen_reg[11].rrx)
-#define R12 (BX_CPU_THIS_PTR gen_reg[12].rrx)
-#define R13 (BX_CPU_THIS_PTR gen_reg[13].rrx)
-#define R14 (BX_CPU_THIS_PTR gen_reg[14].rrx)
-#define R15 (BX_CPU_THIS_PTR gen_reg[15].rrx)
-
-#define RIP (BX_CPU_THIS_PTR gen_reg[BX_64BIT_REG_RIP].rrx)
 
 char last_seen_binary[1024] = { '\0' };
 
@@ -516,7 +500,7 @@ static void debug_loop(void)
   int ne = 0;
   uint8_t mem[1024 * 4];
 
-  while (ne == 0 && BX_CPU(0)->fuzz_executing_input)
+  while (ne == 0 && cpu0_get_fuzz_executing_input())
   {
     get_command(buffer);
     verbose_printf("get_buffer '%s'\n", buffer);
@@ -543,19 +527,18 @@ static void debug_loop(void)
 
           verbose_printf("continuing at %lx\n", new_rip);
 
-          BX_CPU(0)->invalidate_prefetch_q();
-
-          saved_rip = BX_CPU(0)->gen_reg[BX_64BIT_REG_RIP].rrx;
-          BX_CPU(0)->gen_reg[BX_64BIT_REG_RIP].rrx = new_rip;
+          cpu0_invalidate_prefetch();
+          saved_rip = cpu0_get_pc();
+          cpu0_set_pc(new_rip);
         }
 
         stub_trace_flag = 0;
-        BX_CPU(0)->cpu_loop();
+        cpu0_run_loop_and_ret();
 
         if (buffer[1] != 0)
         {
-          BX_CPU(0)->invalidate_prefetch_q();
-          BX_CPU(0)->gen_reg[BX_64BIT_REG_RIP].rrx = saved_rip;
+          cpu0_invalidate_prefetch();
+          cpu0_set_pc(saved_rip);
         }
 
         verbose_printf("stopped with %x\n", last_stop_reason);
@@ -565,7 +548,7 @@ static void debug_loop(void)
         {
           write_signal(&buf[1], SIGTRAP);
           addr_bin_name addr_bin_name;
-          addr_bin_name.addr = RIP;
+          addr_bin_name.addr = cpu0_get_pc();
           addr_to_sym(&addr_bin_name);
           const char *current_binary = addr_bin_name.bin;
           if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
@@ -592,7 +575,7 @@ static void debug_loop(void)
 
         verbose_printf("stepping\n");
         stub_trace_flag = 1;
-        bx_cpu.cpu_loop();
+        cpu0_run_loop_and_ret();
         stub_trace_flag = 0;
         verbose_printf("stopped with %x\n", last_stop_reason);
         buf[0] = 'S';
@@ -606,7 +589,7 @@ static void debug_loop(void)
           write_signal(&buf[1], SIGTRAP);
         }
         addr_bin_name addr_bin_name;
-        addr_bin_name.addr = RIP;
+        addr_bin_name.addr = cpu0_get_pc();
         addr_to_sym(&addr_bin_name);
         const char *current_binary = addr_bin_name.bin;
         if ((strlen(current_binary) > 1) && strncmp(last_seen_binary, current_binary, strlen(current_binary))) {
@@ -642,7 +625,7 @@ static void debug_loop(void)
         }
         else
         {
-          if (access_linear(addr, len, BX_WRITE, mem))
+          if (access_linear(addr, len, 1 /*for write*/, mem))
           {
             put_reply("OK");
           }
@@ -671,9 +654,9 @@ static void debug_loop(void)
 
         addr = strtoull(&buffer[1], &ebuf, 16);
         len = strtoul(ebuf + 1, NULL, 16);
-        verbose_printf("addr " FMT_ADDRX64 " len %x\n", addr, len);
+        verbose_printf("addr %lx len %x\n", addr, len);
 
-        access_linear(addr, len, BX_READ, mem);
+        access_linear(addr, len, 0/*for read*/, mem);
         mem2hex(mem, obuf, len);
         put_reply(obuf);
         break;
@@ -692,7 +675,7 @@ static void debug_loop(void)
         ++ebuf;
         value = read_little_endian_hex(ebuf);
 
-        verbose_printf("reg %d set to " FMT_ADDRX64 "\n", reg, value);
+        verbose_printf("reg %d set to %lx\n", reg, value);
         switch (reg)
         {
           case 0:
@@ -711,12 +694,11 @@ static void debug_loop(void)
           case 13:
           case 14:
           case 15:
-            BX_CPU_THIS_PTR set_reg64(reg, value);
+            cpu0_set_general_purpose_reg64(reg, value);
             break;
-
           case 16:
-            RIP = value;
-            BX_CPU_THIS_PTR invalidate_prefetch_q();
+            cpu0_set_pc(value);
+            cpu0_invalidate_prefetch();
             break;
 
           default:
@@ -735,29 +717,21 @@ static void debug_loop(void)
          (buf) = mem2hex((const uint8_t*)&u, (buf), (len)); \
       } while (0)
         char* buf = obuf;
-        PUTREG(buf, RAX, 8);
-        PUTREG(buf, RBX, 8);
-        PUTREG(buf, RCX, 8);
-        PUTREG(buf, RDX, 8);
-        PUTREG(buf, RSI, 8);
-        PUTREG(buf, RDI, 8);
-        PUTREG(buf, RBP, 8);
-        PUTREG(buf, RSP, 8);
-        PUTREG(buf, R8,  8);
-        PUTREG(buf, R9,  8);
-        PUTREG(buf, R10, 8);
-        PUTREG(buf, R11, 8);
-        PUTREG(buf, R12, 8);
-        PUTREG(buf, R13, 8);
-        PUTREG(buf, R14, 8);
-        PUTREG(buf, R15, 8);
+#if defined(HP_X86_64)
+        for (int i = 0; i < 16; i++) {
+#elif defined(HP_AARCH64)
+        for (int i = 0; i < 31; i++) {
+#endif
+          PUTREG(buf, cpu0_get_general_purpose_reg64(i), 8);
+        }
         uint64_t rip;
-        rip = RIP;
+        rip = cpu0_get_pc();
         if (last_stop_reason == GDBSTUB_EXECUTION_BREAKPOINT)
         {
           ++rip;
         }
         PUTREG(buf, rip, 8);
+#if defined(HP_X86_64)
         PUTREG(buf, BX_CPU_THIS_PTR read_eflags(), 4);
         PUTREG(buf, BX_CPU_THIS_PTR sregs[BX_SEG_REG_CS].selector.value, 4);
         PUTREG(buf, BX_CPU_THIS_PTR sregs[BX_SEG_REG_SS].selector.value, 4);
@@ -765,6 +739,7 @@ static void debug_loop(void)
         PUTREG(buf, BX_CPU_THIS_PTR sregs[BX_SEG_REG_ES].selector.value, 4);
         PUTREG(buf, BX_CPU_THIS_PTR sregs[BX_SEG_REG_FS].selector.value, 4);
         PUTREG(buf, BX_CPU_THIS_PTR sregs[BX_SEG_REG_GS].selector.value, 4);
+#endif
         put_reply(obuf);
         break;
       }
@@ -804,7 +779,7 @@ static void debug_loop(void)
       case 'q':
         if (buffer[1] == 'C')
         {
-          sprintf(obuf, FMT_ADDRX64, (uint64_t)1);
+          sprintf(obuf, "%016lx", (uint64_t)1);
           put_reply(obuf);
         }
         else if (strncmp(&buffer[1], "Offsets", strlen("Offsets")) == 0)
@@ -836,7 +811,7 @@ static void debug_loop(void)
         else if (strncmp(&buffer[1], "Xfer:exec-file:read::", strlen("Xfer:exec-file:read::")) == 0)
         {
           addr_bin_name addr_bin_name;
-          addr_bin_name.addr = RIP;
+          addr_bin_name.addr = cpu0_get_pc();
           addr_to_sym(&addr_bin_name);
           const char *current_binary = addr_bin_name.bin;
           sprintf(obuf, "l%s", current_binary);

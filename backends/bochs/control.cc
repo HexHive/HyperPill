@@ -22,3 +22,7 @@ void cpu0_run_loop(void) {
         BX_CPU(id)->cpu_loop();
     }
 }
+
+void cpu0_run_loop_and_ret(void) {
+    BX_CPU(id)->cpu_loop();
+}

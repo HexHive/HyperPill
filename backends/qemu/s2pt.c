@@ -33,7 +33,7 @@ bool gva2hpa(uint64_t gva, uint64_t *phy) {
 	return true;
 }
 
-void slat_locate_pc() {
+void s2pt_locate_pc() {
 	uint64_t phyaddr;
 
 	uint64_t faulty_va = aarch64_get_far_el2();

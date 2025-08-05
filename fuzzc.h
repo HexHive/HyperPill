@@ -33,6 +33,7 @@ void cpu0_set_fuzztrace(bool fuzztrace);
 bool cpu0_get_fuzz_executing_input(void);
 void cpu0_set_fuzz_executing_input(bool fuzzing);
 void cpu0_run_loop();
+void cpu0_run_loop_and_ret(void);
 
 // backends/xxx/breakpoints
 void apply_breakpoints_linux();
@@ -76,6 +77,7 @@ void icp_init_regs(const char* filename);
 void dump_regs();
 uint64_t cpu0_get_pc(void);
 void cpu0_set_pc(uint64_t rip);
+void cpu0_invalidate_prefetch();
 size_t init_random_register_data_len();
 bool cpu0_get_user_pl(void);
 void save_cpu();

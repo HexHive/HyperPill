@@ -1,9 +1,11 @@
 #include "fuzz.h"
 #include <cstdint>
 
+#if defined(HP_BACKEND_BOCHS)
 int in_timer_mode = 0;
 uint64_t timer_mod[5] = {0};
 bool hack_timer_mod = false;
+#endif
 
 bool master_fuzzer;
 bool verbose = 1;
@@ -149,7 +151,7 @@ void fuzz_interrupt(unsigned cpu, unsigned vector) {
 }
 
 void fuzz_after_execution(hp_instruction *i) {
-#if defined(HP_X86_64)
+#if defined(HP_BACKEND_BOCHS)
 	if (hack_timer_mod && i->getIaOpcode() == 0x4b8 /*CALL_Jq*/) {
 		static uint64_t rdi, rsi; // context
 		uint64_t rip = BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx;
@@ -402,6 +404,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	/* For symbol - > addr (for breakpoints)*/
 	if (getenv("SYMBOL_MAPPING")) {
 		load_symbol_map(getenv("SYMBOL_MAPPING"));
+#if defined(HP_BACKEND_BOCHS)
 		if (getenv("HACK_TIMER_MOD")) {
 			timer_mod[0] = sym_to_addr2("qemu-system", "timer_mod");
 			timer_mod[1] = sym_to_addr2("qemu-system", "timer_mod_anticipate");
@@ -410,6 +413,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 			timer_mod[4] = sym_to_addr2("qemu-system", "qemu_clock_get_ns");
 			hack_timer_mod = true;
 		}
+#endif
 	}
 
 	cpu0_tlb_flush();

@@ -204,6 +204,9 @@ bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
 	}
 }
 
+uint64_t cpu0_virt2phy(uint64_t start) {
+}
+
 void cpu0_mem_write_physical_page(hp_phy_address addr, size_t len, void *buf) {
 	cpu_physical_memory_write(addr, buf, len);
 }

@@ -23,3 +23,9 @@ void cpu0_run_loop() {
         main_loop_wait(false);
     }
 }
+
+void cpu0_run_loop_and_ret() {
+    vm_start();
+
+    main_loop_wait(false);
+}

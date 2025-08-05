@@ -281,6 +281,11 @@ void cpu0_set_pc(uint64_t rip) {
 	BX_CPU(id)->gen_reg[BX_64BIT_REG_RIP].rrx = rip;
 }
 
+
+void cpu0_invalidate_prefetch() {
+    BX_CPU(id)->invalidate_prefetch_q();
+}
+
 size_t init_random_register_data_len(void) {
     return 16 * 8 + (BX_XMM_REGISTERS + 1) * sizeof(BX_CPU(id)->vmm[0]);
 }

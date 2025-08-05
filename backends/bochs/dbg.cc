@@ -11,5 +11,5 @@ void icp_init_gdb(void) {
 }
 
 bool is_gdbstub_enabled() {
-	return bx_dbg.gdbstub_enabled;
+	return BX_CPU(id)->fuzzdebug_gdb;
 }
