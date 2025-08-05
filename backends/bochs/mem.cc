@@ -13,7 +13,7 @@
 
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
-#include "../fuzz.h"
+#include "fuzz.h"
 #include <openssl/md5.h>
 
 BX_MEM_C::BX_MEM_C() {}

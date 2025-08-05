@@ -53,22 +53,22 @@ VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \
 			  vendor/libfuzzer-ng/libFuzzer.a vendor/lib/pc_system.o
 VENDOR_OBJS =
 OBJS        = $(OBJS_GENERIC) \
-			  breakpoints.o \
-			  devices.o \
-			  ept.o \
-			  instrument.o \
-			  bochsapi/mem.o \
-			  regs.o \
-			  vmcs.o \
-              bochsapi/logfunctions.o \
-			  bochsapi/control.o \
-			  bochsapi/init.o \
-			  bochsapi/system.o \
-              bochsapi/siminterface.o \
-			  bochsapi/paramtree.o \
-			  bochsapi/gui.o \
-			  bochsapi/apic.o \
-              bochsapi/dbg.o
+			  backends/bochs/breakpoints.o \
+			  backends/bochs/devices.o \
+			  backends/bochs/ept.o \
+			  backends/bochs/control.o \
+			  backends/bochs/init.o \
+			  backends/bochs/instrument.o \
+			  backends/bochs/mem.o \
+			  backends/bochs/regs.o \
+			  backends/bochs/vmcs.o \
+              backends/bochs/logfunctions.o \
+			  backends/bochs/system.o \
+              backends/bochs/siminterface.o \
+			  backends/bochs/paramtree.o \
+			  backends/bochs/gui.o \
+			  backends/bochs/apic.o \
+              backends/bochs/dbg.o
 else
     $(error Unsupported backend: $(BACKEND))
 endif
@@ -120,6 +120,8 @@ else
 endif
 
 clean:
-	rm -rf vendor/bochs-build vendor/lib vendor/include
-	rm -rf bochsapi/*.o
-	rm -rf ./*.o
+	rm -rf ./*.o backend/bochs/*.o
+
+distclean: clean
+	rm -rf vendor/lib vendor/include
+	rm -rf vendor/bochs-build
