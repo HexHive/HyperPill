@@ -89,7 +89,8 @@ debian).
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
          libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
          build-essential libslirp-dev binutils-aarch64-linux-gnu \
-         python3 python3-pip python3-venv # Recent QEMU may require python3-venv
+         python3 python3-pip python3-venv \
+         libasound2-dev
 [L0] $ wget https://download.qemu.org/qemu-8.0.0.tar.bz2
 [L0] $ tar -xvf qemu-8.0.0.tar.bz2
 [L0] $ cd qemu
@@ -343,7 +344,8 @@ hypervisor running inside.
 [L0] sudo apt-get install -y cloud-utils xarchiver openssh-server git \
          libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev ninja-build \
          build-essential libslirp-dev binutils-aarch64-linux-gnu \
-         python3 python3-pip python3-venv # Recent QEMU may require python3-venv
+         python3 python3-pip python3-venv \
+         libasound2-dev
 [L0] wget https://download.qemu.org/qemu-8.2.7.tar.bz2
 [L0] tar xf qemu-8.2.7.tar.bz2
 [L0] cd qemu-8.2.7
