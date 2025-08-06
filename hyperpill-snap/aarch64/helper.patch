@@ -1,0 +1,56 @@
+From 88ed5dd300dc5fc8f6c58f70113a364f6082cc6d Mon Sep 17 00:00:00 2001
+From: Qiang Liu <cyruscyliu@gmail.com>
+Date: Thu, 1 May 2025 10:21:40 +0200
+Subject: [PATCH] stop vm at hvc
+
+---
+ target/arm/helper.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/target/arm/helper.c b/target/arm/helper.c
+index 9ff266a23..d6bc9f3d6 100644
+--- a/target/arm/helper.c
++++ b/target/arm/helper.c
+@@ -11092,6 +11092,8 @@ static bool syndrome_is_sync_extabt(uint32_t syndrome)
+     }
+ }
+ 
++extern int vm_stop(RunState state);
++
+ /* Handle exception entry to a target EL which is using AArch64 */
+ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+ {
+@@ -11103,6 +11105,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+     unsigned int old_mode;
+     unsigned int cur_el = arm_current_el(env);
+     int rt;
++    bool is_hvc = false;
+ 
+     if (tcg_enabled()) {
+         /*
+@@ -11170,6 +11173,8 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+     case EXCP_UDEF:
+     case EXCP_SWI:
+     case EXCP_HVC:
++        is_hvc = true;
++        /* fall through */
+     case EXCP_HYP_TRAP:
+     case EXCP_SMC:
+         switch (syn_get_ec(env->exception.syndrome)) {
+@@ -11291,6 +11296,13 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
+ 
+     qemu_log_mask(CPU_LOG_INT, "...to EL%d PC 0x%" PRIx64 " PSTATE 0x%x\n",
+                   new_el, env->pc, pstate_read(env));
++
++    if (is_hvc && new_el == 2) {
++      if (env->xregs[0] == 0xdeadbeef) {
++            printf("=== HYPERPILL HYPERCALL RECEIVED ===\n");
++            vm_stop(RUN_STATE_PAUSED);
++        }
++    }
+ }
+ 
+ /*
+-- 
+2.43.0
+

@@ -1,0 +1,326 @@
+#include <sys/mman.h>
+#include <cstdint>
+
+#include <elf.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+
+
+#include <tsl/robin_set.h>
+#include <tsl/robin_map.h>
+#include "fuzz.h"
+#include <openssl/md5.h>
+
+BX_MEM_C::BX_MEM_C() {}
+BX_MEM_C::~BX_MEM_C() {}
+
+static uint8_t watch_level = 0;
+static uint8_t* overlays[3];
+
+int shfd; // for overlay[0]
+char md5sum_chr[33]; // for overlay[0]
+int shm_open(const char *name, int oflag, mode_t mode);
+
+
+uint8_t *cow_bitmap;
+uint8_t *overlay_map; // 0: from shadowmem 1: from workershadowmem
+
+tsl::robin_set<bx_phy_address> dirtyset;
+
+static int memory_commit_level;
+
+size_t ndirty=0;
+
+static bx_address prioraccess;
+void fuzz_hook_memory_access(bx_address phy, unsigned len, 
+                             unsigned memtype, unsigned rw, void* data) {
+    bx_address aligned = phy&(~0xFFFLL);
+
+    /* printf("Memory access to %lx\n", phy); */
+    // Sometimes we might run instructions during initialization and we
+    // want them to be part of the snapshot.
+    if(watch_level<=1 || phy >= maxaddr)
+        return;
+
+    if(aligned == prioraccess)
+        return;
+
+    if(rw == BX_WRITE || rw == BX_RW) {
+        prioraccess = aligned;
+      // This stores the addr in the dirtyset (reset for each input) and makes a
+      // copy of the corresponding page in shadowset/shadowmem (persistent).
+      // Otherwise I run out of RAM on my machine :')
+      // When we do the actual fuzzing runs on beefier hardware, we should just
+      // make a complete shadow-copy on startup.
+      if (dirtyset.emplace(aligned).second) {
+          if(ndirty++>10000){
+              printf("Too many dirty pages. Early stop\n");
+              fuzz_emu_stop_unhealthy();
+          }
+      }
+    }
+
+    // used to identify DMA accesses in the guest
+    // contains a mapping for each host physical page, for whether it corresponds to a guest page
+    // if an access uses such an address, it is likely a DMA
+    if (rw == BX_READ && is_l2_page_bitmap[phy >> 12]) {
+        if(cpu0_get_fuzztrace()) {
+            /* printf(".dma inject: %lx +%lx ",phy, len); */
+        }
+        static void* hv = getenv("HYPERV");
+        if(cpu0_get_user_pl()|| hv)
+            fuzz_dma_read_cb(phy, len, data);
+      uint8_t data[len];
+      cpu0_mem_read_physical_page(phy, len, data);
+      prioraccess = -1;
+    }
+}
+
+void fuzz_clear_dirty() {
+    ndirty = 0;
+    dirtyset.clear();
+}
+
+void fuzz_watch_memory_inc() {
+    watch_level++;
+}
+
+static void notify_write(uint64_t addr){
+    size_t page = addr >> 12;
+    size_t aligned_addr = page << 12;
+    if(cow_bitmap[page] != watch_level) {
+        cow_bitmap[page] = watch_level;
+        memcpy(overlays[cow_bitmap[page]] + aligned_addr, overlays[overlay_map[page]]+aligned_addr, 0x1000);
+        if(watch_level < 2){
+            overlay_map[page] = watch_level;
+        }
+    }
+    /* printf("Page %lx now lives at %lx and is backed by %lx\n", page, cow_bitmap[page], overlay_map[page]); */
+}
+
+uint8_t* addr_conv(uint64_t addr){
+    /* printf("ADDR_CONV: %lx -> %lx [%d]\n", addr,overlays[cow_bitmap[addr>>12]]+addr, cow_bitmap[addr>>12]); */
+    return overlays[cow_bitmap[addr>>12]]+addr;
+}
+uint8_t* backing_addr(uint64_t addr){
+    return overlays[overlay_map[addr>>12]]+addr;
+}
+
+extern tsl::robin_map<bx_phy_address, bx_phy_address> persist_ranges;
+
+void fuzz_reset_memory() {
+    if(watch_level<=1)
+        return;
+    prioraccess=0;
+    for(const auto& key : dirtyset) {
+        size_t page = key >> 12;
+        if (persist_ranges.find(key) != persist_ranges.end()){
+            bx_phy_address start = persist_ranges[key] & 0xFFF;
+            bx_phy_address end = persist_ranges[key] >> 12;
+            memcpy(addr_conv(key), backing_addr(key), start);
+            memcpy(addr_conv(key+end), backing_addr(key+end), 0x1000-end);
+        } else {
+            memcpy(addr_conv(key), backing_addr(key), 0x1000);
+        }
+    }
+    fuzz_clear_dirty();
+    fuzz_reset_watched_pages();
+}
+
+
+void BX_MEM_C::writePhysicalPage(BX_CPU_C *cpu, bx_phy_address addr,
+    unsigned len, void *data)
+{
+
+    notify_write(addr);
+    fuzz_hook_memory_access(addr, len, 0, BX_WRITE, NULL) ;
+
+    memcpy(addr_conv(addr), data, len);
+
+    if (is_l2_pagetable_bitmap[addr >> 12] && watch_level > 1) {
+      fuzz_mark_l2_guest_page(addr, 0x1000);
+    }
+
+    return;
+}
+
+void BX_MEM_C::readPhysicalPage(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, void *data)
+{
+    memcpy(data, addr_conv(addr), len);
+    return;
+}
+
+Bit8u *BX_MEM_C::getHostMemAddr(BX_CPU_C *cpu, bx_phy_address addr, unsigned rw)
+{
+    if(rw!=BX_READ)
+        notify_write(addr);
+    return addr_conv(addr);
+}
+
+bool BX_MEM_C::dbg_fetch_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+{
+    readPhysicalPage(cpu, addr, len , buf);
+    return true;
+}
+
+bool BX_MEM_C::dbg_set_mem(BX_CPU_C *cpu, bx_phy_address addr, unsigned len, Bit8u *buf)
+{
+    notify_write(addr);
+    memcpy(addr_conv(addr), buf, len);
+    return true;
+}
+
+#if defined(__LP64__)
+#define ElfW(type) Elf64_ ## type
+#else
+#define ElfW(type) Elf32_ ## type
+#endif
+
+void _shm_unlink(void) {
+    if (shm_unlink(md5sum_chr) == -1) {
+        perror("shm_unlink");
+    } else {
+        printf("shm '%s' has been unlinked.\n", md5sum_chr);
+    }
+    close(shfd);
+}
+
+void icp_init_mem(const char *filename) {
+  // Either Elf64_Ehdr or Elf32_Ehdr depending on architecture.
+  struct stat statbuf;
+  ElfW(Ehdr) * ehdr;
+  ElfW(Phdr) *phdr = 0;
+  ElfW(Nhdr) *nhdr = 0;
+  unsigned char md5sum_hex[MD5_DIGEST_LENGTH];
+
+  FILE *file = fopen(filename, "rb");
+  if (file) {
+    fstat(fileno(file), &statbuf);
+
+    ehdr = (ElfW(Ehdr) *)mmap(0, statbuf.st_size, PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE, fileno(file), 0);
+
+    phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
+    for (int i = 0; i < ehdr->e_phnum; i++) {
+      if (phdr->p_vaddr + phdr->p_memsz > maxaddr && phdr->p_type == 1) {
+        maxaddr = phdr->p_vaddr + phdr->p_memsz;
+      }
+      ++phdr;
+    }
+    verbose_printf("Max Addr: %lx\n", maxaddr);
+    assert(maxaddr % 4096 == 0);
+
+    // Now that we know how much memory we need, do THREE mmaps:
+    // 3 layers 3 mmaps
+    // The first layer is shadowmem: this will contain the verbatim contents of the snapshot. This is mmapped from a shared file which is shared by all the workers. It is mapped read-only and should never be changed
+    // The second layer is workershadowmem: this is the per-worker memory that differs from shadowmem (i.e. dirtied by writes) but which should be persisted between writes
+    // The third layer is mem: this is the per-worker dirty memory which is used during fuzzing and should be reset after each input
+    overlays[2] = (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+                          MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    overlays[1]= (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+                          MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+    char *saved_md5sum_chr = getenv("ICP_MEM_MD5SUM");
+    if (saved_md5sum_chr) {
+        memcpy(md5sum_chr, saved_md5sum_chr, 32);
+    } else {
+        MD5((unsigned char*)ehdr, statbuf.st_size, md5sum_hex);
+        for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+            sprintf(md5sum_chr + (i * 2), "%02x", md5sum_hex[i]);
+        }
+    }
+    md5sum_chr[32] = '\0';
+    shfd = shm_open((const char*)md5sum_chr, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+    
+    if(lseek(shfd, 0L, SEEK_END) == 0){
+        lseek(shfd, 0L, SEEK_SET);
+        ftruncate(shfd, maxaddr);
+        overlays[0]= (uint8_t *)mmap(NULL, maxaddr, PROT_READ | PROT_WRITE,
+                MAP_SHARED, shfd, 0);
+
+        phdr = (ElfW(Phdr) *)(ehdr->e_phoff + (size_t)ehdr);
+        for (int i = 0; i < ehdr->e_phnum; i++) {
+            if (phdr->p_type == 1) {
+                memcpy(overlays[0] + phdr->p_vaddr, (uint8_t *)ehdr + phdr->p_offset,
+                        phdr->p_filesz);
+            }
+            ++phdr;
+        }
+    } else {
+        lseek(shfd, 0L, SEEK_SET);
+        overlays[0] = (uint8_t *)mmap(NULL, maxaddr, PROT_READ|PROT_WRITE,
+                MAP_SHARED, shfd, 0);
+    }
+
+    cow_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+    memset(cow_bitmap, 0, maxaddr >> 12);
+    
+    overlay_map = (uint8_t *)malloc(maxaddr >> 12);
+    memset(overlay_map, 0, maxaddr >> 12);
+
+    is_l2_page_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+    memset(is_l2_page_bitmap, 0, maxaddr >> 12);
+
+    is_l2_pagetable_bitmap = (uint8_t *)malloc(maxaddr >> 12);
+    memset(is_l2_pagetable_bitmap, 0, maxaddr >> 12);
+
+    munmap(ehdr, statbuf.st_size);
+    // finally close the file
+    fclose(file);
+
+  }
+}
+
+void cpu_physical_memory_read_fastpath(uint64_t addr, void* dest, size_t len){
+    memcpy(dest, addr_conv(addr), len);
+}
+
+void cpu_physical_memory_write_fastpath(uint64_t addr, const void* src, size_t len){
+    notify_write(addr);
+    memcpy(addr_conv(addr), src, len);
+}
+
+BOCHSAPI BX_MEM_C bx_mem;
+
+void cpu0_read_virtual(bx_address start, size_t size, void *data) {
+  BX_CPU(0)->access_read_linear(start, size, 0, BX_READ, 0x0, data);
+}
+
+void cpu0_write_virtual(bx_address start, size_t size, void *data) {
+  BX_CPU(0)->access_write_linear(start, size, 0, BX_WRITE, 0x0, data);
+}
+
+bool cpu0_read_instr_buf(size_t pc, uint8_t *instr_buf) {
+  bx_phy_address phy_addr;
+  /* BX_CPU(0)->access_read_linear(pc&(~0xFFFLL), 0x1000, 0, BX_READ, 0x0, instr_buf); */
+  bool valid = BX_CPU(0)->dbg_xlate_linear2phy(pc&(~0xFFFLL), &phy_addr);
+  if (valid) {
+    BX_MEM(0)->dbg_fetch_mem(BX_CPU_THIS, phy_addr, 4096, instr_buf);
+    return true;
+  } else
+    return false;
+}
+
+bx_phy_address cpu0_virt2phy(bx_address start) {
+  Bit32u lpf_mask = 0xfff; // 4K pages
+  Bit32u pkey = 0;
+  bx_phy_address phystart = BX_CPU(0)->translate_linear_long_mode(start, lpf_mask, pkey, 0, BX_READ);
+  return phystart;
+}
+
+void cpu0_mem_write_physical_page(bx_phy_address addr, size_t len, void *buf) {
+	BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, (void *)buf);
+}
+
+void cpu0_mem_read_physical_page(bx_phy_address addr, size_t len, void *buf) {
+	BX_MEM(0)->readPhysicalPage(BX_CPU(id), addr, len, buf);
+}
+
+void cpu0_tlb_flush(void) {
+	BX_CPU(id)->TLB_flush();
+}

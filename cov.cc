@@ -3,12 +3,12 @@
 #include <tsl/robin_map.h>
 #include <tsl/robin_set.h> 
 
-tsl::robin_map<bx_address, bool> ignore_edges;
-tsl::robin_set<bx_address> seen_edges;
-tsl::robin_map<bx_address, uint64_t> all_edges;
-tsl::robin_map<bx_address, uint64_t> edge_to_idx;
+tsl::robin_map<hp_address, bool> ignore_edges;
+tsl::robin_set<hp_address> seen_edges;
+tsl::robin_map<hp_address, uint64_t> all_edges;
+tsl::robin_map<hp_address, uint64_t> edge_to_idx;
 
-tsl::robin_set<bx_address> cur_input;
+tsl::robin_set<hp_address> cur_input;
 
 std::vector<std::pair<size_t, size_t>> pc_ranges;
 std::vector<std::pair<size_t, size_t>> our_stacktrace;
@@ -23,7 +23,7 @@ void add_pc_range(size_t base, size_t len) {
     pc_ranges.push_back(std::make_pair(base, len));
 }
 
-bool ignore_pc(bx_address pc) {
+bool ignore_pc(hp_address pc) {
     if (pc_ranges.size() == 0) // No ranges = fuzz everthing
         return false;
     if (ignore_edges.find(pc) == ignore_edges.end()) {
@@ -43,7 +43,7 @@ static size_t last_new = 0;
 
 void print_stacktrace(){
     printf("Stacktrace:\n");
-    if(our_stacktrace.empty())
+    if(empty_stacktrace())
         return;
     for (auto r = our_stacktrace.rbegin(); r != our_stacktrace.rend(); ++r)
     {
@@ -53,7 +53,7 @@ void print_stacktrace(){
     fflush(stderr);
 }
 
-void add_edge(bx_address prev_rip, bx_address new_rip) {
+void add_edge(hp_address prev_rip, hp_address new_rip) {
     time_t t;
 
     symbolize(new_rip);
@@ -78,8 +78,10 @@ void add_edge(bx_address prev_rip, bx_address new_rip) {
 
     if (seen_edges.emplace(new_rip).second) {
         time(&t);
-        auto s = addr_to_sym(new_rip);
-        printf("[%d] NEW_PC: %lx %s (%s)\n", t, new_rip, s.second.c_str(), s.first.c_str());
+        addr_bin_name addr_bin_name;
+        addr_bin_name.addr = new_rip;
+        addr_to_sym(&addr_bin_name);
+        printf("[%d] NEW_PC: %lx %s (%s +%d)\n", t, new_rip, addr_bin_name.bin, addr_bin_name.name, addr_bin_name.off);
         status |= (1 << 1); // new pc
     }
 }
@@ -94,16 +96,23 @@ void reset_cur_cov() {
     libfuzzer_coverage[0] = 1;
 }
 
-void fuzz_instr_cnear_branch_taken(bx_address branch_rip, bx_address new_rip) {
-    add_edge(branch_rip, new_rip);
+uint32_t get_sysret_status(void) { return status; }
+
+void reset_sysret_status(void) { status = 0; }
+
+void set_sysret_status(uint32_t new_status) { status = new_status; }
+
+void add_stacktrace(hp_address branch_rip, hp_address new_rip) {
+    our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
 }
 
-void fuzz_instr_cnear_branch_not_taken(bx_address branch_rip) {}
+void pop_stacktrace(void) {
+    our_stacktrace.pop_back();
+}
 
-uint32_t get_sysret_status() { return status; }
-
-void reset_sysret_status() { status = 0; }
-
+bool empty_stacktrace(void) {
+    return our_stacktrace.empty();
+}
 
 void fuzz_stacktrace(){
     /* if(master_fuzzer) */
@@ -113,35 +122,4 @@ void fuzz_stacktrace(){
     if(!log_crashes)
         return;
     print_stacktrace();
-
-}
-void fuzz_instr_ucnear_branch(unsigned what, bx_address branch_rip,
-                              bx_address new_rip) {
-    if (what == BX_INSTR_IS_SYSRET)
-        status |= 1; // sysret
-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl ) {
-        our_stacktrace.push_back(std::make_pair(branch_rip, new_rip));
-        /* fuzz_stacktrace(); */
-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl&& !our_stacktrace.empty()) {
-        our_stacktrace.pop_back();
-        /* fuzz_stacktrace(); */
-    }
-    add_edge(branch_rip, new_rip);
-}
-
-void fuzz_instr_far_branch(unsigned what, Bit16u prev_cs, bx_address prev_rip,
-                           Bit16u new_cs, bx_address new_rip) {
-    if (what == BX_INSTR_IS_SYSRET)
-        status |= 1; // sysret
-
-    if((what == BX_INSTR_IS_CALL || what == BX_INSTR_IS_CALL_INDIRECT) && BX_CPU(0)->user_pl) {
-        our_stacktrace.push_back(std::make_pair(prev_rip, new_rip));
-        /* fuzz_stacktrace(); */
-    } else if (what == BX_INSTR_IS_RET && BX_CPU(0)->user_pl && !our_stacktrace.empty()) {
-        our_stacktrace.pop_back();
-        /* fuzz_stacktrace(); */
-    }
-
-    if (what == BX_INSTR_IS_IRET && (new_rip >> 63) == 0)
-        add_edge(prev_rip, new_rip);
 }

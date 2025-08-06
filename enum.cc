@@ -12,8 +12,10 @@
 #include <tsl/robin_set.h>
 #include <tsl/robin_map.h>
 
-std::vector<std::tuple<bx_address, bx_address, unsigned int>> ept_exit_ranges; // Start, Base, Reason
+std::vector<std::tuple<hp_address, hp_address, unsigned int>> slat_exit_ranges; // Start, Base, Reason
 
+#if defined(HP_X86_64)
+static
 std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icounts) {
     // calculate icounts with lowest frequency
     std::unordered_map<uint32_t, uint32_t> frequencies;
@@ -54,6 +56,7 @@ std::vector<bool> identify_ports_by_icount_frequency(std::vector<uint32_t> icoun
     return pio_regions;
 }
 
+static
 std::vector<bool> identify_ports_by_icount_distribution(
         std::vector<uint32_t> icounts) {
     std::vector<bool> pio_regions(0xFFFF+1, 0);
@@ -79,17 +82,7 @@ std::vector<bool> identify_ports_by_icount_distribution(
     return pio_regions;
 }
 
-// read number of whitespaces at the start of a line
-uint32_t get_indentation(std::string line) {
-    uint32_t indentation = 0;
-    for (auto& c : line) {
-        if (c == ' ')
-            indentation++;
-    }
-    return indentation;
-}
-
-
+static
 std::vector<uint32_t> get_pio_icounts() {
     // idealy, we sum the icounts of injected pio read and write
     // however, out to port 0x20 in KVM results in an infinite loop
@@ -103,7 +96,7 @@ std::vector<uint32_t> get_pio_icounts() {
         inject_in(i, 0);
         start_cpu();
         icount_read = get_pio_icount();
-        reset_bx_vm();
+        reset_vm();
 
         pio_icounts[i] = icount_read + icount_write;
         printf("Port %x %lx\n", i, pio_icounts[i]);
@@ -116,6 +109,7 @@ std::vector<uint32_t> get_pio_icounts() {
     return pio_icounts;
 }
 
+static
 std::map<uint16_t, uint16_t> merge_pio_regions(std::vector<bool> pio_regions) {
     std::map<uint16_t, uint16_t> regions;
 
@@ -149,10 +143,12 @@ void enum_pio_regions() {
         insert_pio(a.first, a.second);
     }
 }
+#endif
 
+#if defined(HP_X86_64)
 void enum_handle_ept_gap(unsigned int gap_reason,
-        bx_address gap_start, bx_address gap_end) {
-    ept_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
+        hp_address gap_start, hp_address gap_end) {
+    slat_exit_ranges.push_back(std::make_tuple(gap_start, gap_end, gap_reason));
     if(gap_reason == VMX_VMEXIT_EPT_MISCONFIGURATION) 
         printf("%lx +%lx Potential Misconfig\n", gap_start, gap_end - gap_start);
     else if(gap_reason == VMX_VMEXIT_EPT_VIOLATION)
@@ -160,17 +156,30 @@ void enum_handle_ept_gap(unsigned int gap_reason,
     else
         abort();
 }
+#elif defined(HP_AARCH64)
+void enum_handle_s2pt_gap(unsigned int gap_reason,
+        hp_address gap_start, hp_address gap_end) {
+#define EXCP_DATA_ABORT      4
+    if(gap_reason == EXCP_DATA_ABORT)
+        printf("%lx +%lx Potential Data Abort\n", gap_start, gap_end - gap_start);
+    // TODO
+}
+#endif
 
 void enum_mmio_regions(void) {
     tsl::robin_set<uint64_t> seen_icounts;
-    std::vector<std::pair<bx_address,bx_address>> mmio_ranges;
-    bx_address mmio_start = 0;
-    for (auto &a : ept_exit_ranges){
-        bx_address addr = std::get<0>(a);
-        bx_address base = addr;
-        bx_address end = std::get<1>(a);
+    std::vector<std::pair<hp_address,hp_address>> mmio_ranges;
+    hp_address mmio_start = 0;
+    for (auto &a : slat_exit_ranges){
+        hp_address addr = std::get<0>(a);
+        hp_address base = addr;
+        hp_address end = std::get<1>(a);
         unsigned int reason = std::get<2>(a);
+#if defined(HP_X86_64)
         printf("EPT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, reason == VMX_VMEXIT_EPT_MISCONFIGURATION ? "misconfig":"violation");
+#elif defined(HP_AARCH64)
+        printf("S2PT Exit Range: 0x%lx - 0x%lx (%s)\n", addr, end, "data abort");
+#endif
         while(addr < end && addr - base < 0x10000000) { 
             bool new_icount = 0;
             inject_write(addr, 2,1);
@@ -199,7 +208,7 @@ void enum_mmio_regions(void) {
             }
 
             reset_sysret_status();
-            reset_bx_vm();
+            reset_vm();
             reset_cur_cov();
         }
         if (mmio_start) {

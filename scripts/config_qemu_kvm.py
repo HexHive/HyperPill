@@ -81,7 +81,7 @@ def create_all_fuzzing_configs(project_root, snapshot_base):
         if not filename.endswith(".sh"):
             continue
         try:
-            target = filename.rsplit("_", 1)[1].removesuffix(".sh")
+            target = filename.removesuffix(".sh")
         except IndexError:
             print(f"Warning: Skipping unrecognized config filename: {filename}")
             continue

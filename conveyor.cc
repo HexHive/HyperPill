@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "conveyor.h"
-#include <x86intrin.h>
 #include <stdio.h>
 
 #ifndef DEBUG                                                                    

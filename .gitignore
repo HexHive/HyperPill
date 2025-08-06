@@ -19,6 +19,8 @@ scripts/__pycache__/
 vendor/bochs-build/
 vendor/lib
 vendor/include
+vendor/qemu
+vendor/qemu-build
 
 # /bochs/
 /bochs/Makefile
@@ -137,3 +139,7 @@ vendor/include
 /sfsite/tmp
 /sfsite/xcf
 /sfsite/.glimpse*
+
+# qemu
+Makefile.qemu.env
+Makefile.qemu.rsync

@@ -15,24 +15,47 @@ static std::map<std::pair<std::string, std::string>, uint64_t> sym2addr;
 
 // todo: dynamic libc symbols for stuff like exit etc
 // Strategy: Run objdump on the binary. Load the
-bx_address sym_to_addr(std::string bin, std::string name) {
+bool sym_to_addr(addr_bin_name *addr_bin_name) {
+    std::string bin(addr_bin_name->bin);
+    std::string name(addr_bin_name->name);
     for(auto it: bins) {
         if(it.find(bin) != std::string::npos){
-            return sym2addr[std::make_pair(std::string(it), name)];
+            addr_bin_name->addr = sym2addr[std::make_pair(std::string(it), name)];
+            return true;
         }
     }
-    return NULL;
+    addr_bin_name->addr = NULL;
+    return false;
 }
 
-std::pair<std::string, std::string> addr_to_sym(size_t addr) {
-    if(addr2sym.find(addr) != addr2sym.end())
-        return addr2sym[addr][0];
+uint64_t sym_to_addr2(const char *bin, const char *name) {
+    addr_bin_name addr_bin_name;
+    addr_bin_name.bin = bin;
+    addr_bin_name.name = name;
+    sym_to_addr(&addr_bin_name);
+    return addr_bin_name.addr;
+}
+
+bool addr_to_sym(addr_bin_name *addr_bin_name) {
+    size_t addr = addr_bin_name->addr;
+    if(addr2sym.find(addr) != addr2sym.end()) {
+        addr_bin_name->bin = addr2sym[addr][0].first.c_str();
+        addr_bin_name->name = addr2sym[addr][0].second.c_str();
+        addr_bin_name->off = 0;
+        return true;
+    }
     for(int i =0; i<0x1000; i++){
         if(addr2sym.find(addr-i) != addr2sym.end()){
-            return std::make_pair(addr2sym[addr-i][0].first, addr2sym[addr-i][0].second + " +"+std::to_string(i));
+            addr_bin_name->bin = addr2sym[addr-i][0].first.c_str();
+            addr_bin_name->name = addr2sym[addr-i][0].second.c_str();
+            addr_bin_name->off = i;
+            return true;
         }
     }
-    return std::make_pair("", "");
+    addr_bin_name->bin = NULL;
+    addr_bin_name->name = NULL;
+    addr_bin_name->off = 0;
+    return false;
 }
 
 static std::string executeCommand(const char* cmd) {
@@ -50,7 +73,7 @@ static std::string executeCommand(const char* cmd) {
 // Function to parse the output of 'nm' command and construct map of addresses to symbol names
 static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPath) {
     std::map<std::string, size_t> symbolMap;
-    std::string nmOutput = executeCommand(("nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
+    std::string nmOutput = executeCommand((NM_PREFIX"nm -n -C -a " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
     size_t pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);
@@ -63,7 +86,7 @@ static std::map<std::string, size_t> get_symbol_map(const std::string& binaryPat
             symbolMap.emplace(name, strtoull(address.c_str(), NULL, 16));
         }
     }
-    nmOutput = executeCommand(("nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
+    nmOutput = executeCommand((NM_PREFIX"nm -n -C -a -D " + binaryPath + "| grep -e ' t ' -e ' T ' -e ' B '").c_str());
     pos = 0;
     while ((pos = nmOutput.find("\n")) != std::string::npos) {
         std::string line = nmOutput.substr(0, pos);
@@ -137,7 +160,7 @@ void load_symbol_map(char *path) {
             }
         }
     }
-    printf("sym2addr: vmlinux, init_task %lx\n", sym_to_addr("vmlinux", "init_task"));
-    printf("sym2addr: vmlinux, dump_stack %lx\n", sym_to_addr("vmlinux", "dump_stack"));
-    printf("sym2addr: vmlinux, do_idle %lx\n", sym_to_addr("vmlinux", "do_idle"));
+    printf("sym2addr: vmlinux, init_task %lx\n", sym_to_addr2("vmlinux", "init_task"));
+    printf("sym2addr: vmlinux, dump_stack %lx\n", sym_to_addr2("vmlinux", "dump_stack"));
+    printf("sym2addr: vmlinux, do_idle %lx\n", sym_to_addr2("vmlinux", "do_idle"));
 }
