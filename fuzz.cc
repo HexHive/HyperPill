@@ -124,7 +124,6 @@ void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 }
 
 unsigned int num_mmio_regions() {
-	assert(mmio_regions.size());
 	return mmio_regions.size();
 }
 
@@ -958,4 +957,9 @@ void init_regions(const char *path) {
 	} else {
 		load_regions();
 	}
+#if defined(HP_X86_64)
+	assert(((num_mmio_regions() == 0) && (num_pio_regions() == 0)) == 0);
+#else
+	assert(num_mmio_regions());
+#endif
 }
