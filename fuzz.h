@@ -47,6 +47,9 @@ void vmcs_fixup();
 void clear_seen_dma();
 unsigned int num_mmio_regions();
 #if defined(HP_X86_64)
+unsigned int num_pio_regions();
+#endif
+#if defined(HP_X86_64)
 bool inject_halt();
 #endif
 bool inject_write(hp_address addr, int size, uint64_t val);
@@ -98,8 +101,8 @@ void reset_cur_cov();
 void open_db(const char* path);
 void insert_mmio(uint64_t addr, uint64_t len);
 void insert_pio(uint16_t addr, uint16_t len);
-void load_regions(std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
-void load_manual_ranges(char* range_file, char* range_regex, std::map<uint16_t, uint16_t> &pio_regions, std::map<hp_address, uint32_t> &mmio_regions);
+void load_regions();
+void load_manual_ranges(char* range_file, char* range_regex);
 
 // enum.cc
 #if defined(HP_X86_64)

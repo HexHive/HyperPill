@@ -30,7 +30,9 @@ enum cmds {
 static bool log_ops = false;
 
 std::map<hp_address, uint32_t> mmio_regions;
+#if defined(HP_X86_64)
 std::map<uint16_t, uint16_t> pio_regions;
+#endif
 
 static tsl::robin_map<hp_address, size_t> seen_dma;
 uint16_t dma_start = 0;
@@ -141,7 +143,7 @@ static hp_address mmio_region_size(hp_address addr) {
 }
 
 #if defined(HP_X86_64)
-static unsigned int num_pio_regions() {
+unsigned int num_pio_regions() {
 	return pio_regions.size();
 }
 
@@ -952,9 +954,8 @@ void init_regions(const char *path) {
 
 	if (getenv("MANUAL_RANGES")) {
 		load_manual_ranges(getenv("MANUAL_RANGES"),
-				   getenv("RANGE_REGEX"), pio_regions,
-				   mmio_regions);
+				   getenv("RANGE_REGEX"));
 	} else {
-		load_regions(pio_regions, mmio_regions);
+		load_regions();
 	}
 }
