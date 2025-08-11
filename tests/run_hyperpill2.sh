@@ -41,4 +41,5 @@ export ICP_DB_PATH="$SNAPSHOT_BASE/snap.sqlite"
 
 cp "$PROJECT_ROOT/tests/$poc" .
 # gdb --args \
+exec \
 ./$poc
