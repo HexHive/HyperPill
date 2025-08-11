@@ -1,7 +1,7 @@
 #include "qemu.h"
 
 void icp_init_backend() {
-	int qemu_argc = 22;
+	int qemu_argc = 18;
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
 		"-nographic",
@@ -13,8 +13,6 @@ void icp_init_backend() {
         "-global", "migration.send-configuration=off",
         "-global", "migration.store-global-state=off",
         "-global", "migration.send-section-footer=off",
-		"-netdev", "user,id=net0",
-		"-device", "virtio-net-device,netdev=net0",
 		NULL
 	};
     qemu_init(qemu_argc, qemu_argv);
