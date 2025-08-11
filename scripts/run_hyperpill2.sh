@@ -19,8 +19,8 @@ else
 LIBFUZZER_FLAGS="$crash"
 fi
 
-if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
-    echo "None of the environment variables KVM, HYPERV, or MACOS are set. Exiting."
+if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" && -z "$SEL4" ]]; then
+    echo "None of the environment variables KVM, HYPERV, MACOS, or SEL4 are set. Exiting."
     exit 1
 fi
 

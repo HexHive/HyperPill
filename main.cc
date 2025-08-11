@@ -450,6 +450,9 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #endif
 		apply_breakpoints_linux();
     }
+	if (getenv("SEL4")) {
+		apply_breakpoints_seL4();
+	}
 
 	/*
 	 * make a copy of the CPU state, which we use to reset the CPU

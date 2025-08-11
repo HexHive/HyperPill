@@ -155,6 +155,8 @@ void aarch64_set_esr_el2_for_data_abort(int sas, int srt, int write_or_read) {
         | (wnr <<  6) // ?, 0 for read and 1 for write
         | (fsc <<  0) // 6, traslation fault, level 2
         ;
+        // seL4 reserves the high 32 bits
+        env->cp15.esr_el[2] &= 0xffffffffull;
 }
 
 void aarch64_set_far_el2(uint64_t far) {

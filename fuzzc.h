@@ -37,6 +37,7 @@ void cpu0_run_loop_and_ret(void);
 
 // backends/xxx/breakpoints
 void apply_breakpoints_linux();
+void apply_breakpoints_seL4();
 
 // backends/xxx/dbg
 void icp_init_gdb();

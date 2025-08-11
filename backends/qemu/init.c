@@ -2,12 +2,20 @@
 
 void icp_init_backend() {
 	int qemu_argc = 18;
+	const char *m, *cpu;
+	if (getenv("SEL4")) {
+		m = "2048";
+		cpu = "cortex-a53";
+	} else {
+		m = "8192";
+		cpu = "max";
+	}
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
 		"-nographic",
 		"-smp", "1",
-		"-m", "8192", // TODO: we assume at most 8G?
-		"-cpu", "max",
+		"-m", m,
+		"-cpu", cpu,
         "-L", "pc-bios",
 		"-M", "virt,virtualization=on,suppress-vmdesc=on",
         "-global", "migration.send-configuration=off",
