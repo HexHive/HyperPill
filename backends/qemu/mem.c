@@ -164,6 +164,10 @@ void fuzz_reset_memory() {
 void icp_init_mem(const char *filename) {
 	Error *err = NULL;
 	hp_load_devices_state(filename, &err);
+    if (err) {
+        error_reportf_err(err, "Error: ");
+        exit(1);
+    }
 
 	RAMBlock *ram_block;
 	RAMBLOCK_FOREACH(ram_block) {

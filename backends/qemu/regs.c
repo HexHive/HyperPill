@@ -3,6 +3,10 @@
 void icp_init_regs(const char* filename) {
     Error *err = NULL;
     hp_load_devices_state(filename, &err);
+    if (err) {
+        error_reportf_err(err, "Error: ");
+        exit(1);
+    }
 }
 
 void dump_regs() {
