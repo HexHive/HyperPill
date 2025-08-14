@@ -42,6 +42,10 @@ void apply_breakpoints_seL4();
 // backends/xxx/dbg
 void icp_init_gdb();
 bool is_gdbstub_enabled();
+void hp_gdbstub_debug_loop();
+#if defined(HP_BACKEND_BOCHS)
+int bx_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);
+#endif
 
 // backends/xxx/init
 void icp_init_backend();

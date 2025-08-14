@@ -66,8 +66,7 @@ OBJS_GENERIC= \
 			  slat.o \
 			  sourcecov.o \
 			  sym2addr_linux.o \
-			  symbolize.o \
-			  gdbstub.o
+			  symbolize.o
 
 ifeq ($(BACKEND), bochs)
 VENDOR_LIBS = vendor/lib/libdebug.a vendor/lib/libcpu.a vendor/lib/libcpudb.a \

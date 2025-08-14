@@ -152,7 +152,4 @@ void load_symbol_map(char *path);
 void load_symbolization_files(char* path);
 void symbolize(size_t pc);
 
-void hp_gdbstub_debug_loop();
-int hp_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);
-
 #endif

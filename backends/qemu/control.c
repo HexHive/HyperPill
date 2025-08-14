@@ -18,9 +18,14 @@ bool cpu0_get_fuzz_executing_input(void) {
 
 void cpu0_run_loop() {
     vm_start();
+    if (is_gdbstub_enabled()) {
+        runstate_set(RUN_STATE_PAUSED);
+    }
+
+    int status;
 
     while (cpu0_get_fuzz_executing_input()) {
-        main_loop_wait(false);
+        status = qemu_main_loop();
     }
 }
 

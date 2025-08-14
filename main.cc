@@ -59,8 +59,9 @@ void start_cpu() {
 	}
 	reset_op_cov();
 	cpu0_set_fuzz_executing_input(true);
-	if (is_gdbstub_enabled())
+	if (is_gdbstub_enabled()) {
 		hp_gdbstub_debug_loop();
+	}
 	cpu0_run_loop();
 	if (fuzz_unhealthy_input || fuzz_do_not_continue)
 		return;
@@ -450,9 +451,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #endif
 		apply_breakpoints_linux();
     }
+#if defined(HP_AARCH64)
 	if (getenv("SEL4")) {
 		apply_breakpoints_seL4();
 	}
+#endif
 
 	/*
 	 * make a copy of the CPU state, which we use to reset the CPU

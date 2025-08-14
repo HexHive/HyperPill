@@ -2,7 +2,7 @@
 
 void bx_instr_lin_access(unsigned cpu, bx_address lin, bx_address phy,
                          unsigned len, unsigned memtype, unsigned rw, void *dataptr) {
-  hp_gdbstub_mem_check(cpu, lin, len, rw);
+  bx_gdbstub_mem_check(cpu, lin, len, rw);
   fuzz_hook_memory_access(phy, len, memtype, rw, dataptr);
 }
 void bx_instr_phy_access(unsigned cpu, bx_address phy, unsigned len,
