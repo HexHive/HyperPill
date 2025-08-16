@@ -1,7 +1,7 @@
 #include "qemu.h"
 
 void icp_init_backend() {
-	int qemu_argc = 18;
+	int qemu_argc = 21;
 	const char *m, *cpu;
 	if (getenv("SEL4")) {
 		m = "2048";
@@ -12,7 +12,8 @@ void icp_init_backend() {
 	}
 	char *qemu_argv[] = {
 		"qemu-system-aarch64",
-		"-nographic",
+		"-chardev", "stdio,id=char0,signal=on",
+		"-serial", "chardev:char0",
 		"-smp", "1",
 		"-m", m,
 		"-cpu", cpu,
@@ -29,4 +30,8 @@ void icp_init_backend() {
     arm_register_pre_el_change_hook(ARM_CPU(QEMU_CPU(0)), pre_el_change_fn, NULL);
     register_exec_tb_cb(before_exec_tb_fn, after_exec_tb_fn);
 	hp_qemu_plugin_load();
+
+    signal(SIGINT, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
 }
