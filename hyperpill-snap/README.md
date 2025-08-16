@@ -484,7 +484,7 @@ To do so, execute in L2 to expose an interface to userspace
 [L2] $ lspci -v
 # Copy the output of the above command to /path/to/snapshots/dir/lspci
 
-[L2] insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
+[L2] $ insmod /lib/modules/6.1.44/extra/dummy_hvc.ko
 
 # In L2, we use the following tool to trigger a snapshot.
 # We include snap in rootfs.cpio.gz

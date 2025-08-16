@@ -4,6 +4,8 @@ Download seL4's libvmm
 
 ```
 git clone https://github.com/au-ts/libvmm
+git submodule update --init
+sudo apt install -y make clang lld llvm qemu-system-arm device-tree-compiler
 cd examples/virtio
 ```
 
