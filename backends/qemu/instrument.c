@@ -57,9 +57,6 @@ void before_exec_tb_fn(int cpu_index, TranslationBlock *tb) {
     if(tb == NULL)
         return;
     qemu_tb_before_execution(tb);
-    if (!cpu0_get_fuzz_executing_input()) {
-        vm_stop(RUN_STATE_RESTORE_VM);
-    }
 }
 
 void qemu_tb_after_execution(TranslationBlock *tb) {
