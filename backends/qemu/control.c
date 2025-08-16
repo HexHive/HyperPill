@@ -26,6 +26,9 @@ void cpu0_run_loop() {
 
     while (cpu0_get_fuzz_executing_input()) {
         status = qemu_main_loop();
+        if (status) {
+            fuzz_emu_stop_normal();
+        }
     }
 }
 
