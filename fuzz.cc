@@ -6,19 +6,35 @@
 enum cmds {
 	OP_READ,
 	OP_WRITE,
+#if defined(HP_X86_64)
 	OP_IN,
 	OP_OUT,
 	OP_PCI_WRITE,
 	OP_MSR_WRITE,
+#endif
 	OP_VMCALL,
 };
+#define FUZZ_LEGACY_S    OP_READ
+#if defined(HP_X86_64)
+#define FUZZ_LEGACY_E    OP_OUT
+#elif defined(HP_AARCH64)
+#define FUZZ_LEGACY_E    OP_WRITE
+#endif
+#if defined(HP_X86_64)
+#define FUZZ_HYPERCALL_S OP_MSR_WRITE
+#elif defined(HP_AARCH64)
+#define FUZZ_HYPERCALL_S OP_VMCALL
+#endif
+#define FUZZ_HYPERCALL_E OP_VMCALL
 
 static bool log_ops = false;
 
-std::map<bx_address, uint32_t> mmio_regions;
+std::map<hp_address, uint32_t> mmio_regions;
+#if defined(HP_X86_64)
 std::map<uint16_t, uint16_t> pio_regions;
+#endif
 
-static tsl::robin_map<bx_address, size_t> seen_dma;
+static tsl::robin_map<hp_address, size_t> seen_dma;
 uint16_t dma_start = 0;
 uint16_t dma_len = 0;
 
@@ -57,7 +73,7 @@ void clear_seen_dma() {
 	seen_dma.clear();
 }
 
-void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
+void fuzz_dma_read_cb(hp_phy_address addr, unsigned len, void *data) {
 	uint8_t *buf;
 
 	if (!fuzzing)
@@ -85,11 +101,11 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 	        fuzz_emu_stop_unhealthy();
 			return;
 		}
-		if (BX_CPU(id)->fuzztrace || log_ops) {
+		if (cpu0_get_fuzztrace() || log_ops) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, l, (void *)buf);
+		cpu0_mem_write_physical_page(addr, l, (void *)buf);
 		memcpy(data, buf, l);
 	} else if (sectionlen > 0x1000) {
 	} else {
@@ -97,13 +113,13 @@ void fuzz_dma_read_cb(bx_phy_address addr, unsigned len, void *data) {
 		size_t source = addr + len + 1 - sectionlen;
 		if ((source + len) >> 12 != (source >> 12))
 			source -= len;
-		BX_MEM(0)->readPhysicalPage(BX_CPU(id), source, len, buf);
+		cpu0_mem_read_physical_page(source, len, buf);
 
-		if (BX_CPU(id)->fuzztrace || log_ops) {
+		if (cpu0_get_fuzztrace() || log_ops) {
 			printf("!dma inject: [HPA: %lx, GPA: %lx] len: %lx data: ",
 			       addr, lookup_gpa_by_hpa(addr), len);
 		}
-		BX_MEM(0)->writePhysicalPage(BX_CPU(id), addr, len, buf);
+		cpu0_mem_write_physical_page(addr, len, buf);
 	}
 }
 
@@ -111,7 +127,7 @@ unsigned int num_mmio_regions() {
 	return mmio_regions.size();
 }
 
-static bx_address mmio_region(int idx) {
+static hp_address mmio_region(int idx) {
 	for (auto &it : mmio_regions) {
 		if (idx == 0) {
 			return it.first;
@@ -121,11 +137,12 @@ static bx_address mmio_region(int idx) {
 	return 0;
 }
 
-static bx_address mmio_region_size(bx_address addr) {
+static hp_address mmio_region_size(hp_address addr) {
 	return mmio_regions[addr];
 }
 
-static unsigned int num_pio_regions() {
+#if defined(HP_X86_64)
+unsigned int num_pio_regions() {
 	return pio_regions.size();
 }
 
@@ -141,20 +158,24 @@ static uint16_t pio_region(int idx) {
 static uint16_t pio_region_size(uint16_t addr) {
 	return pio_regions[addr];
 }
+#endif
 
+#if defined(HP_X86_64)
 bool inject_halt() {
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_HLT);
 	BX_CPU(id)->VMwrite32(VMCS_VMEXIT_QUALIFICATION, 0);
 	return true;
 }
+#endif
 
 // INJECTORS
-bool inject_write(bx_address addr, int size, uint64_t val) {
+bool inject_write(hp_address addr, int size, uint64_t val) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
+#if defined(HP_X86_64)
 	BX_CPU(id)->VMwrite64(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
 
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	/* printf("Exit reason: %lx\n", exit_reason); */
 	if (!exit_reason)
 		return false;
@@ -168,12 +189,12 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, addr);
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, val);
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!write%d %lx %lx (reason: %lx)\n", size, addr, val,
 		       exit_reason);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -182,29 +203,52 @@ bool inject_write(bx_address addr, int size, uint64_t val) {
 	switch (size) {
 	case Byte:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu_physical_memory_write(phy, "\x88\x02", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x88\x02", 2);
 		break;
 	case Word:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x66\x89\x02", 3);
+		cpu_physical_memory_write_fastpath(phy, "\x66\x89\x02", 3);
 		break;
 	case Long:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
-		cpu_physical_memory_write(phy, "\x89\x02", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x89\x02", 2);
 		break;
 	case Quad:
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
-		cpu_physical_memory_write(phy, "\x48\x89\x02", 3);
+		cpu_physical_memory_write_fastpath(phy, "\x48\x89\x02", 3);
 		break;
 	}
+#elif defined(HP_AARCH64)
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	cpu0_set_general_purpose_reg64(1, val);
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!write%d %lx %lx\n", size, addr, val);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(Byte, 1, 1); // question
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(Word, 1, 1);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(Long, 1, 1);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(Quad, 1, 1);
+		break;
+	}
+#endif
 	return true;
 }
 
-bool inject_read(bx_address addr, int size) {
+bool inject_read(hp_address addr, int size) {
 	enum Sizes { Byte, Word, Long, Quad, end_sizes };
 
+#if defined(HP_X86_64)
 	uint32_t exit_reason =
-		vmcs_translate_guest_physical_ept(addr, NULL, NULL);
+		gpa2hpa(addr, NULL, NULL);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, exit_reason);
 
 	BX_CPU(id)->VMwrite32(VMCS_64BIT_GUEST_PHYSICAL_ADDR, addr);
@@ -216,11 +260,11 @@ bool inject_read(bx_address addr, int size) {
 
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RCX, addr);
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!read%d %lx\n", size, addr);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -228,45 +272,67 @@ bool inject_read(bx_address addr, int size) {
 	}
 	switch (size) {
 	case Byte:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x8a\x01", // mov al,BYTE PTR
 							  // [ecx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x66\x8b\x01", // mov ax,WORD PTR
 							      // [ecx]
 					  4);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 4);
 		break;
 	case Long:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x67\x8b\x01", // mov eax,DWORD PTR
 							  // [ecx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	case Quad:
-		cpu_physical_memory_write(phy,
+		cpu_physical_memory_write_fastpath(phy,
 					  "\x48\x8b\x01", // mov rax,QWORD PTR
 							  // [rcx]
 					  3);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 		break;
 	}
+#elif defined(HP_AARCH64)
+	aarch64_set_far_el2(addr & 0xfff);
+	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	if (cpu0_get_fuzztrace() || log_ops) {
+		printf("!read%d %lx\n", size, addr);
+	}
+	switch (size) {
+	case Byte:
+		aarch64_set_esr_el2_for_data_abort(Byte, 0, 0);
+		break;
+	case Word:
+		aarch64_set_esr_el2_for_data_abort(Word, 0, 0);
+		break;
+	case Long:
+		aarch64_set_esr_el2_for_data_abort(Long, 0, 0);
+		break;
+	case Quad:
+		aarch64_set_esr_el2_for_data_abort(Quad, 0, 0);
+		break;
+	}
+#endif
 	return true;
 }
 
+#if defined(HP_X86_64)
 bool inject_in(uint16_t addr, uint16_t size) {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint64_t field_64 = 0;
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!in%d %x\n", size, addr);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -276,7 +342,7 @@ bool inject_in(uint16_t addr, uint16_t size) {
 	case Byte:
 		// writes the 'in' instruction with the appropriate size into
 		// code
-		cpu_physical_memory_write(phy, // L0 physical addr of $rip in
+		cpu_physical_memory_write_fastpath(phy, // L0 physical addr of $rip in
 					       // L2, inside the saved VMCS
 					  // uses VMREAD to read the VMCS's
 					  // $rip, which is a GVA look for
@@ -286,12 +352,12 @@ bool inject_in(uint16_t addr, uint16_t size) {
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy, "\x66\xed", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x66\xed", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu_physical_memory_write(phy, "\xed", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xed", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -309,11 +375,11 @@ bool inject_in(uint16_t addr, uint16_t size) {
 bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint64_t field_64 = 0;
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!out%d %x %x\n", size, addr, value);
 	}
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -321,16 +387,16 @@ bool inject_out(uint16_t addr, uint16_t size, uint32_t value) {
 	}
 	switch (size) {
 	case Byte:
-		cpu_physical_memory_write(phy, "\xee", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xee", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		break;
 	case Word:
-		cpu_physical_memory_write(phy, "\x66\xef", 2);
+		cpu_physical_memory_write_fastpath(phy, "\x66\xef", 2);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 		field_64 |= 1; // access size
 		break;
 	case Long:
-		cpu_physical_memory_write(phy, "\xef", 1);
+		cpu_physical_memory_write_fastpath(phy, "\xef", 1);
 		BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 1);
 		field_64 |= 3; // access size
 		break;
@@ -375,13 +441,13 @@ bool inject_wrmsr(bx_address msr, uint64_t value) {
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RAX, value & 0xFFFFFFFF);
 	BX_CPU(id)->set_reg64(BX_64BIT_REG_RDX, value >> 32);
 
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x30", 2);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x30", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_WRMSR);
 
@@ -392,13 +458,13 @@ bool inject_wrmsr(bx_address msr, uint64_t value) {
 
 uint64_t inject_rdmsr(bx_address msr) {
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x32", 2);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x32", 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 2);
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_REASON, VMX_VMEXIT_RDMSR);
 
@@ -407,6 +473,7 @@ uint64_t inject_rdmsr(bx_address msr) {
 	return (BX_CPU(id)->get_reg64(BX_64BIT_REG_RDX) << 32) |
 	       (BX_CPU(id)->get_reg64(BX_64BIT_REG_RAX) & 0xFFFFFFFF);
 }
+#endif
 
 /* OPERATIONS */
 
@@ -423,7 +490,7 @@ bool op_write() {
 		return false;
 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
 		return false;
-	bx_address addr = mmio_region(base);
+	hp_address addr = mmio_region(base);
 
 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
 		return false;
@@ -474,7 +541,7 @@ bool op_read() {
 		return false;
 	if (ic_ingest8(&base, 0, num_mmio_regions() - 1))
 		return false;
-	bx_address addr = mmio_region(base);
+	hp_address addr = mmio_region(base);
 	if (ic_ingest32(&offset, 0, mmio_region_size(addr) - 1))
 		return false;
 	addr += offset;
@@ -486,6 +553,7 @@ bool op_read() {
 	return true;
 }
 
+#if defined(HP_X86_64)
 bool op_out() {
 	enum Sizes { Byte, Word, Long, end_sizes };
 	uint8_t size;
@@ -500,11 +568,11 @@ bool op_out() {
 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
 		return false;
 
-	bx_address addr = pio_region(base);
+	hp_address addr = pio_region(base);
 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
 		return false;
 
-	bx_address phy;
+	hp_address phy;
 	addr += offset;
 	uint64_t field_64 = 0;
 	if (addr == 0x160)
@@ -549,7 +617,7 @@ bool op_in() {
 	if (ic_ingest8(&base, 0, num_pio_regions() - 1))
 		return false;
 
-	bx_address addr = pio_region(base);
+	hp_address addr = pio_region(base);
 	if (ic_ingest16(&offset, 0, pio_region_size(addr) - 1))
 		return false;
 	addr += offset;
@@ -595,8 +663,8 @@ bool op_pci_write() {
 						      // around BARS
 		return false;
 
-	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	hp_address phy;
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
@@ -620,14 +688,19 @@ bool op_msr_write() {
 	if (ic_ingest64(&value, 0, -1))
 		return false;
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!wrmsr %lx = %lx\n", msr, value);
 	}
 	return inject_wrmsr(msr, value);
 }
+#endif
 
+#if defined(HP_X86_64)
 static bx_gen_reg_t vmcall_gpregs[16 + 4];
 static __typeof__(BX_CPU(id)->vmm) vmcall_xmmregs BX_CPP_AlignN(64);
+#elif defined(HP_AARCH64)
+static uint64_t vmcall_gpregs[31];
+#endif
 static uint32_t vmcall_enabled_regs;
 
 void insert_register_value_into_fuzz_input(int idx) {
@@ -658,10 +731,18 @@ bool op_vmcall() {
 					// before rewriting regs
 	size_t local_dma_len; // Used to make a copy of dma data before
 			      // rewriting regs
+#if defined(HP_X86_64)
+	// disallow RAX, RSP and RBP to be fuzzed.
 	const uint64_t fuzzable_regs_bitmap = (0b11111111111111001110);
+#elif defined(HP_AARCH64)
+	// Only 17 XRegs according to the SMCCC v1.2
+	// X0-X7 Arguments and return values
+	const uint64_t fuzzable_regs_bitmap = (0b11111111);
+#endif
 	if (ic_ingest32(&vmcall_enabled_regs, 0, -1, true))
 		return false;
 
+#if defined(HP_X86_64)
 	static bx_gen_reg_t gen_reg_snap[BX_GENERAL_REGISTERS + 4];
 
 	static uint8_t xmm_reg_snap[sizeof(BX_CPU(id)->vmm)];
@@ -697,21 +778,41 @@ bool op_vmcall() {
 	BX_CPU(id)->VMwrite32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH, 3);
 
 	bx_address phy;
-	int res = vmcs_linear2phy(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
+	int res = gva2hpa(BX_CPU(id)->VMread64(VMCS_GUEST_RIP), &phy);
 	if (phy > maxaddr || !res) {
 		printf("failed to write instruction to %lx (vaddr: %lx)\n",
 		       BX_CPU(id)->VMread64(VMCS_GUEST_RIP), phy);
 		return false;
 	}
-	cpu_physical_memory_write(phy, "\x0f\x01\xc1", 3);
+	cpu_physical_memory_write_fastpath(phy, "\x0f\x01\xc1", 3);
 
 	memcpy(BX_CPU(id)->gen_reg, vmcall_gpregs, sizeof(BX_CPU(id)->gen_reg));
 	memcpy(BX_CPU(id)->vmm, vmcall_xmmregs, sizeof(BX_CPU(id)->vmm));
-
+#elif defined(HP_AARCH64)
+	// If the op was skipped, we need to reset the register state
+	for (int i = 0; i < 31; i++) {
+		vmcall_gpregs[i] = cpu0_get_general_purpose_reg64(i);
+	}
+	vmcall_enabled_regs &= fuzzable_regs_bitmap;
+	for (int i = 0; i < 8; i++) {
+		if ((vmcall_enabled_regs >> i) & 1) {
+			if (i == 31 /*SP*/)
+				continue;
+			uint64_t val;
+			if (ic_ingest64(&val, 0, -1)) {
+				return false;
+			}
+			cpu0_set_general_purpose_reg64(i, val);
+		}
+	}
+	aarch64_set_esr_el2_for_hvc();
+#endif
 	uint8_t *dma_start = ic_get_cursor();
 
-	if (BX_CPU(id)->fuzztrace || log_ops) {
+	if (cpu0_get_fuzztrace() || log_ops) {
+#if defined(HP_X86_64)
 		printf("!hypercall %lx\n", vmcall_gpregs[BX_64BIT_REG_RCX]);
+#endif
 	}
 	start_cpu();
 	/* printf("Hypercall %lx Result: %lx\n",vmcall_gpregs[BX_64BIT_REG_RCX],
@@ -719,7 +820,7 @@ bool op_vmcall() {
 
 	uint8_t *dma_end = ic_get_cursor();
 
-	local_dma_len = dma_end - dma_start;
+	local_dma_len = (size_t)(dma_end - dma_start);
 	if (local_dma_len > sizeof(local_dma)) {
 	    fuzz_emu_stop_unhealthy();
 		return false;
@@ -740,6 +841,7 @@ bool op_vmcall() {
 	            fuzz_emu_stop_unhealthy();
 		}
 	}
+#if defined(HP_X86_64)
 	for (int i = 0; i < BX_XMM_REGISTERS; i++) {
 		if ((vmcall_enabled_regs >> (16 + i)) & 1) {
 			if (!ic_append(&vmcall_xmmregs[i],
@@ -747,7 +849,7 @@ bool op_vmcall() {
                 fuzz_emu_stop_unhealthy();
 		}
 	}
-
+#endif
 	if (!ic_append(local_dma, local_dma_len))
         fuzz_emu_stop_unhealthy();
 	return true;
@@ -758,10 +860,12 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
 		[OP_WRITE] = op_write,
+	#if defined(HP_X86_64)
 		[OP_IN] = op_in,
 		[OP_OUT] = op_out,
 		[OP_PCI_WRITE] = op_pci_write,
 		[OP_MSR_WRITE] = op_msr_write,
+	#endif
 		[OP_VMCALL] = op_vmcall,
 	};
 	static const int nr_ops = sizeof(ops) / sizeof((ops)[0]);
@@ -773,7 +877,7 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		inited = 1;
 		fuzz_legacy = getenv("FUZZ_LEGACY");
 		fuzz_hypercalls = getenv("FUZZ_HYPERCALLS");
-		log_ops = getenv("LOG_OPS") || BX_CPU(id)->fuzztrace;
+		log_ops = getenv("LOG_OPS") || cpu0_get_fuzztrace();
 	}
 
 	//if (log_ops)
@@ -786,19 +890,19 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 		dma_start = ic_get_cursor() - input_start;
 		dma_len = 0;
 		if (fuzz_legacy) {
-			if (ic_ingest8(&op, OP_READ, OP_OUT, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_LEGACY_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else if (fuzz_hypercalls) {
-			if (ic_ingest8(&op, OP_MSR_WRITE, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_HYPERCALL_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
 			}
 		} else { /* Fuzz Everything */
-			if (ic_ingest8(&op, 0, OP_VMCALL, true)) {
+			if (ic_ingest8(&op, FUZZ_LEGACY_S, FUZZ_HYPERCALL_E, true)) {
 				ic_erase_backwards_until_token();
 				ic_subtract(4);
 				continue;
@@ -820,30 +924,42 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
 }
 
+#if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size) {
 	pio_regions[addr] = size;
 	printf("pio_regions %d = %lx + %lx\n", pio_regions.size(), addr, size);
 }
+#endif
+
 void add_mmio_region(uint64_t addr, uint64_t size) {
 	mmio_regions[addr] = size;
 	printf("mmio_regions %d = %lx + %lx\n", mmio_regions.size(), addr,
 	       size);
 }
-void add_mmio_range_alt(uint64_t addr, uint64_t end) {
+
+void add_mmio_range_all(uint64_t addr, uint64_t end) {
 	add_mmio_region(addr, end - addr);
 }
+
 void init_regions(const char *path) {
 	open_db(path);
 	if (getenv("FUZZ_ENUM")) {
+#if defined(HP_X86_64)
 		enum_pio_regions();
+#endif
 		enum_mmio_regions();
         exit(0);
 	}
+
 	if (getenv("MANUAL_RANGES")) {
 		load_manual_ranges(getenv("MANUAL_RANGES"),
-				   getenv("RANGE_REGEX"), pio_regions,
-				   mmio_regions);
+				   getenv("RANGE_REGEX"));
 	} else {
-		load_regions(pio_regions, mmio_regions);
+		load_regions();
 	}
+#if defined(HP_X86_64)
+	assert(((num_mmio_regions() == 0) && (num_pio_regions() == 0)) == 0);
+#else
+	assert(num_mmio_regions());
+#endif
 }

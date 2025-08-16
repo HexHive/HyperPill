@@ -8,14 +8,20 @@ if [ -z tests/$poc ]; then
     exit 1
 fi
 
-if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" ]]; then
-    echo "None of the environment variables KVM, HYPERV, or MACOS are set. Exiting."
+if [[ -z "$KVM" && -z "$HYPERV" && -z "$MACOS" && -z "$SEL4" ]]; then
+    echo "None of the environment variables KVM, HYPERV, MACOS, or SEL4 are set. Exiting."
     exit 1
 fi
 export NOCOV=1
 
+if [ -z "$ARCH" ]; then
+    export ARCH=x86_64
+fi
+
+if [ "$ARCH" == "x86_64" ]; then
 export ICP_VMCS_LAYOUT_PATH="$PROJECT_ROOT/data/vmcs.layout"
 export ICP_VMCS_ADDR=$(cat "$SNAPSHOT_BASE/vmcs")
+fi
 export SYMBOL_MAPPING="$SNAPSHOT_BASE/layout"
 export ICP_MEM_PATH="$SNAPSHOT_BASE/mem"
 if [ -e "$SNAPSHOT_BASE/mem.md5sum" ]; then
@@ -26,4 +32,5 @@ export ICP_DB_PATH="$SNAPSHOT_BASE/snap.sqlite"
 
 cp "$PROJECT_ROOT/tests/$poc" .
 # gdb --args \
+exec \
 ./$poc
