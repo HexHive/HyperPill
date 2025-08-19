@@ -1,0 +1,1593 @@
+{
+    "structures": [
+        {
+            "index": 0,
+            "name": "nvme_common_command",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 12
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16",
+                    "values": 31
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cdw10",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw11",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw12",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw13",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw14",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw15",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 1,
+            "name": "nvme_rw_command",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        1,
+                        2,
+                        5,
+                        125
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "cdw2",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "cdw3",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64",
+                    "values": 0
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "slba",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "length",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "control",
+                    "field_type": "UINT16",
+                    "values": [
+                        32768,
+                        16384,
+                        512,
+                        1024,
+                        2048,
+                        4096,
+                        8192,
+                        16,
+                        512
+                    ]
+                },
+                {
+                    "name": "dsmgmt",
+                    "field_type": "UINT32",
+                    "values": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        0,
+                        16,
+                        32,
+                        48,
+                        64,
+                        128
+                    ]
+                },
+                {
+                    "name": "reftag",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "apptag",
+                    "field_type": "UINT16",
+                    "values": 0
+                },
+                {
+                    "name": "appmask",
+                    "field_type": "UINT16",
+                    "values": 0
+                }
+            ]
+        },
+        {
+            "index": 2,
+            "name": "nvme_identify",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 6
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cns",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        5,
+                        6,
+                        8,
+                        16,
+                        17,
+                        18,
+                        19,
+                        21,
+                        22,
+                        23
+                    ]
+                },
+                {
+                    "name": "rsvd3",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "ctrlid",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd11_1",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd11_2",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd11_3",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "csi",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        2
+                    ]
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 3,
+            "name": "nvme_features",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        9,
+                        10
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "fid",
+                    "field_type": "UINT32",
+                    "values": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11,
+                        12,
+                        13,
+                        14,
+                        15,
+                        16,
+                        17,
+                        18,
+                        19,
+                        20,
+                        22,
+                        23,
+                        128,
+                        129,
+                        130,
+                        131,
+                        132,
+                        192,
+                        255
+                    ]
+                },
+                {
+                    "name": "dword11",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "dword12",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "dword13",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "dword14",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "dword15",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 4,
+            "name": "nvme_create_cq",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 5
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd8",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cqid",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "qsize",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "cq_flags",
+                    "field_type": "UINT16",
+                    "values": 1
+                },
+                {
+                    "name": "irq_vector",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 5,
+            "name": "nvme_create_sq",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 1
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd8",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "sqid",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "qsize",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "sq_flags",
+                    "field_type": "UINT16",
+                    "values": 1
+                },
+                {
+                    "name": "cqid",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 6,
+            "name": "nvme_delete_queue",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        4
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_6",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_7",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_8",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "qid",
+                    "field_type": "UINT16",
+                    "int_mask": 65528
+                },
+                {
+                    "name": "rsvd10",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd11_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 7,
+            "name": "nvme_download_firmware",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 17
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "numd",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "offset",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 8,
+            "name": "nvme_format_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 128
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_3",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_4",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cdw10",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 9,
+            "name": "nvme_dsm_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 9
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "nr",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "attributes",
+                    "field_type": "UINT32",
+                    "values": [
+                        1,
+                        2,
+                        4
+                    ]
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 10,
+            "name": "nvme_write_zeroes_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 8
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "slba",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "length",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "control",
+                    "field_type": "UINT16",
+                    "values": [
+                        32768,
+                        16384,
+                        512,
+                        1024,
+                        2048,
+                        4096,
+                        8192,
+                        16,
+                        512
+                    ]
+                },
+                {
+                    "name": "dsmgmt",
+                    "field_type": "UINT32",
+                    "values": [
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        0,
+                        16,
+                        32,
+                        48,
+                        64,
+                        128
+                    ]
+                },
+                {
+                    "name": "reftag",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "apptag",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "appmask",
+                    "field_type": "UINT16"
+                }
+            ]
+        },
+        {
+            "index": 11,
+            "name": "nvme_zone_mgmt_send_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 121
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "cdw2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "slba",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cdw12",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "zsa",
+                    "field_type": "UINT8",
+                    "values": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        16
+                    ]
+                },
+                {
+                    "name": "select_all",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        1
+                    ]
+                },
+                {
+                    "name": "rsvd13_1",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd13_2",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "cdw14_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw14_2",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 12,
+            "name": "nvme_zone_mgmt_recv_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 122
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "slba",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "numd",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "zra",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "zrasf",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "pr",
+                    "field_type": "UINT8",
+                    "values": 1
+                },
+                {
+                    "name": "rsvd13",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "cdw14_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw14_2",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 13,
+            "name": "nvme_abort_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 8
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_6",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_7",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_8",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "sqid",
+                    "field_type": "UINT16",
+                    "int_mask": 255
+                },
+                {
+                    "name": "cid",
+                    "field_type": "UINT16",
+                    "int_mask": 255
+                },
+                {
+                    "name": "rsvd11_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd11_5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 14,
+            "name": "nvme_get_log_page_command",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 2
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": [
+                        0,
+                        1,
+                        4294967295
+                    ]
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "lid",
+                    "field_type": "UINT8",
+                    "values": [
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7,
+                        8,
+                        9,
+                        12,
+                        112,
+                        128
+                    ]
+                },
+                {
+                    "name": "lsp",
+                    "field_type": "UINT8",
+                    "values": 0
+                },
+                {
+                    "name": "numdl",
+                    "field_type": "UINT16",
+                    "int_mask": 65535
+                },
+                {
+                    "name": "numdu",
+                    "field_type": "UINT16",
+                    "int_mask": 65535
+                },
+                {
+                    "name": "rsvd11",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "lpol",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "lpou",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "rsvd14_1",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd14_2",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd14_3",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "csi",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        2
+                    ]
+                },
+                {
+                    "name": "rsvd15",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 15,
+            "name": "nvme_directive_cmd",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        25,
+                        26
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd2_1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd2_2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "numd",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "doper",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "dtype",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "dspec",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "endir",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "tdtype",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "rsvd15",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd16_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd16_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd16_3",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 16,
+            "name": "nvme_common_command",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        13,
+                        21,
+                        129,
+                        130
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32",
+                    "values": 1
+                },
+                {
+                    "name": "cdw2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cdw10",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw11",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw12",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw13",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw14",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw15",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 17,
+            "name": "nvme_common_command",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": [
+                        0,
+                        16,
+                        20,
+                        24,
+                        28,
+                        29,
+                        30,
+                        132,
+                        134,
+                        192
+                    ]
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "nsid",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "metadata",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "cdw10",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw11",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw12",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw13",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw14",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "cdw15",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 18,
+            "name": "nvme_dbbuf",
+            "fields": [
+                {
+                    "name": "opcode",
+                    "field_type": "UINT8",
+                    "values": 124
+                },
+                {
+                    "name": "flags",
+                    "field_type": "UINT8"
+                },
+                {
+                    "name": "command_id",
+                    "field_type": "UINT16"
+                },
+                {
+                    "name": "rsvd1_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd1_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "prp1",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "prp2",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "rsvd12_1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "rsvd12_6",
+                    "field_type": "UINT32"
+                }
+            ]
+        }
+    ]
+}

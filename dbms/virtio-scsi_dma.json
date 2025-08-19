@@ -1,0 +1,520 @@
+{
+  "virtio_dma": [
+    {
+      "queue_num": 0,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_scsi_ctrl_tmf_req",
+          "fields": [
+            {
+              "name": "type",
+              "field_type": "UINT32",
+			  "values": [0, 1, 2]
+            },
+            {
+              "name": "subtype",
+              "field_type": "UINT32",
+			  "int_mask": 7
+            },
+            {
+              "name": "lun_0",
+              "field_type": "UINT8",
+			  "values": 1
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "tag",
+              "field_type": "UINT64",
+			  "int_mask": 255
+            }
+          ]
+        },
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_ctrl_tmf_resp",
+          "fields": [
+            {
+              "name": "response",
+              "field_type": "UINT8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 0,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_scsi_ctrl_an_req",
+          "fields": [
+            {
+              "name": "type",
+              "field_type": "UINT32",
+			  "values": [0, 1, 2]
+            },
+            {
+              "name": "lun_0",
+              "field_type": "UINT8",
+			  "values": 1
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "event_requested",
+              "field_type": "UINT32"
+            }
+          ]
+        },
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_ctrl_an_resp",
+          "fields": [
+            {
+              "name": "event_actual",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "response",
+              "field_type": "UINT8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 1,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_event",
+          "fields": [
+            {
+              "name": "event",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "lun_0",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "reason",
+              "field_type": "UINT32"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 2,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_scsi_cmd_req",
+          "fields": [
+            {
+              "name": "lun_0",
+              "field_type": "UINT8",
+			  "values": 1
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "tag",
+              "field_type": "UINT64",
+			  "int_mask": 255
+            },
+            {
+              "name": "task_attr",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "prio",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "crn",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "cdb",
+              "field_type": "SIZE",
+              "values": 32
+            }
+          ]
+        },
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_cmd_resp",
+          "fields": [
+            {
+              "name": "sense_len",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "resid",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "status_qualifier",
+              "field_type": "UINT16"
+            },
+            {
+              "name": "status",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "response",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "sense",
+              "field_type": "SIZE",
+              "values": 96
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 2,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_scsi_cmd_req",
+          "fields": [
+            {
+              "name": "lun_0",
+              "field_type": "UINT8",
+			  "values": 1
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "tag",
+              "field_type": "UINT64",
+			  "int_mask": 255
+            },
+            {
+              "name": "task_attr",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "prio",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "crn",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "cdb",
+              "field_type": "SIZE",
+              "values": 32
+            }
+          ]
+        },
+		{
+			"virtio_direction": "VIRTIO_OUT",
+			"name": "bytes",
+			"fields": [
+				{
+					"field_type": "SIZE"
+				}
+			]
+		},
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_cmd_resp",
+          "fields": [
+            {
+              "name": "sense_len",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "resid",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "status_qualifier",
+              "field_type": "UINT16"
+            },
+            {
+              "name": "status",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "response",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "sense",
+              "field_type": "SIZE",
+              "values": 96
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 2,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_scsi_cmd_req",
+          "fields": [
+            {
+              "name": "lun_0",
+              "field_type": "UINT8",
+			  "values": 1
+            },
+            {
+              "name": "lun_1",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_2",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_3",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "lun_4",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_5",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_6",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "lun_7",
+              "field_type": "UINT8",
+			  "values": 0
+            },
+            {
+              "name": "tag",
+              "field_type": "UINT64",
+			  "int_mask": 255
+            },
+            {
+              "name": "task_attr",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "prio",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "crn",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "cdb",
+              "field_type": "SIZE",
+              "values": 32
+            }
+          ]
+        },
+		{
+			"virtio_direction": "VIRTIO_IN",
+			"name": "bytes",
+			"fields": [
+				{
+					"field_type": "SIZE"
+				}
+			]
+		},
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_scsi_cmd_resp",
+          "fields": [
+            {
+              "name": "sense_len",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "resid",
+              "field_type": "UINT32"
+            },
+            {
+              "name": "status_qualifier",
+              "field_type": "UINT16"
+            },
+            {
+              "name": "status",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "response",
+              "field_type": "UINT8"
+            },
+            {
+              "name": "sense",
+              "field_type": "SIZE",
+              "values": 96
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

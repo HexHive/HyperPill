@@ -1,0 +1,431 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_IN",
+				"name": "in_buf",
+				"fields": [
+					{
+					"name": "in_buf",
+					"field_type": "SIZE"
+					}
+				]
+				}
+			]
+		},
+        {
+            "queue_num": 1,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "out_buf",
+				"fields": [
+					{
+					"name": "out_buf",
+					"field_type": "SIZE"
+					}
+				]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [1]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0, 1]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "ETH_ALEN",
+					"fields": [
+						{
+							"name": "ETH_ALEN1",
+							"field_type": "UINT32"
+						},
+						{
+							"name": "ETH_ALEN2",
+							"field_type": "UINT16"
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [4]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0, 1, 2]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_net_ctrl_mq",
+					"fields": [
+						{
+							"name": "virtqueue_pairs",
+							"field_type": "UINT16",
+							"int_mask": 255
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [0]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0, 1, 2, 3, 4, 5]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "promisc",
+					"fields": [
+						{
+							"name": "promisc",
+							"field_type": "UINT8",
+							"int_mask": 1
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [2]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0, 1]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "vid",
+					"fields": [
+						{
+							"name": "vid",
+							"field_type": "UINT16"
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [6]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_net_ctrl_coal_tx",
+					"fields": [
+						{
+							"name": "tx_max_packets",
+							"field_type": "UINT32"
+						},
+						{
+							"name": "tx_usecs",
+							"field_type": "UINT32"
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [6]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [1]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_net_ctrl_coal_rx",
+					"fields": [
+						{
+							"name": "rx_max_packets",
+							"field_type": "UINT32"
+						},
+						{
+							"name": "rx_usecs",
+							"field_type": "UINT32"
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [6]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [2]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_net_ctrl_coal_vq",
+					"fields": [
+						{
+							"name": "vqn",
+							"field_type": "UINT16"
+						},
+						{
+							"name": "reserved",
+							"field_type": "UINT16"
+						},
+						{
+							"name": "coal",
+							"structure": {
+								"name": "virtio_net_ctrl_coal",
+								"fields": [
+									{
+										"name": "max_packets",
+										"field_type": "UINT32"
+									},
+									{
+										"name": "max_usecs",
+										"field_type": "UINT32"
+									}
+								]
+							}
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [5]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "offloads",
+					"fields": [
+						{
+							"name": "offloads1",
+							"field_type": "UINT32"
+						},
+						{
+							"name": "offloads2",
+							"field_type": "UINT32"
+						}
+					]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		},
+        {
+            "queue_num": 2,
+            "structures": [
+				{
+				"virtio_direction": "VIRTIO_OUT",
+				"name": "virtio_net_ctrl_hdr",
+				"fields": [
+					{
+						"name": "class",
+						"field_type": "UINT8",
+						"values": [3]
+					},
+					{
+						"name": "cmd",
+						"field_type": "UINT8",
+						"values": [0]
+					}
+				]
+				},
+				{
+					"virtio_direction": "VIRTIO_IN",
+					"name": "status",
+					"fields": [
+						{
+							"name": "status",
+							"field_type": "UINT8"
+						}
+					]
+				}
+			]
+		}
+    ]
+}

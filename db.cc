@@ -92,12 +92,23 @@ void load_manual_ranges(char* range_file, char* range_regex) {
             if (!(iss >> std::hex  >> start >> c >>  std::hex >> end)) { continue; } 
             assert(c=='-');
 #if defined(HP_X86_64)
-            if(start < 0x10000)
+            if(start < 0x10000) {
                 add_pio_region(start, end-start);
-            else
+#ifdef HP_INPUT_GEN_TRUMAN
+                add_interface(INTERFACE_TYPE_PIO, start, end - start, "n/a", 1, 4);
 #endif
+            } else
+#endif
+            {
                 add_mmio_region(start, end-start);
+#ifdef HP_INPUT_GEN_TRUMAN
+                add_interface(INTERFACE_TYPE_MMIO, start, end - start, "n/a", 1, 4);
+#endif
+            }
             printf("Will fuzz: %s\n", line.c_str());
         }
     }
+#ifdef HP_INPUT_GEN_TRUMAN
+    print_interfaces();
+#endif
 }

@@ -17,6 +17,10 @@
 #include <sys/stat.h>
 #include <string.h>
 
+#if defined(HP_INPUT_GEN_TRUMAN)
+#include "virtfuzz.h"
+#endif
+
 #include "fuzzc.h"
 
 extern bool fuzzing;

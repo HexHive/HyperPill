@@ -1,0 +1,66 @@
+{
+  "structures": [
+    {
+      "index": 0,
+      "name": "vmxnet3_magic",
+      "fields": [
+        {
+          "name": "byte1",
+          "field_type": "UINT8",
+		  "values": 225
+        },
+        {
+          "name": "byte2",
+          "field_type": "UINT8",
+		  "values": 254
+        },
+        {
+          "name": "byte3",
+          "field_type": "UINT8",
+		  "values": 190
+        },
+        {
+          "name": "byte4",
+          "field_type": "UINT8",
+		  "values": 186
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "name": "vmxnet3_buf",
+      "fields": [
+        {
+          "name": "byte1",
+          "field_type": "UINT8",
+		  "int_mask": 7
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "name": "vmxnet3_mtu",
+      "fields": [
+        {
+          "name": "byte1",
+          "field_type": "UINT8"
+        },
+        {
+          "name": "byte2",
+          "field_type": "UINT8",
+		  "int_mask": 31
+        },
+        {
+          "name": "byte3",
+          "field_type": "UINT8",
+		  "values": 0
+        },
+        {
+          "name": "byte4",
+          "field_type": "UINT8",
+		  "values": 0
+        }
+      ]
+    }
+  ]
+}

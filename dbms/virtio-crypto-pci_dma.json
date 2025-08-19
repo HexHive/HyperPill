@@ -1,0 +1,1091 @@
+{
+  "virtio_dma": [
+    {
+      "queue_num": 0,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_data_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_op_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "name": "session_id",
+                    "field_type": "UINT64",
+                    "int_mask": 255
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "akcipher_req",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_akcipher_data_req",
+                "fields": [
+                  {
+                    "name": "para",
+                    "structure": {
+                      "virtio_direction": "VIRTIO_IN",
+                      "name": "virtio_crypto_akcipher_para",
+                      "fields": [
+                        {
+                          "name": "src_data_len",
+                          "field_type": "UINT32",
+                          "values": [
+                            1,
+                            7,
+                            8,
+                            15,
+                            16,
+                            255,
+                            256,
+                            511,
+                            512,
+                            1023,
+                            1024
+                          ]
+                        },
+                        {
+                          "name": "dst_data_len",
+                          "field_type": "UINT32",
+                          "values": [
+                            1,
+                            7,
+                            8,
+                            15,
+                            16,
+                            255,
+                            256,
+                            511,
+                            512,
+                            1023,
+                            1024
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "SIZE",
+                    "values": [
+                      40
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "src_data_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "src_data_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "src_data_len",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "src_data_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "status",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT8"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 0,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_data_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_op_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "name": "session_id",
+                    "field_type": "UINT64",
+                    "int_mask": 255
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "akcipher_req",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_akcipher_data_req",
+                "fields": [
+                  {
+                    "name": "para",
+                    "structure": {
+                      "virtio_direction": "VIRTIO_IN",
+                      "name": "virtio_crypto_akcipher_para",
+                      "fields": [
+                        {
+                          "name": "src_data_len",
+                          "field_type": "UINT32",
+                          "values": [
+                            1,
+                            7,
+                            8,
+                            15,
+                            16,
+                            255,
+                            256,
+                            511,
+                            512,
+                            1023,
+                            1024
+                          ]
+                        },
+                        {
+                          "name": "dst_data_len",
+                          "field_type": "UINT32",
+                          "values": [
+                            1,
+                            7,
+                            8,
+                            15,
+                            16,
+                            255,
+                            256,
+                            511,
+                            512,
+                            1023,
+                            1024
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "SIZE",
+                    "values": [
+                      40
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "src_data_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "src_data_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "status",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT8"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 0,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_data_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "name": "virtio_crypto_op_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "name": "session_id",
+                    "field_type": "UINT64",
+                    "int_mask": 255
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "sym_req",
+              "structure": {
+                "name": "virtio_crypto_sym_data_req",
+                "fields": [
+                  {
+                    "name": "cipher",
+                    "structure": {
+                      "name": "virtio_crypto_cipher_data_req",
+                      "fields": [
+                        {
+                          "name": "src_data_len",
+                          "structure": {
+                            "fields": [
+                              {
+                                "name": "iv_len",
+                                "field_type": "UINT32",
+                                "values": [
+                                  1,
+                                  7,
+                                  8,
+                                  15,
+                                  16,
+                                  255,
+                                  256,
+                                  511,
+                                  512,
+                                  1023,
+                                  1024
+                                ]
+                              },
+                              {
+                                "name": "src_data_len",
+                                "field_type": "UINT32",
+                                "values": [
+                                  1,
+                                  7,
+                                  8,
+                                  15,
+                                  16,
+                                  255,
+                                  256,
+                                  511,
+                                  512,
+                                  1023,
+                                  1024
+                                ]
+                              },
+                              {
+                                "name": "dst_data_len",
+                                "field_type": "UINT32",
+                                "values": [
+                                  1,
+                                  7,
+                                  8,
+                                  15,
+                                  16,
+                                  255,
+                                  256,
+                                  511,
+                                  512,
+                                  1023,
+                                  1024
+                                ]
+                              },
+                              {
+                                "name": "padding",
+                                "field_type": "UINT32"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "padding",
+                          "field_type": "SIZE",
+                          "values": [
+                            24
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "op_type",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1
+                    ]
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "iv_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "iv_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "src_data_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "src_data_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "src_data_len",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "src_data_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "status",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "status",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT8"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 1,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_ctrl_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_ctrl_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "queue_id",
+                    "field_type": "UINT32",
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "akcipher_create_session",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_akcipher_create_session_req",
+                "fields": [
+                  {
+                    "name": "para",
+                    "structure": {
+                      "virtio_direction": "VIRTIO_IN",
+                      "name": "virtio_crypto_akcipher_session_para",
+                      "fields": [
+                        {
+                          "name": "algo",
+                          "field_type": "UINT32",
+                          "values": [
+                            0,
+                            1,
+                            2,
+                            3
+                          ]
+                        },
+                        {
+                          "name": "keytype",
+                          "field_type": "UINT32",
+                          "values": [
+                            0,
+                            1,
+                            2
+                          ]
+                        },
+                        {
+                          "name": "keylen",
+                          "field_type": "UINT32",
+                          "values": [
+                            1,
+                            7,
+                            8,
+                            15,
+                            16,
+                            255,
+                            256,
+                            511,
+                            512,
+                            1023,
+                            1024
+                          ]
+                        },
+                        {
+                          "name": "rsa",
+                          "structure": {
+                            "virtio_direction": "VIRTIO_IN",
+                            "name": "virtio_crypto_rsa_session_para",
+                            "fields": [
+                              {
+                                "name": "padding_algo",
+                                "field_type": "UINT32",
+                                "values": [
+                                  0,
+                                  1,
+                                  2
+                                ]
+                              },
+                              {
+                                "name": "hash_algo",
+                                "field_type": "UINT32",
+                                "values": [
+                                  0,
+                                  1,
+                                  2,
+                                  3,
+                                  4,
+                                  5,
+                                  6,
+                                  7,
+                                  8,
+                                  9,
+                                  10
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "SIZE",
+                    "values": 36
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "key_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "key_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "input",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "input",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT64"
+                  },
+                  {
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 1,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_ctrl_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_ctrl_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "queue_id",
+                    "field_type": "UINT32",
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "destroy_session",
+              "structure": {
+                "name": "destroy_session",
+                "fields": [
+                  {
+                    "field_type": "UINT64",
+                    "int_mask": 255
+                  },
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      48
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "input",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "input",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT8"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "queue_num": 1,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_OUT",
+          "name": "virtio_crypto_op_ctrl_req",
+          "fields": [
+            {
+              "name": "header",
+              "structure": {
+                "virtio_direction": "VIRTIO_IN",
+                "name": "virtio_crypto_ctrl_header",
+                "fields": [
+                  {
+                    "name": "opcode",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      256,
+                      512,
+                      768,
+                      769,
+                      1024,
+                      1025,
+                      1026,
+                      1027
+                    ]
+                  },
+                  {
+                    "name": "algo",
+                    "field_type": "UINT32",
+                    "int_mask": 15
+                  },
+                  {
+                    "name": "flag",
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "name": "queue_id",
+                    "field_type": "UINT32",
+                    "values": [
+                      0
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "virtio_crypto_sym_create_session_req",
+              "structure": {
+                "fields": [
+                  {
+                    "name": "cipher",
+                    "structure": {
+                      "virtio_direction": "VIRTIO_IN",
+                      "name": "virtio_crypto_cipher_session_req",
+                      "fields": [
+                        {
+                          "name": "para",
+                          "structure": {
+                            "virtio_direction": "VIRTIO_IN",
+                            "name": "virtio_crypto_cipher_session_para",
+                            "fields": [
+                              {
+                                "name": "algo",
+                                "field_type": "UINT32",
+                                "int_mask": 15
+                              },
+                              {
+                                "name": "keylen",
+                                "field_type": "UINT32",
+                                "values": [
+                                  1,
+                                  7,
+                                  8,
+                                  15,
+                                  16,
+                                  255,
+                                  256,
+                                  511,
+                                  512,
+                                  1023,
+                                  1024
+                                ]
+                              },
+                              {
+                                "name": "op",
+                                "field_type": "UINT32",
+                                "values": [
+                                  0,
+                                  1,
+                                  2
+                                ]
+                              },
+                              {
+                                "name": "padding",
+                                "field_type": "UINT32"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "name": "padding",
+                          "field_type": "SIZE",
+                          "values": 32
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "op_type",
+                    "field_type": "UINT32",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "name": "padding",
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "key_len",
+          "virtio_direction": "VIRTIO_OUT",
+          "fields": [
+            {
+              "name": "key_len",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "SIZE",
+                    "values": [
+                      1,
+                      7,
+                      8,
+                      15,
+                      16,
+                      255,
+                      256,
+                      511,
+                      512,
+                      1023,
+                      1024
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "input",
+          "virtio_direction": "VIRTIO_IN",
+          "fields": [
+            {
+              "name": "input",
+              "structure": {
+                "fields": [
+                  {
+                    "field_type": "UINT64"
+                  },
+                  {
+                    "field_type": "UINT32"
+                  },
+                  {
+                    "field_type": "UINT32"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

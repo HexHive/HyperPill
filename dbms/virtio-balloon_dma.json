@@ -1,0 +1,138 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "balloon",
+                    "fields": [
+                        {
+                            "name": "balloon",
+                            "structure": {
+                                "name": "balloon",
+                                "fields": [
+                                    {
+                                        "name": "num_pfns",
+                                        "field_type": "SIZE"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }, {
+            "queue_num": 1,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "balloon",
+                    "fields": [
+                        {
+                            "name": "balloon",
+                            "structure": {
+                                "name": "balloon",
+                                "fields": [
+                                    {
+                                        "name": "num_pfns",
+                                        "field_type": "SIZE"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }, {
+            "queue_num": 2,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "balloon",
+                    "fields": [
+                        {
+                            "name": "balloon",
+                            "structure": {
+                                "name": "balloon",
+                                "fields": [
+                                    {
+                                        "name": "stat",
+                                        "field_type": "SIZE",
+										"values": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }, {
+            "queue_num": 3,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "cmd_id_active",
+                    "fields": [
+                        {
+                            "name": "cmd_id_active",
+                            "structure": {
+                                "name": "cmd_id_active",
+                                "fields": [
+                                    {
+                                        "name": "cmd_id_active",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }, {
+            "queue_num": 3,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "balloon",
+                    "fields": [
+                        {
+                            "name": "balloon",
+                            "structure": {
+                                "name": "balloon",
+                                "fields": [
+                                    {
+                                        "name": "balloon",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }, {
+            "queue_num": 3,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "balloon",
+                    "fields": [
+                        {
+                            "name": "balloon",
+                            "structure": {
+                                "name": "balloon",
+                                "fields": [
+                                    {
+                                        "name": "balloon",
+                                        "field_type": "SIZE"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+		}
+    ]
+}

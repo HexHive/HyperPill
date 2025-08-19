@@ -1,0 +1,2243 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32",
+                            "values": 256
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32",
+                            "int_mask": 3
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_resp_display_info",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_0",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_1",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_2",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_3",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_4",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_5",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_6",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_7",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_8",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_9",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_10",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_11",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_12",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_13",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_14",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pmode_15",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_display_one",
+                                "fields": [
+                                    {
+                                        "name": "r_x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "r_height",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "enabled",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_cmd_get_edid",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 266
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "scanout",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_resp_edid",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "size",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "edid",
+                            "field_type": "SIZE",
+                            "values": 1024
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_create_2d",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 257
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "format",
+                            "field_type": "UINT32",
+                            "values": [
+                                1,
+                                2,
+                                3,
+                                4,
+                                67,
+                                668,
+                                121,
+                                134
+                            ]
+                        },
+                        {
+                            "name": "width",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "height",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_unref",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 258
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_set_scanout",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 259
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "r",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_rect",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "height",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "scanout_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_flush",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            260
+                                        ]
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "r",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_rect",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "height",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_flush",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            261
+                                        ]
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "r",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_rect",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "height",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "offset",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_attach_backing",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            262,
+                                            263
+                                        ]
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "nr_entries",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_get_capset_info",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 264
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "capset_index",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_resp_capset_info",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "capset_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "capset_max_version",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "capset_max_size",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_get_capset",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 265
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "capset_id",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "capset_version",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_resp_capset",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "capset_data",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_assign_uuid",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 267
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_resp_resource_uuid",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "uuid",
+                            "field_type": "SIZE",
+                            "values": 16
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_resource_create_blob",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 268
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "blob_mem",
+                            "field_type": "UINT32",
+                            "values": [
+                                1,
+                                2,
+                                3
+                            ]
+                        },
+                        {
+                            "name": "blob_flags",
+                            "field_type": "UINT32",
+                            "int_mask": 7
+                        },
+                        {
+                            "name": "nr_entries",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "blob_id",
+                            "field_type": "UINT64",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "size",
+                            "field_type": "UINT64",
+                            "int_mask": 255
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_set_scanout_blob",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": 269
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "r",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_rect",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "width",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "height",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "scanout_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "width",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "height",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "format",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "strides_0",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "strides_1",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "strides_2",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "strides_3",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "offsets_0",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "offsets_1",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "offsets_2",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "offsets_3",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_gpu_ctrl_hdr",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "fence_id",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "ctx_id",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "ring_idx",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 1,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_gpu_update_cursor",
+                    "fields": [
+                        {
+                            "name": "hdr",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_ctrl_hdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            768,
+                                            769
+                                        ]
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 3
+                                    },
+                                    {
+                                        "name": "fence_id",
+                                        "field_type": "UINT64",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ctx_id",
+                                        "field_type": "UINT32",
+                                        "int_mask": 15
+                                    },
+                                    {
+                                        "name": "ring_idx",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "pos",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_gpu_cursor_pos",
+                                "fields": [
+                                    {
+                                        "name": "scanout_id",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "x",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "y",
+                                        "field_type": "UINT32"
+                                    },
+                                    {
+                                        "name": "padding",
+                                        "field_type": "UINT32"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "resource_id",
+                            "field_type": "UINT32",
+                            "int_mask": 15
+                        },
+                        {
+                            "name": "hot_x",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "hot_y",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

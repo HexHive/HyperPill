@@ -855,7 +855,261 @@ bool op_vmcall() {
 	return true;
 }
 
+struct vbuf {
+    uint64_t addr;
+    uint32_t len;
+};
+
+bool inject_virtio() {
+
+}
+
+
 extern bool fuzz_unhealthy_input, fuzz_do_not_continue, fuzz_should_abort;
+#if defined(HP_INPUT_GEN_TRUMAN)
+static void execute_message(Message *message) {
+	enum Sizes { Byte, Word, Long, Quad, end_sizes };
+    uint64_t value = 0;
+    pattern p;
+
+    switch (message->type) {
+        case MMIO_READ:
+            switch (message->message_content.mmio_read_message.size) {
+                case BYTE:
+                    inject_read(message->message_content.mmio_read_message.addr, Byte);
+                    break;
+                case WORD:
+                    inject_read(message->message_content.mmio_read_message.addr, Word);
+                    break;
+                case LONG:
+                    inject_read(message->message_content.mmio_read_message.addr, Long);
+                    break;
+                case QUAD:
+                    inject_read(message->message_content.mmio_read_message.addr, end_sizes);
+                    break;
+                default:
+                    fprintf(stderr, "wrong size of MMIO_READ %d\n",
+                        message->message_content.mmio_read_message.size);
+                    break;
+            }
+            verbose_printf("MMIO_READ completed: addr=0x%x, size=%u\n",
+                message->message_content.mmio_read_message.addr,
+                message->message_content.mmio_read_message.size);
+            break;
+        case MMIO_WRITE:
+            switch (message->message_content.mmio_write_message.size) {
+                case BYTE:
+                    value = message->message_content.mmio_write_message.value & 0xFF;
+                    inject_write(message->message_content.mmio_write_message.addr, Byte, value);
+                    break;
+                case WORD:
+                    value = message->message_content.mmio_write_message.value & 0xFFFF;
+                    inject_write(message->message_content.mmio_write_message.addr, Word, value);
+                    break;
+                case LONG:
+                    value = message->message_content.mmio_write_message.value & 0xFFFFFFFF;
+                    inject_write(message->message_content.mmio_write_message.addr, Long, value);
+                    break;
+                case QUAD:
+                    value = message->message_content.mmio_write_message.value & 0xFFFFFFFFFFFFFFFF;
+                    inject_write(message->message_content.mmio_write_message.addr, Quad, value);
+                    break;
+                default:
+                    fprintf(stderr, "wrong size of MMIO_WRITE %d\n",
+                        message->message_content.mmio_write_message.size);
+                    break;
+            }
+            verbose_printf("MMIO_WRITE completed: addr=0x%x, size=%u, value=0x%lx\n",
+                message->message_content.mmio_write_message.addr,
+                message->message_content.mmio_write_message.size, value);
+            break;
+#if defined(HP_X86_64)
+        case PIO_READ:
+            switch (message->message_content.pio_read_message.size) {
+                case BYTE:
+                    inject_in(message->message_content.pio_read_message.port, Byte);
+                    break;
+                case WORD:
+                    inject_in(message->message_content.pio_read_message.port, Word);
+                    break;
+                case LONG:
+                    inject_in(message->message_content.pio_read_message.port, Long);
+                    break;
+                default:
+                    fprintf(stderr, "wrong size of PIO_READ %d\n",
+                        message->message_content.pio_read_message.size);
+                    break;
+            }
+            verbose_printf("PIO_READ completed: port=0x%x, size=%u\n",
+                (uint32_t)message->message_content.pio_read_message.port,
+                message->message_content.pio_read_message.size);
+            break;
+        case PIO_WRITE:
+            switch (message->message_content.pio_write_message.size) {
+                case BYTE:
+                    value = message->message_content.pio_write_message.value & 0xFF;
+                    inject_out(message->message_content.pio_write_message.port, Byte, value);
+                    break;
+                case WORD:
+                    value = message->message_content.pio_write_message.value & 0xFFFF;
+                    inject_out(message->message_content.pio_write_message.port, Word, value);
+                    break;
+                case LONG:
+                    value = message->message_content.pio_write_message.value & 0xFFFFFFFF;
+                    inject_out(message->message_content.pio_write_message.port, Long, value);
+                    break;
+                default:
+                    fprintf(stderr, "wrong size of PIO_WRITE %d\n",
+                        message->message_content.pio_write_message.size);
+                    break;
+            }
+            verbose_printf("PIO_WRITE completed: port=0x%x, size=%u, value=0x%lx\n",
+                    (uint32_t)message->message_content.pio_write_message.port,
+                    message->message_content.pio_write_message.size, value);
+            break;
+#endif
+        case DMA: {
+            const DMAMessage* dma_message = &message->message_content.dma_message;
+
+            if (dma_message->dma_message_type == DMA_MESSAGE_TYPE_NORMAL || 
+                    dma_message->dma_message_type == DMA_MESSAGE_TYPE_STRUCTURE) {
+                const DMARandomMessage* random_message = 
+                    &dma_message->dma_message_content.dma_random_message;
+
+                // if (is_nvme_fuzz && dma_message->dma_message_type == DMA_MESSAGE_TYPE_STRUCTURE) {
+                //     struct nvme_command c = { };
+                //     memcpy(&c, random_message->data, random_message->len);
+                //     nvme_write_sq_db(nvme_dev.admin_q, &c);
+                //     nvme_write_sq_db(&nvme_dev.queues[0], &c);
+                //     nvme_write_sq_db(&nvme_dev.queues[1], &c);
+                //     nvme_write_sq_db(&nvme_dev.queues[2], &c);
+                //     nvme_write_sq_db(&nvme_dev.queues[3], &c);
+                // } else if (is_ehci_fuzz && dma_message->dma_message_type == DMA_MESSAGE_TYPE_STRUCTURE) {
+                //     int num = random_message->len >> 2;
+                //     for (int i = 0; i < num; ++i) {
+                //         p.index = random_message->index;
+                //         p.stride = random_message->stride;
+                //         p.len = 4;
+                //         p.data = random_message->data + i * p.len;
+
+                //         g_array_append_val(dma_patterns, p);
+                //     }
+                // } else {
+                    p.index = random_message->index;
+                    p.stride = random_message->stride;
+                    p.len = random_message->len;
+                    p.data = random_message->data;
+
+                    // g_array_append_val(dma_patterns, p);
+                // }
+
+                if (dma_message->dma_message_type == DMA_MESSAGE_TYPE_NORMAL) {
+                    verbose_printf("DMA (Normal) completed: len=0x%lx.\n",
+                        (unsigned long)random_message->len);
+                } else {
+                    verbose_printf("DMA (Structure) completed: index=0x%lx, len=0x%lx.\n",
+                        (unsigned long)random_message->index, (unsigned long)random_message->len);
+                    for (size_t i = 0; i < random_message->len; ++i) {
+                        verbose_printf("0x%02x ", ((unsigned char*)random_message->data)[i]);
+                    }
+                    verbose_printf("\n");
+                }
+            } else if (dma_message->dma_message_type == DMA_MESSAGE_TYPE_VIRTIO) {
+                const DMAVirtioMessage* virtio_message = 
+                    &dma_message->dma_message_content.dma_virtio_message;
+                size_t total_size = virtio_message->size;
+                struct vbuf* vbuf_total = (struct vbuf*)malloc(total_size * sizeof(vbuf));
+                if (!vbuf_total) {
+                    verbose_printf("Memory allocation failed for vbuf_total\n");
+                    break;
+                }
+
+                size_t out_size = 0;
+                size_t in_size = 0;
+                int found_in_before_out = 0;
+
+                verbose_printf("VIRTIO DMA Message: Queue: %d, Size: %zu.\n",
+                    virtio_message->queue_num, total_size);
+
+                // for (size_t i = 0; i < total_size; ++i) {
+                //     const VirtIOMessage* virtio_msg = &virtio_message->virtio_messages[i];
+
+                //     if (virtio_msg->virtio_direction == VIRTIO_DIRECTION_OUT) {
+                //         if (found_in_before_out) {
+                //             verbose_printf("Error: 'in' buffer found before 'out' buffer\n");
+                //             free(vbuf_total);
+                //             break;
+                //         }
+                //         const VirtIOOutMessage* out_msg = &virtio_msg->virtio_message.virtio_out_message;
+                //         struct vbuf vbuf_out;
+                //         vbuf_out.len = out_msg->len;
+                //         vbuf_out.addr = (uint64_t)guest_alloc(&guest_allocator, vbuf_out.len);
+                //         if (!vbuf_out.addr) {
+                //             verbose_printf("Memory allocation failed for out buffer\n");
+                //             free(vbuf_total);
+                //             break;
+                //         }
+                //         cpu0_mem_write_physical_page(vbuf_out.addr, vbuf_out.len, out_msg->data);
+                //         vbuf_total[out_size] = vbuf_out;
+                //         out_size += 1;
+
+                //         verbose_printf("VIRTIO DMA Message %zu: Direction: out, Length: %u, Data: ",
+                //             i, out_msg->len);
+                //         for (size_t j = 0; j < out_msg->len; ++j) {
+                //             verbose_printf("%02x ", ((unsigned char*)out_msg->data)[j]);
+                //         }
+                //         verbose_printf("\n");
+
+                //     } else if (virtio_msg->virtio_direction == VIRTIO_DIRECTION_IN) {
+                //         found_in_before_out = 1;
+                //         const VirtIOInMessage* in_msg = &virtio_msg->virtio_message.virtio_in_message;
+                //         struct vbuf vbuf_in;
+                //         vbuf_in.len = in_msg->len;
+                //         vbuf_in.addr = (uint64_t)guest_alloc(&guest_allocator, vbuf_in.len);
+                //         if (!vbuf_in.addr) {
+                //             verbose_printf("Memory allocation failed for in buffer\n");
+                //             free(vbuf_total);
+                //             break;
+                //         }
+                //         vbuf_total[out_size + in_size] = vbuf_in;
+                //         in_size += 1;
+
+                //         verbose_printf("VIRTIO DMA Message %zu: Direction: in, Length: %u\n", i, in_msg->len);
+
+                //     } else {
+                //         verbose_printf("Error: DMA message does not contain 'out' or 'in' direction\n");
+                //         free(vbuf_total);
+                //         break;
+                //     }
+                // }
+
+                // verbose_printf("DMA (VirtIO) completed: len=0x%lx.\n", total_size);
+
+                // struct virtio_queue *vq = virtio_dev.vqs.vq[virtio_message->queue_num];
+                // virtqueue_add_buf(qts_global, vq, vbuf_total, out_size, in_size);
+                // virtqueue_kick(&virtio_dev, vq);
+
+                // free(vbuf_total);
+            }
+            break;
+        }
+        default:
+            verbose_printf("Unknown message type: type=%d\n", message->type);
+            break;
+    }
+}
+
+void fuzz_run_input(const uint8_t *Data, size_t Size) {
+	MessageSequence message_sequence;
+    size_t num_messages = get_message_sequence(Data, Size, &message_sequence);
+    verbose_printf("\n[FUZZ] num_messages: %ld.\n", num_messages);
+
+    for (size_t i = 0; i < num_messages; ++i) {
+        execute_message(&message_sequence.messages[i]);
+    }
+    cleanup(&message_sequence);
+}
+#else
 void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	bool (*ops[])() = {
 		[OP_READ] = op_read,
@@ -923,6 +1177,7 @@ void fuzz_run_input(const uint8_t *Data, size_t Size) {
 	size_t dummy;
 	uint8_t *output = ic_get_output(&dummy); // Set the output and op log
 }
+#endif
 
 #if defined(HP_X86_64)
 void add_pio_region(uint16_t addr, uint16_t size) {
@@ -961,5 +1216,9 @@ void init_regions(const char *path) {
 	assert(((num_mmio_regions() == 0) && (num_pio_regions() == 0)) == 0);
 #else
 	assert(num_mmio_regions());
+#endif
+
+#if defined(HP_INPUT_GET_TRUMAN)
+	assert(get_number_of_interfaces());
 #endif
 }

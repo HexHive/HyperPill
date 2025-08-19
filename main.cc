@@ -209,6 +209,20 @@ static void usage() {
 	exit(-1);
 }
 
+#if defined(HP_INPUT_GEN_TRUMAN)
+size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
+        size_t MaxSize, unsigned int Seed) {
+    return virtfuzzCustomMutator(Data, Size, MaxSize, Seed);
+}
+
+size_t LLVMFuzzerCustomCrossOver(const uint8_t *data1, size_t size1,
+                                 const uint8_t *data2, size_t size2,
+                                 uint8_t *out, size_t max_out_size,
+                                 unsigned int seed) {
+    return virtfuzzCustomCrossOver(data1, size1, data2, size2, out, max_out_size, seed);
+}
+#endif
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	static void *ic_test = getenv("FUZZ_IC_TEST");
 	static int done;
@@ -322,6 +336,19 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #elif defined(HP_AARCH64)
 	if (!(mem_path && regs_path))
 		usage();
+#endif
+
+#ifdef HP_INPUT_GEN_TRUMAN
+	const char *device_model_file = getenv("TRUMAN_DBM");
+	if (!device_model_file) {
+		printf("The TRUMAN_DBM must be set\n");
+		exit(-1);
+	}
+	int result = init_device_model(device_model_file);
+	if (result == -1) {
+		printf("The initialization of TRUMAN_DBM fails\n");
+		exit(-1);
+	}
 #endif
 
 #if defined(HP_X86_64)
@@ -472,6 +499,10 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	fuzzenum = true;
 	init_regions(icp_db_path);
 	fuzzenum = false;
+
+#if defined(HP_INPUT_GEN_TRUMAN)
+	add_interface(INTERFACE_TYPE_DMA, 0, 0x1, "DMA", 0, 0);
+#endif
 
 	return 0;
 }

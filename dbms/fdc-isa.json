@@ -1,0 +1,951 @@
+{
+    "deviceName": "fdc-isa",
+    "ops": [
+        {
+            "id": 1,
+            "operation": {
+                "type": "PIO",
+                "rw": "R",
+                "name": "readb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "1"
+                ]
+            }
+        },
+        {
+            "id": 2,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "4"
+                ],
+                "regNode": {
+                    "value": "16",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 3,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "4"
+                ],
+                "regNode": {
+                    "value": "32",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 4,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "4"
+                ],
+                "regNode": {
+                    "value": "64",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 5,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "4"
+                ],
+                "regNode": {
+                    "value": "128",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 6,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "7",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 7,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "15",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 8,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "230",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 9,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "197",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 10,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "8",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 11,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "3",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 12,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "77",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 13,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "16",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 14,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "19",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 15,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "18",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 16,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "4",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 17,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "14",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 18,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "234",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 19,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "20",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 20,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "148",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 21,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "143",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 22,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "207",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 23,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "24",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 24,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "46",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 25,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "142",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 26,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "78",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 27,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "39",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 28,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "239",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 29,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "51",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 30,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_AND",
+                    "children": [
+                        {
+                            "varCnt": "1",
+                            "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                        },
+                        {
+                            "varCnt": "2",
+                            "value": "3",
+                            "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 31,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                }
+            }
+        },
+        {
+            "id": 32,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "0",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 33,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "2",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 34,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "3",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 35,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "26",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 36,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "58",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 37,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "192",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 38,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_AND",
+                    "children": [
+                        {
+                            "varCnt": "1",
+                            "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                        },
+                        {
+                            "varCnt": "2",
+                            "value": "15",
+                            "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 39,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_AND",
+                    "children": [
+                        {
+                            "varCnt": "1",
+                            "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                        },
+                        {
+                            "varCnt": "2",
+                            "value": "7",
+                            "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 40,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "42",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 41,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "246",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 42,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "27",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 43,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "35",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 44,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "37",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 45,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "value": "28",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 46,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_AND",
+                    "children": [
+                        {
+                            "varCnt": "1",
+                            "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                        },
+                        {
+                            "varCnt": "2",
+                            "value": "2",
+                            "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 47,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "4"
+                ],
+                "regNode": {
+                    "value": "255",
+                    "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                }
+            }
+        },
+        {
+            "id": 48,
+            "operation": {
+                "type": "PIO",
+                "rw": "W",
+                "name": "writeb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "5"
+                ],
+                "regNode": {
+                    "varCnt": "0",
+                    "nodeValueType": "k_NODE_VALUE_AND",
+                    "children": [
+                        {
+                            "varCnt": "1",
+                            "nodeValueType": "k_NODE_VALUE_NUM_TYPE"
+                        },
+                        {
+                            "varCnt": "2",
+                            "value": "63",
+                            "nodeValueType": "k_NODE_VALUE_CONSTANT"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "id": 49,
+            "operation": {
+                "type": "PIO",
+                "rw": "R",
+                "name": "readb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "0"
+                ]
+                }
+            }
+        },
+        {
+            "id": 50,
+            "operation": {
+                "type": "PIO",
+                "rw": "R",
+                "name": "readb",
+                "size": 1,
+                "regionId": "0",
+                "reg": [
+                    "8"
+                ]
+                }
+            }
+        }
+    ],
+    "bb": {
+        "fdc_send_seek_1": "7 30 31",
+        "fdc_recalibrate_floppy_2": "6 30",
+        "fdc_perpendicular_mode_3": "15 32",
+        "fdc_perpendicular_mode_4": "15 33",
+        "fdc_perpendicular_mode_5": "15 34",
+        "fdc_fdc_configure_6": "14 32 35 32",
+        "fdc_fdc_configure_7": "14 32 36 32",
+        "fdc_fdc_specify_8": "25 30 37 11 31 31",
+        "fdc_setup_format_params_9": "12 38 39 31 40 41",
+        "fdc_setup_format_params_10": "12 38 39 31 42 41",
+        "fdc_setup_format_params_11": "12 38 39 31 43 41",
+        "fdc_setup_format_params_12": "12 38 39 31 44 41",
+        "fdc_setup_format_params_13": "12 38 39 31 45 41",
+        "fdc_make_raw_rw_request_14": "8 38 38 46",
+        "fdc_make_raw_rw_request_15": "9 38 38 46",
+        "fdc_make_raw_rw_request_16": "48 39 31",
+        "fdc_make_raw_rw_request_18": "40",
+        "fdc_make_raw_rw_request_19": "42",
+        "fdc_make_raw_rw_request_20": "43",
+        "fdc_make_raw_rw_request_21": "44",
+        "fdc_make_raw_rw_request_22": "45",
+        "fdc_make_raw_rw_request_23": "5",
+        "fdc_make_raw_rw_request_24": "47"
+    },
+    "funcs": {
+        "fdc_make_raw_rw_request": {
+            "paths": {
+                "0": "14 16 18 23",
+                "1": "14 16 18 24",
+                "2": "14 16 19 23",
+                "3": "14 16 19 24",
+                "4": "14 16 20 23",
+                "5": "14 16 20 24",
+                "6": "14 16 21 23",
+                "7": "14 16 21 24",
+                "8": "14 16 22 23",
+                "9": "14 16 22 24",
+                "10": "15 16 18 23",
+                "11": "15 16 18 24",
+                "12": "15 16 19 23",
+                "13": "15 16 19 24",
+                "14": "15 16 20 23",
+                "15": "15 16 20 24",
+                "16": "15 16 21 23",
+                "17": "15 16 21 24",
+                "18": "15 16 22 23",
+                "19": "15 16 22 24"
+            }
+        }
+    }
+}

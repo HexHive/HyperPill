@@ -1,0 +1,97 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_mem_req",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT16",
+							"int_mask": 3
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "plug",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_mem_req_plug",
+                                "fields": [
+                                    {
+                                        "name": "plug_addr",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "nb_blocks",
+                                        "field_type": "UINT16",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "padding_0",
+                                        "field_type": "UINT16"
+                                    },
+                                    {
+                                        "name": "padding_1",
+                                        "field_type": "UINT16"
+                                    },
+                                    {
+                                        "name": "padding_2",
+                                        "field_type": "UINT16"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_mem_resp",
+                    "fields": [
+                        {
+                            "name": "type",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "padding_0",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "padding_1",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "padding_2",
+                            "field_type": "UINT16"
+                        },
+                        {
+                            "name": "state",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_IN",
+                                "name": "virtio_mem_resp_state",
+                                "fields": [
+                                    {
+                                        "name": "state",
+                                        "field_type": "UINT16"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,267 @@
+{
+    "structures": [
+        {
+            "index": 0,
+            "name": "ehci_qh",
+            "fields": [
+                {
+                    "name": "hw_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_info1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_info2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_current",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_qtd_next",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_alt_next",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_token",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 1,
+            "name": "ehci_qtd",
+            "fields": [
+                {
+                    "name": "hw_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_alt_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_token",
+                    "field_type": "UINT32",
+                    "or_mask": 128
+                },
+                {
+                    "name": "hw_buf1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 2,
+            "name": "ehci_sitd",
+            "fields": [
+                {
+                    "name": "hw_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_fullspeed_ep",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_uframe",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_results",
+                    "field_type": "UINT32",
+                    "or_mask": 128
+                },
+                {
+                    "name": "hw_buf1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_backpointer",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 3,
+            "name": "ehci_itd",
+            "fields": [
+                {
+                    "name": "hw_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_transaction1",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction2",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction3",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction4",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction5",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction6",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction7",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_transaction8",
+                    "field_type": "UINT32",
+                    "or_mask": 2147483648
+                },
+                {
+                    "name": "hw_bufp1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp5",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp6",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_bufp7",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+		{
+			"index": 4,
+			"name": "entry",
+			"fields": [
+				{
+					"name": "entry",
+					"field_type": "UINT32",
+					"int_mask": 7
+				}
+			]
+        },
+        {
+            "index": 5,
+            "name": "ehci_qtd2",
+            "fields": [
+                {
+                    "name": "hw_token",
+                    "field_type": "UINT32",
+                    "or_mask": 128
+                },
+                {
+                    "name": "hw_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_alt_next",
+                    "field_type": "UINT32",
+                    "int_mask": 7
+                },
+                {
+                    "name": "hw_buf1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "hw_buf5",
+                    "field_type": "UINT32"
+                }
+            ]
+		}
+    ]
+}

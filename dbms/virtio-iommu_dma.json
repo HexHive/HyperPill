@@ -1,0 +1,305 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_iommu_req_attach",
+                    "fields": [
+                        {
+                            "name": "head",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_iommu_req_head",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT16",
+                                        "values": [
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            5
+                                        ]
+                                    },
+                                    {
+                                        "name": "reserved_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "reserved_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "reserved_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "domain",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "endpoint",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32",
+							"int_mask": 1
+                        },
+                        {
+                            "name": "reserved_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_2",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_3",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_iommu_req_tail",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_iommu_req_map",
+                    "fields": [
+                        {
+                            "name": "head",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_iommu_req_head",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT8",
+                                        "values": [
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            5
+                                        ]
+                                    },
+                                    {
+                                        "name": "reserved_0",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "reserved_1",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "reserved_2",
+                                        "field_type": "UINT8"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "domain",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "virt_start",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "virt_end",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "phys_start",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_iommu_req_tail",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_0",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_1",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved_2",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_iommu_req_probe",
+                    "fields": [
+                        {
+                            "name": "head",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_iommu_req_head",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT8",
+                                        "values": [
+                                            1,
+                                            2,
+                                            3,
+                                            4,
+                                            5
+                                        ]
+                                    },
+                                    {
+                                        "name": "reserved",
+                                        "field_type": "SIZE",
+                                        "values": 3
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "endpoint",
+                            "field_type": "UINT32",
+                            "int_mask": 255
+                        },
+                        {
+                            "name": "reserved",
+                            "field_type": "SIZE",
+                            "values": 64
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_iommu_req_tail",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved",
+                            "field_type": "SIZE",
+                            "values": 3
+                        },
+                        {
+                            "name": "padding",
+                            "field_type": "SIZE",
+                            "values": 512
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 1,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "viommu_event_head",
+                    "fields": [
+                        {
+                            "name": "head",
+                            "field_type": "UINT32"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 1,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "viommu_event_fault",
+                    "fields": [
+                        {
+                            "name": "reason",
+                            "field_type": "UINT8"
+                        },
+                        {
+                            "name": "reserved",
+                            "field_type": "SIZE",
+                            "values": 3
+                        },
+                        {
+                            "name": "flags",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "endpoint",
+                            "field_type": "UINT32"
+                        },
+                        {
+                            "name": "reserved2",
+                            "field_type": "SIZE",
+                            "values": 4
+                        },
+                        {
+                            "name": "address",
+                            "field_type": "UINT64"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -53,6 +53,16 @@ endif
 CFLAGS      = $(INCLUDES) $(ARCH_FLAGS) $(BACKEND_FLAG) -O3 -g -lsqlite3 -fPIE #-stdlib=libc++ -fsanitize=address
 CXXFLAGS    =-stdlib=libc++
 
+INPUT_GEN  ?= vanilla
+ifeq ($(INPUT_GEN), vanilla)
+CFLAGS     := $(CFLAGS) -DHP_INPUT_GEN_VANILLA
+else ifeq ($(INPUT_GEN), truman)
+CFLAGS     := $(CFLAGS) -DHP_INPUT_GEN_TRUMAN -I vendor/libvirtfuzz/include
+LDFLAGS    := $(LDFLAGS) vendor/libvirtfuzz/lib/libvirtfuzz.a -lprotobuf
+else
+    $(error Unsupported input generator and mutator: $(INPUT_GEN))
+endif
+
 OBJS_GENERIC= \
 			  conveyor.o \
 			  cov.o \
@@ -133,6 +143,12 @@ endif
 
 vendor/libfuzzer-ng/libFuzzer.a:
 	cd vendor/libfuzzer-ng/; ./build.sh
+
+vendor/libvirtfuzz/lib/libvirtfuzz.a:
+	cd vendor/libvirtfuzz && \
+		cmake -DCMAKE_INSTALL_PREFIX=. -B build -DCMAKE_BUILD_TYPE=Release && \
+		cmake --build build && \
+		cmake --install build
 
 rebuild_emulator:
 ifeq ($(BACKEND), bochs)

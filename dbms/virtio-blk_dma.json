@@ -1,0 +1,481 @@
+{
+    "virtio_dma": [
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            0,
+                                            4
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "blk_size",
+                    "fields": [
+                        {
+                            "name": "blk_size",
+                            "field_type": "SIZE",
+                            "values": [
+                                128,
+                                256,
+                                512,
+                                1024
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            1
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "blk_size",
+                    "fields": [
+                        {
+                            "name": "blk_size",
+                            "field_type": "SIZE",
+                            "values": [
+                                128,
+                                256,
+                                512,
+                                1024
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            8
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "blk_size",
+                    "fields": [
+                        {
+                            "name": "blk_size",
+                            "field_type": "SIZE",
+                            "values": [
+                                20
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            10
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "virtio_blk_lifetime",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_lifetime",
+                            "structure": {
+                                "name": "virtio_blk_lifetime",
+                                "fields": [
+                                    {
+                                        "name": "pre_eol_info",
+                                        "field_type": "UINT16"
+                                    },
+                                    {
+                                        "name": "device_lifetime_est_typ_a",
+                                        "field_type": "UINT16"
+                                    },
+                                    {
+                                        "name": "device_lifetime_est_typ_b",
+                                        "field_type": "UINT16"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            11,
+                                            13,
+                                            14
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_discard_write_zeroes",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_discard_write_zeroes",
+                            "structure": {
+                                "name": "virtio_blk_discard_write_zeroes",
+                                "fields": [
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "num_sectors",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "flags",
+                                        "field_type": "UINT32",
+                                        "int_mask": 1
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            18,
+                                            20,
+                                            22,
+                                            24,
+                                            26
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "queue_num": 0,
+            "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_blk_outhdr",
+                    "fields": [
+                        {
+                            "name": "virtio_blk_outhdr",
+                            "structure": {
+                                "name": "virtio_blk_outhdr",
+                                "fields": [
+                                    {
+                                        "name": "type",
+                                        "field_type": "UINT32",
+                                        "values": [
+                                            16
+                                        ]
+                                    },
+                                    {
+                                        "name": "ioprio",
+                                        "field_type": "UINT32",
+                                        "int_mask": 255
+                                    },
+                                    {
+                                        "name": "sector",
+                                        "field_type": "UINT64",
+                                        "int_mask": 255
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "virtio_blk_zone_report",
+                    "fields": [
+                        {
+                            "name": "nr_zones",
+                            "field_type": "UINT64"
+                        },
+                        {
+                            "name": "reserved",
+                            "field_type": "SIZE",
+                            "values": 56
+                        },
+                        {
+                            "name": "zones",
+                            "structure": {
+                                "virtio_direction": "VIRTIO_OUT",
+                                "name": "virtio_blk_zone_descriptor",
+                                "fields": [
+                                    {
+                                        "name": "z_cap",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "z_start",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "z_wp",
+                                        "field_type": "UINT64"
+                                    },
+                                    {
+                                        "name": "z_type",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "z_state",
+                                        "field_type": "UINT8"
+                                    },
+                                    {
+                                        "name": "reserved",
+                                        "field_type": "SIZE",
+                                        "values": 38
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "virtio_direction": "VIRTIO_IN",
+                    "name": "status",
+                    "fields": [
+                        {
+                            "name": "status",
+                            "field_type": "UINT8"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

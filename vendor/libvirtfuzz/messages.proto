@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package virtfuzz;
+
+enum MessageType {
+    MMIO_READ = 0;
+    MMIO_WRITE = 1;
+    PIO_READ = 2;
+    PIO_WRITE = 3;
+    DMA = 4;
+}
+
+enum DataSize {
+	SIZE_UNSPECIFIED = 0;
+    BYTE = 1;
+    WORD = 2;
+    LONG = 4;
+    QUAD = 8;
+}
+
+message MMIOReadMessage {
+    uint32 region_id = 1;
+    uint32 addr = 2;
+    DataSize size = 3;
+}
+
+message MMIOWriteMessage {
+    uint32 region_id = 1;
+    uint32 addr = 2;
+    DataSize size = 3;
+    uint64 value = 4;
+}
+
+message PIOReadMessage {
+	uint32 region_id = 1;
+    uint32 port = 2;
+    DataSize size = 3;
+}
+
+message PIOWriteMessage {
+	uint32 region_id = 1;
+    uint32 port = 2;
+    DataSize size = 3;
+    uint32 value = 4;
+}
+
+enum DMAMessageType {
+	DMA_MESSAGE_NORMAL = 0;
+	DMA_MESSAGE_VIRTIO = 1;
+	DMA_MESSAGE_STRUCTURE = 2;
+}
+
+message DMARandomMessage {
+	uint32 index = 1;
+	uint32 stride = 2;
+	uint32 len = 3;
+	bytes data = 4;
+}
+
+enum VirtIODiection {
+	VIRTIO_IN = 0;
+	VIRTIO_OUT = 1;
+}
+
+message VirtIOOutMessage {
+	uint32 len = 1;
+	bytes data = 2;
+}
+
+message VIRTIOInMessage {
+	uint32 len = 1;
+}
+
+message VirtIOMessage {
+	VirtIODiection virtio_direction = 1;
+	oneof virtio_messsage {
+		VirtIOOutMessage virtio_out_message = 2;
+		VIRTIOInMessage virtio_in_message = 3;
+	}
+}
+
+message DMAVirtioMessage {
+	uint32 queue_num = 1;
+	uint32 index = 2;
+	repeated VirtIOMessage virtio_message = 3;
+}
+
+message DMAMessage {
+	DMAMessageType dma_message_type = 1;
+	oneof dma_message_content {
+		DMARandomMessage dma_random_message = 2;
+		DMAVirtioMessage dma_virtio_message = 3;
+	}
+}
+
+message Message {
+    MessageType type = 1;
+    oneof message_content {
+        MMIOReadMessage mmio_read_message = 2;
+        MMIOWriteMessage mmio_write_message = 3;
+        PIOReadMessage pio_read_message = 4;
+        PIOWriteMessage pio_write_message = 5;
+        DMAMessage dma_message = 6;
+    }
+}
+
+message MessageSequence {
+    repeated Message messages = 1;
+}

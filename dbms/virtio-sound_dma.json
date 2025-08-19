@@ -1,0 +1,297 @@
+{
+  "virtio_dma": [
+	  {
+		  "queue_num": 0,
+		  "structures": [
+                {
+                    "virtio_direction": "VIRTIO_OUT",
+                    "name": "virtio_snd_pcm_set_params",
+                    "fields": [
+                        {
+                            "name": "hdr",
+							"structure": {
+								"virtio_direction": "VIRTIO_OUT",
+								"name": "virtio_snd_pcm_hdr",
+								"fields": [
+									{
+										"name": "hdr",
+										"structure": {
+											"virtio_direction": "VIRTIO_OUT",
+											"name": "virtio_snd_hdr",
+											"fields": [
+												{
+													"name": "code",
+													"field_type": "UINT32",
+													"values": [
+														257
+													]
+												}
+											]
+										}
+									},
+									{
+										"name": "stream_id",
+										"field_type": "UINT32",
+										"int_mask": 3
+									}
+								]
+							}
+                        },
+                        {
+                            "name": "buffer_bytes",
+							"field_type": "UINT32"
+                        },
+                        {
+                            "name": "period_bytes",
+							"field_type": "UINT32"
+                        },
+                        {
+                            "name": "features",
+							"field_type": "UINT32",
+							"flag_mask": [0, 1, 2, 3, 4]
+                        },
+                        {
+                            "name": "channels",
+							"field_type": "UINT8",
+							"int_mask": 15
+                        },
+                        {
+                            "name": "format",
+							"field_type": "UINT8",
+							"mod_mask": 25
+                        },
+                        {
+                            "name": "rate",
+							"field_type": "UINT8",
+							"mod_mask": 14
+                        },
+                        {
+                            "name": "padding",
+							"field_type": "UINT8"
+                        }
+                    ]
+                },
+				{
+				  "virtio_direction": "VIRTIO_IN",
+					"name": "virtio_snd_hdr",
+					"fields": [
+					{
+						"name": "code",
+						"field_type": "UINT32"
+					}
+					]
+				}
+            ]
+	  },
+	  {
+		  "queue_num": 0,
+		  "structures": [
+                {
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_snd_pcm_hdr",
+					"fields": [
+						{
+							"name": "hdr",
+							"structure": {
+								"virtio_direction": "VIRTIO_OUT",
+								"name": "virtio_snd_hdr",
+								"fields": [
+									{
+										"name": "code",
+										"field_type": "UINT32",
+										"values": [
+											256, 257, 258, 259, 260, 261
+										]
+									}
+								]
+							}
+						},
+						{
+							"name": "stream_id",
+							"field_type": "UINT32",
+							"int_mask": 3
+						}
+					]
+                },
+				{
+				  "virtio_direction": "VIRTIO_IN",
+					"name": "virtio_snd_hdr",
+					"fields": [
+					{
+						"name": "code",
+						"field_type": "UINT32"
+					}
+					]
+				},
+				  {
+					  "virtio_direction": "VIRTIO_IN",
+					  "name": "bytes",
+					  "fields": [
+						  {
+							  "name": "bytes",
+							  "field_type": "SIZE"
+						  }
+					  ]
+				  }
+            ]
+	  },
+	  {
+		  "queue_num": 0,
+		  "structures": [
+                {
+					"virtio_direction": "VIRTIO_OUT",
+					"name": "virtio_snd_query_info",
+					"fields": [
+						{
+							"name": "hdr",
+							"structure": {
+								"virtio_direction": "VIRTIO_OUT",
+								"name": "virtio_snd_hdr",
+								"fields": [
+									{
+										"name": "code",
+										"field_type": "UINT32",
+										"values": [
+											1, 256, 512
+										]
+									}
+								]
+							}
+						},
+						{
+							"name": "start_id",
+							"field_type": "UINT32",
+							"values": [0]
+						},
+						{
+							"name": "count",
+							"field_type": "UINT32",
+							"int_mask": 7
+						},
+						{
+							"name": "size",
+							"field_type": "UINT32"
+						}
+					]
+                },
+				{
+				  "virtio_direction": "VIRTIO_IN",
+					"name": "virtio_snd_hdr",
+					"fields": [
+					{
+						"name": "code",
+						"field_type": "UINT32"
+					}
+					]
+				}
+            ]
+	  },
+	  {
+		  "queue_num": 2,
+		  "structures": [
+			  {
+				  "virtio_direction": "VIRTIO_OUT",
+				  "name": "virtio_snd_pcm_xfer",
+				  "fields": [
+					  {
+					  "name": "stream_id",
+					  "field_type": "UINT32",
+					  "int_mask": 3
+					  }
+				  ]
+			  },
+			  {
+				  "virtio_direction": "VIRTIO_OUT",
+				  "name": "bytes",
+				  "fields": [
+					  {
+						  "name": "bytes",
+						  "field_type": "SIZE"
+					  }
+				  ]
+			  },
+			  {
+				  "virtio_direction": "VIRTIO_IN",
+				  "name": "virtio_snd_pcm_status",
+				  "fields": [
+					  {
+						"name": "status",
+						"field_type": "UINT32"
+					  },
+					  {
+						  "name": "latency_bytes",
+						  "field_type": "UINT32"
+					  }
+				  ]
+			  }
+		  ]
+	  },
+	  {
+		  "queue_num": 3,
+		  "structures": [
+			  {
+				  "virtio_direction": "VIRTIO_OUT",
+				  "name": "virtio_snd_pcm_xfer",
+				  "fields": [
+					  {
+					  "name": "stream_id",
+					  "field_type": "UINT32",
+					  "int_mask": 3
+					  }
+				  ]
+			  },
+			  {
+				  "virtio_direction": "VIRTIO_IN",
+				  "name": "virtio_snd_pcm_status",
+				  "fields": [
+					  {
+						"name": "status",
+						"field_type": "UINT32"
+					  },
+					  {
+						  "name": "latency_bytes",
+						  "field_type": "UINT32"
+					  }
+				  ]
+			  },
+			  {
+				  "virtio_direction": "VIRTIO_IN",
+				  "name": "bytes",
+				  "fields": [
+					  {
+						  "name": "bytes",
+						  "field_type": "SIZE"
+					  }
+				  ]
+			  }
+		  ]
+	  },
+    {
+      "queue_num": 1,
+      "structures": [
+        {
+          "virtio_direction": "VIRTIO_IN",
+          "name": "virtio_snd_event",
+          "fields": [
+            {
+              "name": "hdr",
+              "structure": {
+				"name": "virtio_snd_hdr",
+				"fields": [
+				{
+					"name": "code",
+					"field_type": "UINT32"
+				}
+				]
+			  }
+            },
+			{
+				"name": "data",
+				"field_type": "UINT32"
+			}
+          ]
+        }
+      ]
+    }
+  ]
+}

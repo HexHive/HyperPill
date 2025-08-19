@@ -141,6 +141,9 @@ void enum_pio_regions() {
     for (auto &a : merged_regions) {
         printf("PIO Range: 0x%lx 0x%lx\n", a.first, a.second);
         insert_pio(a.first, a.second);
+#ifdef HP_INPUT_GEN_TRUMAN
+        add_interface(INTERFACE_TYPE_PIO, a.first, a.second, "n/a", 1, 4);
+#endif
     }
 }
 #endif
@@ -220,5 +223,8 @@ void enum_mmio_regions(void) {
     for (auto& it : mmio_ranges) {
         printf("MMIO Range: 0x%lx 0x%lx\n", it.first, it.second);
         insert_mmio(it.first, it.second);
+#ifdef HP_INPUT_GEN_TRUMAN
+        add_interface(INTERFACE_TYPE_MMIO, it.first, it.second, "n/a", 1, 4);
+#endif
     }
 }

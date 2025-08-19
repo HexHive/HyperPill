@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package device;
+
+message Device {
+  string device_name = 1;
+  int32 region_num = 2;
+  int32 dma_num = 3;
+  int32 func_num = 4;
+  int32 bb_num = 5;
+  int32 op_num = 6;
+  int32 unique_op_num = 7;
+  int32 path_num = 8;
+  int32 intra_num = 9;
+  repeated CalleeOrOp ops = 10; // Unified list for operations and callees
+  map<string, string> bb = 11;
+  map<string, Function> funcs = 12;  // Use Function message instead of nested map
+  repeated string probe = 13;
+  string interrupt = 14;
+  repeated string entries = 15;
+  repeated IO io = 16;
+  repeated DMA dma = 17;
+  DMAInfo dma_info = 18;
+  repeated string states = 19;
+  uint32 state_num = 20;
+}
+
+message CalleeOrOp {
+  uint32 id = 1;
+  oneof kind {
+    Operation operation = 2;
+    Callee callee = 3;
+  }
+}
+
+message Function {
+  map<int32, string> paths = 1;  // Define inner map here
+}
+
+message Operation {
+  string type = 1;
+  string rw = 2;
+  string name = 3;
+  int64 size = 4;
+  uint64 region_id = 5;
+  repeated uint64 reg = 6;
+  IntraDepNode reg_node = 7;
+}
+
+message Callee {
+  string name = 1;
+  int32 num_args = 2;
+  int32 return_type = 3;
+}
+
+message IntraDepNode {
+  uint64 value = 1;
+  uint64 var_cnt = 2;
+  IntraDepNodeValueType node_value_type = 3;
+  repeated IntraDepNode children = 4;
+}
+
+enum IntraDepNodeValueType {
+  k_NODE_VALUE_ADD = 0;
+  k_NODE_VALUE_AND = 1;
+  k_NODE_VALUE_OR = 2;
+  k_NODE_VALUE_SHL = 3;
+  k_NODE_VALUE_LSHR = 4;
+  k_NODE_VALUE_CONSTANT = 5;
+  k_NODE_VALUE_CALL = 6;
+  k_NODE_VALUE_PHI = 7;
+  k_NODE_VALUE_SELECT = 8;
+  k_NODE_VALUE_ARG = 9;
+  k_NODE_VALUE_COMMON = 10;
+  k_NODE_VALUE_NUM_TYPE = 11;
+}
+
+message IO {
+  bool mmio = 1;
+  uint64 id = 2;
+  string source_type = 3;
+  repeated uint64 offset = 4;
+  repeated uint64 bytes = 5;
+}
+
+enum DMAType {
+  k_COHERENT = 0;
+  k_STREAMING = 1;
+}
+
+message DMA {
+  uint64 id = 1;
+  repeated string phy_addr = 2;
+  repeated string virt_addr = 3;
+  repeated uint64 phy_bytes = 4;
+  repeated uint64 virt_bytes = 5;
+  string debug_loc = 6;
+  string structure = 7;
+  string dma_type = 8;
+  DMAType type = 9;
+  string inst = 10;
+}
+
+enum VirtIODiection {
+	VIRTIO_IN = 0;
+	VIRTIO_OUT = 1;
+}
+
+enum FieldType {
+	UINT8 = 0;
+	UINT16 = 1;
+	UINT32 = 2;
+	UINT64 = 3;
+	SIZE = 4;
+}
+
+message StructureField {
+	string name = 1;
+    oneof value {
+		FieldType field_type = 2;
+		Structure structure = 3;
+    }
+	optional uint32 int_mask = 4;
+	optional uint32 or_mask = 5;
+	optional uint32 mod_mask = 6;
+	repeated uint32 values = 7;
+	repeated uint32 flag_mask = 8;
+}
+
+message Structure {
+	optional VirtIODiection virtio_direction = 1;
+	uint32 index = 2;
+	string name = 3;
+	repeated StructureField fields = 4;
+}
+
+message DMAInfo {
+	repeated Structure structures = 1;
+}
+
+message VIRTIODMA {
+	uint32 queue_num = 1;
+	repeated Structure structures = 2;
+}
+
+message VirtIODMAInfo {
+	repeated VIRTIODMA virtio_dma = 1;
+}

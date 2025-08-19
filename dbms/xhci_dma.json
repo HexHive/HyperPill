@@ -1,0 +1,127 @@
+{
+    "structures": [
+        {
+            "index": 0,
+            "name": "xhci_erst_entry",
+            "fields": [
+                {
+                    "name": "seg_addr",
+                    "field_type": "UINT64"
+                },
+                {
+                    "name": "seg_size",
+                    "field_type": "UINT32",
+                    "mod_mask": 4096
+                },
+                {
+                    "name": "rsvd",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 1,
+            "name": "xhci_generic_trb",
+            "fields": [
+                {
+                    "name": "field1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "field2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "field3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "field4",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 2,
+            "name": "ictl_ctx",
+            "fields": [
+                {
+                    "name": "ictl_ctx1",
+                    "field_type": "UINT32",
+                    "values": 0
+                },
+                {
+                    "name": "ictl_ctx2",
+                    "field_type": "UINT32",
+                    "values": [
+                        1,
+                        2,
+                        3
+                    ]
+                }
+            ]
+        },
+        {
+            "index": 3,
+            "name": "ctx",
+            "fields": [
+                {
+                    "name": "ctx1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ctx2",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 4,
+            "name": "ep_ctx",
+            "fields": [
+                {
+                    "name": "ep_ctx1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ep_ctx2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ep_ctx3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ep_ctx4",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ep_ctx5",
+                    "field_type": "UINT32"
+                }
+            ]
+        },
+        {
+            "index": 5,
+            "name": "slot_ctx",
+            "fields": [
+                {
+                    "name": "ctx1",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ctx2",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ctx3",
+                    "field_type": "UINT32"
+                },
+                {
+                    "name": "ctx4",
+                    "field_type": "UINT32"
+                }
+            ]
+        }
+    ]
+}
