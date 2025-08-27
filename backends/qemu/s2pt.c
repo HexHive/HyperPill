@@ -90,7 +90,7 @@ skip:
 		// printf("vaddr=0x%016lx size=0x%016lx\n", vaddr,
 		//    0x1000 * pow64(512, translation_level));
 		vaddr += 0x1000 * pow64(512, translation_level);
-	} while (vaddr <= vaddr_end);
+	} while (vaddr && vaddr < vaddr_end);
 }
 
 void s2pt_mark_page_table() {
