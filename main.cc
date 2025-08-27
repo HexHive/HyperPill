@@ -388,13 +388,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 	// AARCH64's implementation of SLAT is Stage-2 Page Tabels (S2PT)
 	fuzz_walk_slat();
 
-#if defined(HP_X86_64)
-	/* WIP: Tweak the VMCS/L2 state. E.g. set up our own page-tables for L2
+	/* Tweak the L2 state. E.g. set up our own page-tables for L2
 	 * and ensure that the hypervisor thinks L2 is running privileged
 	 * code/ring0 code.
 	 */
-	vmcs_fixup();
-#endif
+	l2_fixup();
 
 	/*
 	 * Previously, we identified all of L2's pages. However, we want to
@@ -446,9 +444,7 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 
 	cpu0_tlb_flush();
 	fuzz_walk_slat();
-#if defined(HP_X86_64)
-	vmcs_fixup();
-#endif
+	l2_fixup();
 	slat_mark_page_table();
 	init_register_feedback();
 

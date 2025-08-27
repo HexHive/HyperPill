@@ -117,7 +117,7 @@ void redo_paging() {
 }
 // setup identity mapping for guest page table in the emulator
 // i.e. GVA == HVA, for ease of debugging
-void vmcs_fixup() {
+void l2_fixup() {
     // Set program counter
 
     BX_CPU(id)->VMwrite32(VMCS_32BIT_IDT_VECTORING_INFO, 0);

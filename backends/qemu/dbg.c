@@ -11,3 +11,5 @@ bool is_gdbstub_enabled() {
 void hp_gdbstub_debug_loop(void) {
 	gdbserver_start("tcp::1234");
 }
+
+void l2_fixup() { }

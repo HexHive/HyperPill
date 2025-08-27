@@ -46,6 +46,7 @@ void hp_gdbstub_debug_loop();
 #if defined(HP_BACKEND_BOCHS)
 int bx_gdbstub_mem_check(unsigned cpu, uint64_t lin, unsigned len, unsigned rw);
 #endif
+void l2_fixup();
 
 // backends/xxx/init
 void icp_init_backend();

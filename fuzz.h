@@ -41,8 +41,6 @@ extern uint64_t vmcs_addr;
 void icp_init_shadow_vmcs_layout(const char* filename);
 void icp_set_vmcs(uint64_t vmcs);
 void icp_set_vmcs_map();
-void redo_paging();
-void vmcs_fixup();
 #endif
 
 // fuzz.cc
