@@ -17,6 +17,8 @@ void enum_handle_slat_gap(unsigned int gap_reason,
 #endif
 }
 
+std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
+
 void walk_slat(){
     uint64_t addr = 0;
     uint64_t phy = 0;
@@ -34,11 +36,9 @@ void walk_slat(){
         if(phy){
             verbose_printf("0x%016lx 0x%016lx 0x%08lx (0x%016lx)\n", addr, phy, size, guest_mem_size);
             mark_l2_guest_page(phy, size, addr);
-#if defined(HP_X86_64)
             if(guest_page_scratchlist.size() < 10) {
                 guest_page_scratchlist.push_back(addr);
             }
-#endif
         }
 
         if(reason != gap_reason){

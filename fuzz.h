@@ -24,9 +24,7 @@
 #include "fuzzc.h"
 
 extern bool fuzzing;
-#if defined(HP_X86_64)
 extern std::vector<size_t> guest_page_scratchlist;
-#endif
 
 extern tsl::robin_set<hp_address> cur_input;
 extern bool master_fuzzer;

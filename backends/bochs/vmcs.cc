@@ -46,8 +46,6 @@ unsigned fuzz_get_vmcs_field_offset(Bit32u encoding) {
     return shadow_vmcs_layout[encoding];
 }
 
-std::vector<size_t> guest_page_scratchlist; /* a list of pages that we can use for our purposes */
-
 extern bool fuzz_timeout;
 
 /*
