@@ -53,7 +53,6 @@ void icp_init_backend();
 
 // backends/xxx/instrument
 #if defined(HP_AARCH64)
-void write_pcs_execution(uint64_t pc, uint64_t pc_last);
 void qemu_ctrl_flow_insn(uint64_t branch_pc, uint64_t new_pc);
 #endif
 
