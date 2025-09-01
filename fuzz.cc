@@ -219,8 +219,8 @@ bool inject_write(hp_address addr, int size, uint64_t val) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_far_el2(addr & 0xfff);
-	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	aarch64_set_far_el2(0xffffffc008c0d000 | (addr & 0xfff));
+	aarch64_set_hpfar_el2(addr & 0xfffffffffffff000);
 	cpu0_set_general_purpose_reg64(1, val);
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!write%d %lx %lx\n", size, addr, val);
@@ -301,8 +301,8 @@ bool inject_read(hp_address addr, int size) {
 		break;
 	}
 #elif defined(HP_AARCH64)
-	aarch64_set_far_el2(addr & 0xfff);
-	aarch64_set_hpfar_el2(addr & (~(0xfff)));
+	aarch64_set_far_el2(0xffffffc008c0d000 | (addr & 0xfff));
+	aarch64_set_hpfar_el2(addr & 0xfffffffffffff000);
 	if (cpu0_get_fuzztrace() || log_ops) {
 		printf("!read%d %lx\n", size, addr);
 	}

@@ -69,6 +69,7 @@ void apply_breakpoints_linux() {
 }
 
 void apply_breakpoints_seL4() {
+	add_breakpoint(sym_to_addr2("sel4.elf", "idle_thread"), skip);
 }
 
 // TODO: test it
