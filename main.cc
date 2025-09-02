@@ -1,5 +1,6 @@
 #include "fuzz.h"
 #include <cstdint>
+#include <signal.h>
 
 #if defined(HP_BACKEND_BOCHS)
 int in_timer_mode = 0;
@@ -209,6 +210,24 @@ static void usage() {
 	exit(-1);
 }
 
+static void cleanup() {
+	pid_t pid = getpid();
+	std::string filename = "seen_edges.drcov"; //  + std::to_string(pid) + ".log";
+	save_seen_edges(filename);
+}
+
+static void handle_signal(int sig) {
+	switch (sig) {
+	case SIGINT:
+	case SIGTERM:
+	case SIGALRM:
+		cleanup();
+	default:
+		break;
+	}
+	exit(1);
+}
+
 #if defined(HP_INPUT_GEN_TRUMAN)
 size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size,
         size_t MaxSize, unsigned int Seed) {
@@ -248,7 +267,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 	fuzz_run_input(Data, Size);
 	fuzzing = false;
 
-	if (fuzz_should_abort) abort();
+	if (fuzz_should_abort) {
+		cleanup();
+		abort();
+	}
 
 	size_t len;
 	uint8_t *output = ic_get_output(&len);
@@ -499,6 +521,11 @@ extern "C" int LLVMFuzzerInitialize(int *argc, char ***argv) {
 #if defined(HP_INPUT_GEN_TRUMAN)
 	add_interface(INTERFACE_TYPE_DMA, 0, 0x1, "DMA", 0, 0);
 #endif
+
+	atexit(cleanup);
+	signal(SIGINT, handle_signal);
+	signal(SIGTERM, handle_signal);
+	signal(SIGALRM, handle_signal);
 
 	return 0;
 }

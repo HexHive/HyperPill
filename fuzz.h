@@ -96,6 +96,7 @@ void add_pc_range(size_t base, size_t len);
 bool ignore_pc(hp_address pc);
 void reset_op_cov();
 void reset_cur_cov();
+void save_seen_edges(const std::string& filename);
 
 // db.cc
 void open_db(const char* path);

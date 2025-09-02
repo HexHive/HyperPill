@@ -12,6 +12,7 @@ static std::set<std::string> bins;
 static std::map<size_t, std::vector<std::pair<std::string, std::string>>> addr2sym;
 static std::map<std::pair<std::string, std::string>, uint64_t> sym2addr;
 
+std::map<std::string, std::pair<uint64_t, uint64_t>> regions;
 
 // todo: dynamic libc symbols for stuff like exit etc
 // Strategy: Run objdump on the binary. Load the
@@ -140,7 +141,10 @@ void load_symbol_map(char *path) {
         binfile = match[4].str();
         section = match[5].str();
         verbose_printf(":: loaded range: %s %s 0x%lx +0x%lx\n", binfile.c_str(), section.c_str(), start, size);
-        bins.insert(binfile);
+        auto inserted = bins.insert(binfile);
+        if (inserted.second) {
+            regions[binfile] = std::make_pair(start, size);
+        }
         if(section == ".text") {
             auto m = get_symbol_map(binfile);
             auto offset = start - sh_addr;

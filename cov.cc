@@ -2,6 +2,9 @@
 #include "time.h"
 #include <tsl/robin_map.h>
 #include <tsl/robin_set.h> 
+#include <fstream>
+#include <iostream>
+#include <string>
 
 tsl::robin_map<hp_address, bool> ignore_edges;
 tsl::robin_set<hp_address> seen_edges;
@@ -17,6 +20,51 @@ __attribute__((section(
     "__libfuzzer_extra_counters"))) unsigned char libfuzzer_coverage[32 << 10];
 
 uint32_t status = 0;
+
+extern std::map<std::string, std::pair<uint64_t, uint64_t>> regions;
+
+void save_seen_edges(const std::string& filename) {
+    std::ofstream ofs(filename, std::ios::out | std::ios::trunc);
+
+    // https://www.ayrx.me/drcov-file-format/
+    ofs << "DRCOV VERSION: 2" << "\n";
+    ofs << "DRCOV FLAVOR: drcov" << "\n";
+
+    int idx = 0;
+    std::map<std::string, int> bins;
+    ofs << "Module Table: version 2, count " << regions.size() << "\n";
+    ofs << "Columns: id, base, end, entry, path" << "\n";
+    for (const auto& [name, range] : regions) {
+        ofs << idx << ", " \
+            << "0x" << std::hex << range.first << ", " \
+            << "0x" << std::hex << range.first + range.second << ", " \
+            << "0x0000000000000000, " << name << "\n";
+        bins[name] = idx;
+        idx++;
+    }
+
+    ofs << "BB Table: " << std::dec << seen_edges.size() << " bbs" << "\n";
+    for (const auto& pc : seen_edges) {
+        addr_bin_name addr_bin_name;
+        addr_bin_name.addr = pc;
+        addr_to_sym(&addr_bin_name);
+        if (addr_bin_name.bin) {
+            auto range = regions.find(addr_bin_name.bin);
+            uint32_t start = pc - range->second.first;
+        #if defined(HP_X86_64)
+            uint16_t size = 1;
+        #else defined(HP_AARCH64)
+            uint16_t size = 4;
+        #endif
+            auto idx  = bins.find(addr_bin_name.bin);
+            uint16_t mod_id = idx->second;
+            ofs.write(reinterpret_cast<const char*>(&start), sizeof(start));
+            ofs.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            ofs.write(reinterpret_cast<const char*>(&mod_id), sizeof(mod_id));
+        }
+    }
+    ofs.close();
+}
 
 void add_pc_range(size_t base, size_t len) {
     printf("Will treat: %lx +%lx as coverage\n", base, len);
