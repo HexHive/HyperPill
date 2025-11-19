@@ -8,8 +8,8 @@ Building
 ``` bash
 sudo apt-get install libssl-dev libsqlite3-dev \
     bison clang build-essential debuginfod elfutils \
-    python3-pip libcapstone4  libcapstone-dev \
-    binutils-aarch64-linux-gnu
+    python3-pip libcapstone4 libcapstone-dev \
+    binutils-aarch64-linux-gnu libslirp-dev 
 CC=clang CXX=clang++ make
 ARCH=aarch64 CC=clang CXX=clang++ make # for aarch64 hypervisors
 ```
@@ -33,7 +33,7 @@ To fuzz a hypervisor, first obtain a snapshot following the instructions in
 [hyperpill-snap](hyperpill-snap/), or download prebuild snapshots from 
 [zenodo](https://zenodo.org/records/15826268).
 
-A valid snapshot snapshot directory must contain the following files:
+A valid snapshot directory must contain the following files:
 
 ```
 .
