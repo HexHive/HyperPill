@@ -1,7 +1,7 @@
 HyperPill
 =========
 
-!!! For better communication, please join our [discord](https://discord.gg/dxdvHvrK8D) server. !!!
+![Hypervisor Security](media/badge.svg) The authors respond to messages in this Discord.
 
 Building
 --------
